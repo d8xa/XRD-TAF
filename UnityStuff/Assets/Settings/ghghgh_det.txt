@@ -1,0 +1,1 @@
+{"pixelsize":678.0,"resolution":{"x":666.0,"y":666.0},"offSetFromDownRightEdge":{"x":66.0,"y":66.0},"dstToSample":666.0,"pathToAngleFile":"6sechs"}

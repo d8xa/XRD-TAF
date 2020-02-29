@@ -1,0 +1,1 @@
+{"aufbauBezeichnung":"ghghgh","mode":0,"loadName":"","pathToInputData":""}
