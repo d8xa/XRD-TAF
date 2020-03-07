@@ -1,0 +1,71 @@
+﻿// choose which functions get compiled.
+#pragma kernel OuterDistances
+#pragma kernel InnerDistances
+
+// TODO: add as global/uniform variables.
+struct ProbeData 
+{
+    int sideLength;
+    float r_cell;   // outer radius
+    float r_sample; // inner radius
+    float m;     // 2*theta diffraction angle in 2D case.  
+    float2 n;    // precomputed orthonormal vector of diffraction ray.  
+    int dummy3;     // TODO testaeaeaeaeae 
+};
+struct Segment 
+{
+    float2 vec;
+};
+struct Distance 
+{
+    float total;
+    float cell;
+    float sample;
+};
+
+StructuredBuffer<Segment> segment;
+RWStructuredBuffer<Distances> distance;
+
+
+// TODO: check if dot(), pow(), sqrt() and normalize() are available here.
+// TODO: check if HLSL functions add significant overhead. (Reference: https://stackoverflow.com/a/57964145/10736577)
+ 
+[numthreads(64,32,1)]
+void OuterDistances (uint3 id : SV_DispatchThreadID)
+{
+    /* check number of intersections of circle and diffraction ray: */
+    float determinant = pow(r_cell,2) - pow(dot(n,B),2);
+    
+    if (determinant >= 0) 
+    { // 2 intersections exist.
+        //float2 entrypoint = float2(-sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2), segment[id.x].vec[1]);
+        float d1 = sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2);        // length(vec-entrypoint)
+        float ray_y0 = segment[id.x].vec[1] - m*segment[id.x].vec[0];    // y-intercept of diffraction ray.
+        float c = dot(n, segment[id.x].vec);                             // c=ax+by=n^T*vec.
+        float2 exitpoint = dot(n, float2(c, sqrt(pow(r_cell,2) - c*c))) * float2(1,m) + float2(0,ray_y0);   // exit point of diffraction ray.
+        distance[id.x].total = d1 + distance(exitpoint, segment[id.x].vec);
+    }
+}
+
+[numthreads(64,32,1)]
+void InnerDistances (uint3 id : SV_DispatchThreadID)
+{
+    /* check number of intersections of circle and diffraction ray: */
+    float determinant = pow(r_sample,2) - pow(dot(n,B),2);
+    
+    if (determinant >= 0)
+    {
+        float d1 = sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2);        // length(vec-entrypoint)
+        float ray_y0 = segment[id.x].vec[1] - m*segment[id.x].vec[0];    // y-intercept of ray.
+        float c = dot(n, segment[id.x].vec);                             // c=ax+by=n^T*vec.
+        float2 exitpoint = dot(n, float2(c, sqrt(pow(r_sample,2) - c*c))) * float2(1,m) + float2(0,ray_y0);   // exit point of diffraction ray. 
+        distance[id.x].sample = d1 + distance(exitpoint, segment[id.x].vec);
+    }
+    else if (length(segment[id.x].vec) <= r_cell && abs(segment[id.x].vec[1]) < r_cell) 
+    {
+        float h = abs(segment[id.x].vec[1]);
+        distance[id.x].sample = 2*sqrt(pow(r_cell,2)-pow(h,2));
+    }  
+    
+    distance[id.x].cell = distance[id.x].total - distance[id.x].sample;
+}
