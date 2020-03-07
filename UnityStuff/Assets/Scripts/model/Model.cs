@@ -7,34 +7,23 @@ namespace FoPra.model
       Point,Area,Integrated
     }
     public enum AbsorbtionType {
-      Cell,Sample,CellAndSample
+      All,Cell,Sample,CellAndSample
     }
-    
-    public string Name { get; set; }
-    public string Mode { get; }
-    public Detector Detector { get; }
-    public Sample Sample { get; }
-
-    public Model(Detector detector, Sample sample, string name)
-    {
-      Name = name;
-      Detector = detector;
-      Sample = sample;
-    }
-    
-    public Model(Detector detector, Sample sample)
-    {
-      Detector = detector;
-      Sample = sample;
+    public enum StrahlProfil {
+      Oval,Rechteck
     }
 
-    public override string ToString()
-    {
-      if (Name is null)
-      {
-        return $"Model:\n\t{Detector}\n\t{Sample}";
-      }
-      return $"Model (\"{Name}\"):\n\t{Detector}\n\t{Sample}";
+    private Settings settings;
+    private DetektorSettings detector;
+    private SampleSettings sample;
+    private RaySettings ray;
+
+
+    public Model(Settings settings, DetektorSettings detector, SampleSettings sample, RaySettings ray) {
+      this.settings = settings;
+      this.detector = detector;
+      this.sample = sample;
+      this.ray = ray;
     }
   }
 }

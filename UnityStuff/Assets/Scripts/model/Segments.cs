@@ -5,7 +5,7 @@ using static FoPra.util.MathTools;
 namespace FoPra.model
 {
     public class Segments
-    {
+    {/*
         public int Count { get; }
         public int Size { get; }
         public double[,,] Grid { get; set; } // Precompute grid, or compute only when needed? 
@@ -79,6 +79,7 @@ namespace FoPra.model
         {
             return new[] {Grid[i, j, 0], Grid[i, j, 1]};
         }
+        */
     }
 
 }

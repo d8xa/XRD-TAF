@@ -20,6 +20,26 @@ public class DetektorSettingsFields : MonoBehaviour
     public DetektorSettings detektorSettings;
 
 
+    public void fillInDefaults(DetektorSettings defaultDetektorSettings) {
+        if (fieldOffsetX.text.Equals("") && fieldOffsetY.text.Equals("")) {
+            detektorSettings.offSetFromDownRightEdge = defaultDetektorSettings.offSetFromDownRightEdge;
+        }
+        if (fieldPixelSize.text.Equals("")) {
+            detektorSettings.pixelsize = defaultDetektorSettings.pixelsize;
+        }
+        if (fieldResolutionX.text.Equals("") && fieldResolutionY.text.Equals("")) {
+            detektorSettings.resolution = defaultDetektorSettings.resolution;
+        }
+
+        if (fieldDstToSample.text.Equals("")) {
+            detektorSettings.dstToSample = defaultDetektorSettings.dstToSample;
+        }
+
+        if (fieldPathAngleFile.text.Equals("")) {
+            detektorSettings.pathToAngleFile = defaultDetektorSettings.pathToAngleFile;
+        }
+        aktualisiere(false);
+    }
 
     public void aktualisiere(bool userInput) {
         if (userInput) {
@@ -54,19 +74,4 @@ public class DetektorSettingsFields : MonoBehaviour
         
         
     }
-}
-
-[System.Serializable]
-public class DetektorSettings {
-    public float pixelsize = 1;
-    public Vector2 resolution = new Vector2(2048,2048);
-    public Vector2 offSetFromDownRightEdge = new Vector2(0,0);
-    public float dstToSample=0;
-    //Pfad zu .txt
-    public string pathToAngleFile="";
-    
-    private float[] angles;
-    private bool useGivenAngles;
-    private float dstToSampleNormalized;
-    private float pixelSizeNormalized;
 }

@@ -8,7 +8,7 @@ using Math = FoPra.math.Math;
 namespace FoPra
 {
     static class Program
-    {
+    {/*
         private static void Main()
         {
             
@@ -88,5 +88,5 @@ namespace FoPra
             Console.WriteLine($"Indices: [{i3},{j3}], [{i4},{j4}]");
             Console.WriteLine($"Distance: {bigsegments.distance((i3,j3), (i4,j4))}");
         }
-    }
+    */}
 }
