@@ -13,10 +13,10 @@ namespace FoPra.model
       Oval,Rechteck
     }
 
-    private Settings settings;
-    private DetektorSettings detector;
-    private SampleSettings sample;
-    private RaySettings ray;
+    public Settings settings;
+    public DetektorSettings detector;
+    public SampleSettings sample;
+    public RaySettings ray;
 
 
     public Model(Settings settings, DetektorSettings detector, SampleSettings sample, RaySettings ray) {
