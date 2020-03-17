@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using FoPra.model;
+using FoPra.tests;
 using UnityEngine.UI;
 
 public class DataHandler : MonoBehaviour{
@@ -21,6 +23,7 @@ public class DataHandler : MonoBehaviour{
     public Button loadButton;
     public Button saveButton;
     public Button submitButton;
+    public ComputeShader computeShader;
 
     public LogicHandler logicHandler;
 
@@ -46,6 +49,7 @@ public class DataHandler : MonoBehaviour{
 
     public void submitToComputing() {
         fillInBlanks();
+        TestSuite.test_Distances2D(computeShader);
     }
 
     public void settingSaver() {

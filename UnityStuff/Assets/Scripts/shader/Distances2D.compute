@@ -1,6 +1,8 @@
 ﻿// choose which functions get compiled.
-#pragma kernel OuterDistances
-#pragma kernel InnerDistances
+//#pragma kernel OuterDistances
+//#pragma kernel InnerDistances
+#pragma kernel Distances
+#pragma kernel Identity
 
 // TODO: add as global/uniform variables.
 
@@ -11,60 +13,47 @@
     float2 n;    // precomputed orthonormal vector of diffraction ray.  
    // int dummy3;     // TODO testaeaeaeaeae 
 
-struct Segment 
-{
-    float2 vec;
-};
-struct Distances
-{
-    float total;
-    float cell;
-    float sample;
-};
-
-StructuredBuffer<Segment> segment;
-RWStructuredBuffer<Distances> distances;
+StructuredBuffer<float2> segment;
+RWStructuredBuffer<float2> distances;   // x=dist_cell, y=dist_sample.
 
 
-// TODO: check if dot(), pow(), sqrt() and normalize() are available here.
-// TODO: check if HLSL functions add significant overhead. (Reference: https://stackoverflow.com/a/57964145/10736577)
- 
 [numthreads(64,1,1)]
-void OuterDistances (uint3 id : SV_DispatchThreadID)
+void Identity(uint3 id : SV_DispatchThreadID)
 {
-    /* check number of intersections of circle and diffraction ray: */
-    float determinant = pow(r_cell,2) - pow(dot(n,segment[id.x].vec),2);
-    
-    if (determinant >= 0) 
-    { // 2 intersections exist.
-        //float2 entrypoint = float2(-sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2), segment[id.x].vec[1]);
-        float d1 = sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2));        // length(vec-entrypoint)
-        float ray_y0 = segment[id.x].vec[1] - m*segment[id.x].vec[0];    // y-intercept of diffraction ray.
-        float c = dot(n, segment[id.x].vec);                             // c=ax+by=n^T*vec.
-        float2 exitpoint = dot(n, float2(c, sqrt(pow(r_cell,2) - c*c))) * float2(1,m) + float2(0,ray_y0);   // exit point of diffraction ray.
-        distances[id.x].total = d1 + distance(exitpoint, segment[id.x].vec);
-    }
+    distances[id.x] = segment[id.x];
 }
 
+/** Returns travel distance between intersection points of medium and ray, and segment point. */
+float travelDist(uint3 id, float radius, float c, float ray_y0)
+ {   
+     // intersection of DR with medium exists <==> determinant of intersection x-coordinate is >= 0.
+     if (pow(r_cell,2.0) - pow(dot(n,segment[id.x]),2.0) >= 0 && length(segment[id.x]) <= r_cell)
+     {
+         float d = sqrt(pow(radius,2) - pow(segment[id.x].x,2));                                                 // distance(vec, entrypoint).
+         float2 exitpoint = dot(n, float2(c, sqrt(pow(radius,2) - c*c))) * float2(1,m) + float2(0,ray_y0);       // exit point of DR from cell.
+         return d + distance(exitpoint, segment[id.x]);
+     }
+     return 0.0; // no intersections => no travel distance.
+ }
+ 
+ /**
+ Computes travel distance of entering ray (ER) and diffracted ray (DR) through cell and sample. 
+ */
 [numthreads(64,1,1)]
-void InnerDistances (uint3 id : SV_DispatchThreadID)
-{
-    /* check number of intersections of circle and diffraction ray: */
-    float determinant = pow(r_sample,2) - pow(dot(n,segment[id.x].vec),2);
+void Distances(uint3 id : SV_DispatchThreadID)
+{   
+    float ray_y0 = segment[id.x].y - m*segment[id.x].x;                     // y-intercept of DR.
+    float c = dot(n, segment[id.x]);                                        // c=ax+by=n^T*vec.
+
+    /* Case 1: DR crosses sample. */ 
+    distances[id.x].x = travelDist(id, r_cell, c, ray_y0);                  // ER/DR travel distance in cell+sample.
+    distances[id.x].y = travelDist(id, r_sample, c, ray_y0);                // ER/DR travel distance in sample.
     
-    if (determinant >= 0)
+    /* Case 2: DR does not cross sample, but ER does. */
+    if (length(segment[id.x]) <= r_cell && abs(segment[id.x].y) <= r_sample)
     {
-        float d1 = sqrt(pow(r_cell,2) - pow(segment[id.x].vec[0],2));        // length(vec-entrypoint)
-        float ray_y0 = segment[id.x].vec[1] - m*segment[id.x].vec[0];    // y-intercept of ray.
-        float c = dot(n, segment[id.x].vec);                             // c=ax+by=n^T*vec.
-        float2 exitpoint = dot(n, float2(c, sqrt(pow(r_sample,2) - c*c))) * float2(1,m) + float2(0,ray_y0);   // exit point of diffraction ray. 
-        distances[id.x].sample = d1 + distance(exitpoint, segment[id.x].vec);
+        float h = abs(segment[id.x].y);
+        distances[id.x].y = 2*sqrt(pow(r_sample,2)-pow(h,2));              // ER travel distance in sample.
     }
-    else if (length(segment[id.x].vec) <= r_cell && abs(segment[id.x].vec[1]) < r_cell) 
-    {
-        float h = abs(segment[id.x].vec[1]);
-        distances[id.x].sample = 2*sqrt(pow(r_cell,2)-pow(h,2));
-    }  
-    
-    distances[id.x].cell = distances[id.x].total - distances[id.x].sample;
+    distances[id.x].x = distances[id.x].x - distances[id.x].y;
 }
