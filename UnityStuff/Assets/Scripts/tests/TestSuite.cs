@@ -46,11 +46,11 @@ namespace FoPra.tests
         public static Vector2[] execute_Distances2D(ComputeShader cs, int size)
         {
             /* Data parameters */
-            var r_cell = 1.01f / 2f;
-            var r_sample = 1f / 2f;
-            var scale_factor = (float) Math.Pow(2,10);
-            var margin = 1.2f;
-            var theta = 20d;
+            var r_cell = 1.01f;
+            var r_sample = 1.0f;
+            var scale_factor = 1.0f; // (float) Math.Pow(2, 10);
+            var margin = 1.05f;
+            var theta = 25.0;
             var (a, b) = (-r_sample*scale_factor*margin, r_sample*scale_factor*margin);
             
             /* Data generation */
@@ -66,26 +66,35 @@ namespace FoPra.tests
             Array.Clear(res,0,size*size);
 
             /* Pass data to shader */
-            int kernelHandle = cs.FindKernel("Distances");
-            var inputBuffer = new ComputeBuffer(data.Length,8);
-            var outputBuffer = new ComputeBuffer(data.Length, 8);
+            int kernelHandle = cs.FindKernel("identity");
+            var inputBuffer = new ComputeBuffer(data.Length, 8);
+			var outputBufferOuter = new ComputeBuffer(data.Length, 8);
+            var outputBufferInner = new ComputeBuffer(data.Length, 8);
             cs.SetBuffer(kernelHandle, "segment", inputBuffer);
-            cs.SetBuffer(kernelHandle, "distances", outputBuffer);
+            cs.SetBuffer(kernelHandle, "distancesInner", outputBufferInner);
+			cs.SetBuffer(kernelHandle, "distancesOuter", outputBufferOuter);
             cs.SetFloat("r_cell", r_cell*scale_factor);
             cs.SetFloat("r_sample", r_sample*scale_factor);
-            cs.SetFloat("m", (float) Math.Tan(theta * Math.PI/90));
-            cs.SetFloats("n", 1f, (float) -(1f/Math.Tan(theta * Math.PI/90)));
+            cs.SetFloat("r_cell_sq", (float) Math.Pow(r_cell, 2)*scale_factor);
+            cs.SetFloat("r_sample_sq", (float) Math.Pow(r_sample, 2)*scale_factor);
+			var rot_mat = new float[,]{
+					{(float) Math.Cos((180-2*theta)*Math.PI/90), (float) -Math.Sin((180-2*theta)*Math.PI/90)},
+					{(float) Math.Sin((180-2*theta)*Math.PI/90), (float) Math.Cos((180-2*theta)*Math.PI/90)}
+				};
+            //cs.SetMatrix("rot_mat", rot_mat);
+			
 
             /* Execute shader */
             inputBuffer.SetData(data);
             cs.Dispatch(kernelHandle,64,1,1);
-            outputBuffer.GetData(res);
+            outputBufferInner.GetData(res);
             inputBuffer.Release();
-            outputBuffer.Release();
+            outputBufferOuter.Release();
+			outputBufferInner.Release();
             
             /* Rescale results */
             var res_scaled = res.Select(v => v/scale_factor).ToArray();
-            res = res_scaled; 
+            //res = res_scaled; 
 
             //Debug.Log(String.Join("", Enumerable.Range(0,size-1).Select(i => res[i].ToString()).ToArray()));
             var strings = res.Select(v => v.ToString()).ToArray();
@@ -96,7 +105,7 @@ namespace FoPra.tests
                 )
                 .ToArray();
             var sep = Path.DirectorySeparatorChar;
-            File.WriteAllLines($"Output Files{sep}Distances2D Output n={size}.txt", res_str);
+            File.WriteAllLines($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_str);
             return res_scaled;
         }
     }

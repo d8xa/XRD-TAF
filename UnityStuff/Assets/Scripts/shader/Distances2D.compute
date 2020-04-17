@@ -1,59 +1,92 @@
-﻿// choose which functions get compiled.
-//#pragma kernel OuterDistances
-//#pragma kernel InnerDistances
-#pragma kernel Distances
-#pragma kernel Identity
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel g1_dists
+#pragma kernel g2_dists
+#pragma kernel identity
 
-// TODO: add as global/uniform variables.
 
-   // int sideLength;
-    float r_cell;   // outer radius
-    float r_sample; // inner radius
-    float m;     // 2*theta diffraction angle in 2D case.  
-    float2 n;    // precomputed orthonormal vector of diffraction ray.  
-   // int dummy3;     // TODO testaeaeaeaeae 
+float r_cell;       // outer radius
+float r_sample;     // inner radius
+float r_cell_sq;    // outer radius squared
+float r_sample_sq;  // inner radius squared
+//float2x2 rot_mat;   // 2D rotation matrix by angle defined in script.
+
 
 StructuredBuffer<float2> segment;
-RWStructuredBuffer<float2> distances;   // x=dist_cell, y=dist_sample.
+
+/* INPUT: g1_dists from script, precomputed in shader. (maybe keep in shader) */
+RWStructuredBuffer<float2> distancesOuter;       // Diffraction only in cell.
+RWStructuredBuffer<float2> distancesInner;       // Diffraction only in sample.
 
 
-[numthreads(64,1,1)]
-void Identity(uint3 id : SV_DispatchThreadID)
+// TODO: test efficiency of radius*radius vs radius_sq.
+
+[numthreads(1,1,1)]
+void identity(uint3 id : SV_DispatchThreadID)
 {
-    distances[id.x] = segment[id.x];
+    distancesOuter[id.x] = float2(-1.0f, 1.0f);
+    distancesInner[id.x] = float2(1.0f, -1.0f);
 }
 
-/** Returns travel distance between intersection points of medium and ray, and segment point. */
-float travelDist(uint3 id, float radius, float c, float ray_y0)
- {   
-     // intersection of DR with medium exists <==> determinant of intersection x-coordinate is >= 0.
-     if (pow(r_cell,2.0) - pow(dot(n,segment[id.x]),2.0) >= 0 && length(segment[id.x]) <= r_cell)
-     {
-         float d = sqrt(pow(radius,2) - pow(segment[id.x].x,2));                                                 // distance(vec, entrypoint).
-         float2 exitpoint = dot(n, float2(c, sqrt(pow(radius,2) - c*c))) * float2(1,m) + float2(0,ray_y0);       // exit point of DR from cell.
-         return d + distance(exitpoint, segment[id.x]);
-     }
-     return 0.0; // no intersections => no travel distance.
- }
- 
- /**
- Computes travel distance of entering ray (ER) and diffracted ray (DR) through cell and sample. 
- */
-[numthreads(64,1,1)]
-void Distances(uint3 id : SV_DispatchThreadID)
-{   
-    float ray_y0 = segment[id.x].y - m*segment[id.x].x;                     // y-intercept of DR.
-    float c = dot(n, segment[id.x]);                                        // c=ax+by=n^T*vec.
 
-    /* Case 1: DR crosses sample. */ 
-    distances[id.x].x = travelDist(id, r_cell, c, ray_y0);                  // ER/DR travel distance in cell+sample.
-    distances[id.x].y = travelDist(id, r_sample, c, ray_y0);                // ER/DR travel distance in sample.
+float getIntersectX (float2 v, float radius_sq, bool right)
+{
+    if (right)
+    { 
+        return sqrt(radius_sq - v[1]*v[1]);
+    } 
+    return -sqrt(radius_sq - v[1]*v[1]);
+}
+
+float2 ER_dists_F1 (float2 v)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
     
-    /* Case 2: DR does not cross sample, but ER does. */
-    if (length(segment[id.x]) <= r_cell && abs(segment[id.x].y) <= r_sample)
+    if (length(v) <= r_sample)
     {
-        float h = abs(segment[id.x].y);
-        distances[id.x].y = 2*sqrt(pow(r_sample,2)-pow(h,2));              // ER travel distance in sample.
+        float d_cell = abs(getIntersectX(v, r_sample, false) - getIntersectX(v, r_cell, false));
+        float d_sample = abs(v.x - getIntersectX(v, r_sample, false));
     }
-    distances[id.x].x = distances[id.x].x - distances[id.x].y;
+    return float2(d_cell, d_sample);
+}
+
+float2 ER_dists_F2 (float2 v)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
+    if (length(v) < r_sample & length(v) <= r_cell)
+    {
+        float RENx_o = getIntersectX(v, r_cell_sq, false);
+        if (v[0] >= 0 & abs(v[1]) < r_sample)
+        {
+            float RENx_i = getIntersectX(v, r_sample_sq, false);
+            float REXx_i = getIntersectX(v, r_sample_sq, true);
+            d_cell = abs(RENx_o - RENx_i) + abs(REXx_i - v[0]);
+            d_sample = abs(RENx_i - REXx_i);
+        }
+        else
+        {
+            d_cell = abs(RENx_o - v[0]);
+        }
+    }
+    return float2(d_cell, d_sample);
+}
+
+/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+[numthreads(64,1,1)]
+void g1_dists (uint3 id : SV_DispatchThreadID)
+{
+    // 
+    distancesOuter[id.x] = ER_dists_F2(segment[id.x]); 
+    distancesInner[id.x] = ER_dists_F1(segment[id.x]);
+}
+
+/* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
+[numthreads(64,1,1)]
+void g2_dists (uint3 id : SV_DispatchThreadID)
+{
+    //float2 rv = mul(rot_mat, segment[id.x]);
+    float2 rv = segment[id.x];
+    distancesOuter[id.x] = distancesOuter[id.x] + ER_dists_F2(rv);
+    distancesInner[id.x] = distancesInner[id.x] + ER_dists_F1(rv);
 }
