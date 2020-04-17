@@ -48,7 +48,7 @@ namespace FoPra.tests
             /* Data parameters */
             var r_cell = 1.01f;
             var r_sample = 1.0f;
-            var scale_factor = 1.0f; // (float) Math.Pow(2, 10);
+            var scale_factor = 1000.0f; // (float) Math.Pow(2, 10);
             var margin = 1.05f;
             var theta = 25.0;
             var (a, b) = (-r_sample*scale_factor*margin, r_sample*scale_factor*margin);
@@ -66,7 +66,7 @@ namespace FoPra.tests
             Array.Clear(res,0,size*size);
 
             /* Pass data to shader */
-            int kernelHandle = cs.FindKernel("identity");
+            int kernelHandle = cs.FindKernel("g1_dists");
             var inputBuffer = new ComputeBuffer(data.Length, 8);
 			var outputBufferOuter = new ComputeBuffer(data.Length, 8);
             var outputBufferInner = new ComputeBuffer(data.Length, 8);
@@ -86,7 +86,7 @@ namespace FoPra.tests
 
             /* Execute shader */
             inputBuffer.SetData(data);
-            cs.Dispatch(kernelHandle,64,1,1);
+            cs.Dispatch(kernelHandle, size/2, 1, 1);
             outputBufferInner.GetData(res);
             inputBuffer.Release();
             outputBufferOuter.Release();

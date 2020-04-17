@@ -20,13 +20,17 @@ RWStructuredBuffer<float2> distancesInner;       // Diffraction only in sample.
 
 // TODO: test efficiency of radius*radius vs radius_sq.
 
-[numthreads(1,1,1)]
+[numthreads(64,1,1)]
 void identity(uint3 id : SV_DispatchThreadID)
 {
-    distancesOuter[id.x] = float2(-1.0f, 1.0f);
-    distancesInner[id.x] = float2(1.0f, -1.0f);
+    distancesOuter[id.x] = segment[id.x];
+    distancesInner[id.x] = segment[id.x];
 }
 
+float norm(float2 v)
+{
+    return sqrt(v[0]*v[0] + v[1]*v[1]);
+}
 
 float getIntersectX (float2 v, float radius_sq, bool right)
 {
@@ -42,10 +46,10 @@ float2 ER_dists_F1 (float2 v)
     float d_cell = 0.0;
     float d_sample = 0.0;
     
-    if (length(v) <= r_sample)
+    if (norm(v) <= r_sample)
     {
-        float d_cell = abs(getIntersectX(v, r_sample, false) - getIntersectX(v, r_cell, false));
-        float d_sample = abs(v.x - getIntersectX(v, r_sample, false));
+        d_cell = abs(getIntersectX(v, r_sample, false) - getIntersectX(v, r_cell, false));
+        d_sample = abs(v.x - getIntersectX(v, r_sample, false));
     }
     return float2(d_cell, d_sample);
 }
@@ -73,7 +77,7 @@ float2 ER_dists_F2 (float2 v)
 }
 
 /* call ER_dists for coordinate per diffraction case, save in shader variable. */
-[numthreads(64,1,1)]
+[numthreads(16,16,1)]
 void g1_dists (uint3 id : SV_DispatchThreadID)
 {
     // 
