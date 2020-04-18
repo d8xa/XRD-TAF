@@ -25,7 +25,7 @@ namespace FoPra.tests
             {
                 return;
             }
-            var sizes = Enumerable.Range(14, 15).Select(i => (int) Math.Pow(2, i)).ToArray();
+            var sizes = Enumerable.Range(1, 10).Select(i => (int) Math.Pow(2, i)).ToArray();
             TimeSpan[] durations = new TimeSpan[sizes.Length];
 
             for (int i = 0; i < sizes.Length; i++)
