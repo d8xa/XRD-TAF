@@ -24,7 +24,7 @@ namespace FoPra.tests
             {
                 return;
             }
-            var sizes = Enumerable.Range(1, 10).Select(i => (int) Math.Pow(2, i)).ToArray();
+            var sizes = Enumerable.Range(14, 15).Select(i => (int) Math.Pow(2, i)).ToArray();
             TimeSpan[] durations = new TimeSpan[sizes.Length];
 
             for (int i = 0; i < sizes.Length; i++)
@@ -45,14 +45,14 @@ namespace FoPra.tests
         }
 
 
-        public static Vector2[] execute_Distances2D(ComputeShader cs, int size)
+        public static Vector3[] execute_Distances2D(ComputeShader cs, int size)
         {
             /* Data parameters */
-            int scale_factor = 100; // (float) Math.Pow(2, 10);
+            int scale_factor = 1; // (float) Math.Pow(2, 10);
             var r_cell = 1.01f*scale_factor;
             var r_sample = 1.0f*scale_factor;
             var margin = 1.05f;
-            var theta = 25.0;
+            var theta = 15.0;
             var (a, b) = (-r_sample*margin, r_sample*margin);
             
             /* Data generation */
@@ -64,50 +64,60 @@ namespace FoPra.tests
                     ).ToArray())
                 .SelectMany(arr => arr)
                 .ToArray();
-            var res = new Vector2[size*size];
+            var res = new Vector3[size*size];
             Array.Clear(res,0,size*size);
 
 
-            /* Pass data to shader */
-            int kernelHandle = cs.FindKernel("g1_dists");
             var inputBuffer = new ComputeBuffer(data.Length, 8);
             var outputBufferOuter = new ComputeBuffer(data.Length, 8);
             var outputBufferInner = new ComputeBuffer(data.Length, 8);
-            cs.SetBuffer(kernelHandle, "segment", inputBuffer);
-            cs.SetBuffer(kernelHandle, "distancesInner", outputBufferInner);
-            cs.SetBuffer(kernelHandle, "distancesOuter", outputBufferOuter);
+            var absorptionsBuffer = new ComputeBuffer(data.Length, 12);
+            cs.SetFloats("mu", (float) .54747E-1, (float) 6.70333E-1);
             cs.SetFloat("r_cell", r_cell);
             cs.SetFloat("r_sample", r_sample);
             cs.SetFloat("r_cell_sq", (float) Math.Pow(r_cell, 2));
             cs.SetFloat("r_sample_sq", (float) Math.Pow(r_sample, 2));
-            var rot_mat = new float[,] {
-                {
-                    (float) Math.Cos((180 - 2 * theta) * Math.PI / 90),
-                    (float) -Math.Sin((180 - 2 * theta) * Math.PI / 90)
-                }, {
-                    (float) Math.Sin((180 - 2 * theta) * Math.PI / 90),
-                    (float) Math.Cos((180 - 2 * theta) * Math.PI / 90)
-                }
-            };
-            //cs.SetMatrix("rot_mat", rot_mat);
-
-
-
-            /* Execute shader */
+            cs.SetFloat("cos", (float) Math.Cos((180 - 2 * theta) * Math.PI / 180));
+            cs.SetFloat("sin", (float) Math.Sin((180 - 2 * theta) * Math.PI / 180));
+            
             inputBuffer.SetData(data);
-            cs.Dispatch(kernelHandle, size, 1, 1);
-            outputBufferInner.GetData(res);
+
+
+            /* g1 pass: Compute g1 dists in shader buffers */
+            int g1_handle = cs.FindKernel("g1_dists");
+            cs.SetBuffer(g1_handle, "segment", inputBuffer);
+            cs.SetBuffer(g1_handle, "distancesInner", outputBufferInner);
+            cs.SetBuffer(g1_handle, "distancesOuter", outputBufferOuter);
+            cs.Dispatch(g1_handle, size, 1, 1);
+            
+            /* g2 pass: Add g2 dists to g1 dists in shader buffers */
+            int g2_handle = cs.FindKernel("g2_dists");
+            cs.SetBuffer(g2_handle, "segment", inputBuffer);
+            cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
+            cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
+            cs.Dispatch(g2_handle, size, 1, 1);
+
+            /* absorptions pass: calculate absorptions from distances in shader buffers */
+            int absorptions_handle = cs.FindKernel("Absorptions");
+            cs.SetBuffer(absorptions_handle, "absorptions", absorptionsBuffer);
+            cs.SetBuffer(absorptions_handle, "distancesInner", outputBufferInner);
+            cs.SetBuffer(absorptions_handle, "distancesOuter", outputBufferOuter);
+            cs.Dispatch(absorptions_handle, size, 1, 1);
+
+            /* Read absorptions buffer, release buffers */
+            absorptionsBuffer.GetData(res);
             inputBuffer.Release();
             outputBufferOuter.Release();
             outputBufferInner.Release();
-            
+            absorptionsBuffer.Release();
             
             /* Rescale results */
-            var res_scaled = res.Select(v => v/scale_factor).ToArray();
-            //res = res_scaled;
+            //var res_scaled = res.Select(v => (new Vector2(v[0], v[1]))/scale_factor).ToArray();
+            var res_scaled = res.Select(v => (new Vector3(v.x, v.y, v.z))).ToArray();
+            res = res_scaled;
 
             //Debug.Log(String.Join("", Enumerable.Range(0,size-1).Select(i => res[i].ToString()).ToArray()));
-            var strings = res.Select(v => v.ToString()).ToArray();
+            var strings = res.Select(v => v.ToString("G")).ToArray();
             var res_str = Enumerable
                 .Range(0, size - 1)
                 .Select(i => String.Join("; ",
