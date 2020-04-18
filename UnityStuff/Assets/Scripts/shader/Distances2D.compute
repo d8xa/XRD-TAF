@@ -1,7 +1,7 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel g1_dists
 #pragma kernel g2_dists
-#pragma kernel identity
+#pragma kernel Test
 
 
 float r_cell;       // outer radius
@@ -20,25 +20,20 @@ RWStructuredBuffer<float2> distancesInner;       // Diffraction only in sample.
 
 // TODO: test efficiency of radius*radius vs radius_sq.
 
-[numthreads(64,1,1)]
-void identity(uint3 id : SV_DispatchThreadID)
+[numthreads(1024,1,1)]
+void Test(uint3 id : SV_DispatchThreadID)
 {
-    distancesOuter[id.x] = segment[id.x];
-    distancesInner[id.x] = segment[id.x];
-}
-
-float norm(float2 v)
-{
-    return sqrt(v[0]*v[0] + v[1]*v[1]);
+    distancesOuter[id.x] = float2(1.0,3.0);
+    distancesInner[id.x] = float2(segment[id.x][1], sqrt(abs(segment[id.x][0])));
 }
 
 float getIntersectX (float2 v, float radius_sq, bool right)
 {
     if (right)
     { 
-        return sqrt(radius_sq - v[1]*v[1]);
+        return sqrt(abs(radius_sq - v[1]*v[1]));
     } 
-    return -sqrt(radius_sq - v[1]*v[1]);
+    return -sqrt(abs(radius_sq - pow(v[1],2)));
 }
 
 float2 ER_dists_F1 (float2 v)
@@ -46,10 +41,10 @@ float2 ER_dists_F1 (float2 v)
     float d_cell = 0.0;
     float d_sample = 0.0;
     
-    if (norm(v) <= r_sample)
+    if (length(v) <= r_sample)
     {
-        d_cell = abs(getIntersectX(v, r_sample, false) - getIntersectX(v, r_cell, false));
-        d_sample = abs(v.x - getIntersectX(v, r_sample, false));
+        d_cell = abs(getIntersectX(v, r_sample_sq, false) - getIntersectX(v, r_cell_sq, false));
+        d_sample = abs(v.x - getIntersectX(v, r_sample_sq, false));
     }
     return float2(d_cell, d_sample);
 }
@@ -77,7 +72,7 @@ float2 ER_dists_F2 (float2 v)
 }
 
 /* call ER_dists for coordinate per diffraction case, save in shader variable. */
-[numthreads(16,16,1)]
+[numthreads(1024,1,1)]
 void g1_dists (uint3 id : SV_DispatchThreadID)
 {
     // 
@@ -86,7 +81,7 @@ void g1_dists (uint3 id : SV_DispatchThreadID)
 }
 
 /* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
-[numthreads(64,1,1)]
+[numthreads(16,1,1)]
 void g2_dists (uint3 id : SV_DispatchThreadID)
 {
     //float2 rv = mul(rot_mat, segment[id.x]);

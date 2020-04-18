@@ -857,10 +857,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   fieldDescriptor: {fileID: 264984530}
   dropdownMode: {fileID: 2006118347}
+  absType: {fileID: 0}
   fieldAccuracy: {fileID: 125031157}
   settings:
     aufbauBezeichnung: 
     mode: 0
+    absType: 0
     loadName: 
     pathToInputData: 
     computingAccuracy: 0
@@ -2411,10 +2413,12 @@ MonoBehaviour:
   settingsFields: {fileID: 139816163}
   detSettingsFields: {fileID: 2066406841}
   sampleSettingsFields: {fileID: 1795846107}
+  raySettingsFields: {fileID: 0}
   loadFileName: {fileID: 716744258}
   loadButton: {fileID: 2037594510}
   saveButton: {fileID: 404004457}
   submitButton: {fileID: 757694518}
+  computeShader: {fileID: 7200000, guid: ef04a1623d3bdfcf3bb4ae754ffea03d, type: 3}
 --- !u!4 &654995072
 Transform:
   m_ObjectHideFlags: 0
