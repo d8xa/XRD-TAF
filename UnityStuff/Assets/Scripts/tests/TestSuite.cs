@@ -14,7 +14,8 @@ namespace FoPra.tests
     {
         static readonly Dictionary<string, bool> enabledTests = new List<KeyValuePair<string, bool>>() 
         {
-            new KeyValuePair<string, bool>("Distances2D", true)
+            new KeyValuePair<string, bool>("Distances2D", false),
+            new KeyValuePair<string, bool>("Distances2D_runtime", true)
         }
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
@@ -29,11 +30,9 @@ namespace FoPra.tests
 
             for (int i = 0; i < sizes.Length; i++)
             {
-               
-
                 Stopwatch stopWatch = new Stopwatch();
                 stopWatch.Start();
-                var res = execute_Distances2D(computeShader, sizes[i]);
+                execute_Distances2D(computeShader, sizes[i], true);
                 stopWatch.Stop();
                 TimeSpan ts = stopWatch.Elapsed;
 
@@ -44,8 +43,33 @@ namespace FoPra.tests
             }
         }
 
+        public static void test_Distances2D_runtime(ComputeShader computeShader, int size, int runs)
+        {
+            if (!enabledTests["Distances2D_runtime"])
+            {
+                return;
+            }
 
-        public static Vector3[] execute_Distances2D(ComputeShader cs, int size)
+            TimeSpan[] durations = new TimeSpan[runs];
+
+            for (int i = 0; i < runs; i++)
+            {
+                Stopwatch stopWatch = new Stopwatch();
+                stopWatch.Start();
+                execute_Distances2D(computeShader, (int) Math.Pow(2, size), false);
+                stopWatch.Stop();
+                durations[i] = stopWatch.Elapsed;
+            }
+
+            var ts =  new TimeSpan(durations.Sum(d => d.Ticks));
+            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",
+                ts.Hours, ts.Minutes, ts.Seconds,
+                ts.Milliseconds / 10);
+            Debug.Log($"RunTime (runs={runs}, n^2={Math.Pow(2,size)}):\t{elapsedTime}");
+        }
+
+
+        public static Vector3[] execute_Distances2D(ComputeShader cs, int size, bool write)
         {
             /* Data parameters */
             int scale_factor = 1; // (float) Math.Pow(2, 10);
@@ -113,20 +137,24 @@ namespace FoPra.tests
             
             /* Rescale results */
             //var res_scaled = res.Select(v => (new Vector2(v[0], v[1]))/scale_factor).ToArray();
-            var res_scaled = res.Select(v => (new Vector3(v.x, v.y, v.z))).ToArray();
-            res = res_scaled;
+            if (write)
+            {
+                var res_scaled = res.Select(v => (new Vector3(v.x, v.y, v.z))).ToArray();
+                res = res_scaled;
 
-            //Debug.Log(String.Join("", Enumerable.Range(0,size-1).Select(i => res[i].ToString()).ToArray()));
-            var strings = res.Select(v => v.ToString("G")).ToArray();
-            var res_str = Enumerable
-                .Range(0, size - 1)
-                .Select(i => String.Join("; ",
-                    strings.Skip(i * size).Take(size).ToArray())
-                )
-                .ToArray();
-            var sep = Path.DirectorySeparatorChar;
-            File.WriteAllLines($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_str);
-            return res_scaled;
+                //Debug.Log(String.Join("", Enumerable.Range(0,size-1).Select(i => res[i].ToString()).ToArray()));
+                var strings = res.Select(v => v.ToString("G")).ToArray();
+                var res_str = Enumerable
+                    .Range(0, size - 1)
+                    .Select(i => String.Join("; ",
+                        strings.Skip(i * size).Take(size).ToArray())
+                    )
+                    .ToArray();
+                var sep = Path.DirectorySeparatorChar;
+                File.WriteAllLines($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_str);
+                return res_scaled;
+            }
+            else return res;
         }
     }
 }
