@@ -8209,6 +8209,9 @@ MonoBehaviour:
     offSetFromDownRightEdge: {x: 0, y: 0}
     dstToSample: 0
     pathToAngleFile: 
+    angleStart: 0
+    angleEnd: 0
+    angleAmount: 0
 --- !u!1 &2083383189
 GameObject:
   m_ObjectHideFlags: 0

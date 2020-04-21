@@ -11,10 +11,9 @@ public class DetektorSettings {
     public float dstToSample;
     //Pfad zu .txt
     public string pathToAngleFile="";
+    public float angleStart;
+    public float angleEnd;
+    public int angleAmount;
 
-    private float[] angles;
-    private bool useGivenAngles;
-    private float dstToSampleNormalized;
-    private float pixelSizeNormalized;
 }
 

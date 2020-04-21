@@ -43,6 +43,8 @@ namespace FoPra.tests
             }
         }
 
+        
+
         public static void test_Distances2D_runtime(ComputeShader computeShader, int size, int runs)
         {
             if (!enabledTests["Distances2D_runtime"])

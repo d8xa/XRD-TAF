@@ -31,7 +31,6 @@ public class DataHandler : MonoBehaviour{
         //playerPrefs fuer letztes File
         //TODO Pfadseperator einfuegen!!!1!!!!1elf! 
         savePath = Application.dataPath + "/Settings/";
-        
 
     }
 
@@ -49,7 +48,10 @@ public class DataHandler : MonoBehaviour{
 
     public void submitToComputing() {
         fillInBlanks();
-        TestSuite.test_Distances2D(computeShader);
+        //TestSuite.test_Distances2D(computeShader);
+        logicHandler = new LogicHandler(new Model(settingsFields.settings, detSettingsFields.detektorSettings,
+            sampleSettingsFields.sampleSettings), computeShader);
+        logicHandler.run_shader(64);
     }
 
     public void settingSaver() {
