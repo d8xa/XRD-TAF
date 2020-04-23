@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using System.Diagnostics;
 using System.IO;
+using FoPra.util;
 using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
 
@@ -14,8 +15,8 @@ namespace FoPra.tests
     {
         static readonly Dictionary<string, bool> enabledTests = new List<KeyValuePair<string, bool>>() 
         {
-            new KeyValuePair<string, bool>("Distances2D", false),
-            new KeyValuePair<string, bool>("Distances2D_runtime", true)
+            new KeyValuePair<string, bool>("Distances2D", true),
+            new KeyValuePair<string, bool>("Distances2D_runtime", false)
         }
             .ToDictionary(kv => kv.Key, kv => kv.Value);
 
@@ -82,14 +83,7 @@ namespace FoPra.tests
             var (a, b) = (-r_sample*margin, r_sample*margin);
             
             /* Data generation */
-            var data = Enumerable.Range(0, size)
-                .Select(i => Enumerable.Range(0, size)
-                    .Select(j => 
-                        new Vector2(a + 1f*i*(b-a)/(size-1), a + 1f*j*(b-a)/(size-1))
-                        //new Vector2(i,j)
-                    ).ToArray())
-                .SelectMany(arr => arr)
-                .ToArray();
+            var data = MathTools.LinSpace2D(-r_cell * margin, r_cell * margin, size);
             var res = new Vector3[size*size];
             Array.Clear(res,0,size*size);
 
@@ -137,23 +131,15 @@ namespace FoPra.tests
             outputBufferInner.Release();
             absorptionsBuffer.Release();
             
-            /* Rescale results */
-            //var res_scaled = res.Select(v => (new Vector2(v[0], v[1]))/scale_factor).ToArray();
             if (write)
             {
                 var res_scaled = res.Select(v => (new Vector3(v.x, v.y, v.z))).ToArray();
                 res = res_scaled;
-
-                //Debug.Log(String.Join("", Enumerable.Range(0,size-1).Select(i => res[i].ToString()).ToArray()));
+                
                 var strings = res.Select(v => v.ToString("G")).ToArray();
-                var res_str = Enumerable
-                    .Range(0, size - 1)
-                    .Select(i => String.Join("; ",
-                        strings.Skip(i * size).Take(size).ToArray())
-                    )
-                    .ToArray();
-                var sep = Path.DirectorySeparatorChar;
-                File.WriteAllLines($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_str);
+                var path = Path.Combine("Logs", "Distances2D", $"Output n={size}.txt");
+                MathTools.WriteArray2D(path, strings, size);
+                Debug.Log($"executed_Distances2D(cs, {size}, {write}): Wrote data");
                 return res_scaled;
             }
             else return res;
