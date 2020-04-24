@@ -10,6 +10,7 @@ namespace FoPra.model
   public class Model
   {
     //enum Modes {_1D, _2D}  // to switch between use cases and discard unused fields. TODO: integrate. 
+    [Serializable]
     public enum Modes {
       Point,Area,Integrated
     }
