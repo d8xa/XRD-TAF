@@ -83,10 +83,9 @@ public class DataHandler : MonoBehaviour{
             settingsFields.detektorSettings = JsonUtility.FromJson<DetektorSettings>(loadedDataDet);
             settingsFields.aktualisiere(false);
         }
-        
-        
-        if (File.Exists(savePath + loadFileName.text + "_sam.txt")) {
-            string loadedDataSam = File.ReadAllText(savePath + loadFileName.text + "_sam.txt");
+
+        if (File.Exists(Path.Combine(savePath, loadFileName.text + "_sam.txt"))) {
+            string loadedDataSam = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_sam.txt"));
             settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(loadedDataSam);
             settingsFields.aktualisiere(false);
         }
