@@ -13,10 +13,10 @@ public class DataHandler : MonoBehaviour{
     //public Settings settings;
 
     public SettingsFields settingsFields;
-    public DetektorSettingsFields detSettingsFields;
-    public SampleSettingsFields sampleSettingsFields;
+//    public DetektorSettingsFields detSettingsFields;
+//    public SampleSettingsFields sampleSettingsFields;
     //TODO
-    public RaySettingsFields raySettingsFields;
+//    public RaySettingsFields raySettingsFields;
     //Application.dataPath nur zum testen, spaeter durch eigenen Pfad ersetzen?
     public static string savePath;
     public InputField loadFileName;
@@ -38,11 +38,11 @@ public class DataHandler : MonoBehaviour{
                 JsonUtility.FromJson<Settings>(File.ReadAllText(Path.Combine(savePath, "Default_set.txt"))));
         }
         if (File.Exists(Path.Combine(savePath, "Default_det.txt"))) {
-            detSettingsFields.fillInDefaults(
+            settingsFields.fillInDefaults(
                 JsonUtility.FromJson<DetektorSettings>(File.ReadAllText(Path.Combine(savePath, "Default_det.txt"))));
         }
         if (File.Exists(Path.Combine(savePath, "Default_sam.txt"))) {
-            sampleSettingsFields.fillInDefaults(
+            settingsFields.fillInDefaults(
                 JsonUtility.FromJson<SampleSettings>(File.ReadAllText(Path.Combine(savePath, "Default_sam.txt"))));
         }
     }
@@ -53,41 +53,42 @@ public class DataHandler : MonoBehaviour{
         logicHandler = new LogicHandler(
             new Model(
                 settingsFields.settings, 
-                detSettingsFields.detektorSettings, 
-                sampleSettingsFields.sampleSettings
+                settingsFields.detektorSettings, 
+                settingsFields.sampleSettings
             ), computeShader);
-        logicHandler.run_shader(64);
+        logicHandler.run_shader();
     }
 
     public void settingSaver() {
         string saveDataSet = JsonUtility.ToJson(settingsFields.settings);
         File.WriteAllText(Path.Combine(savePath, settingsFields.settings.aufbauBezeichnung + "_set.txt"), saveDataSet);
         
-        string saveDataDet = JsonUtility.ToJson(detSettingsFields.detektorSettings);
+        string saveDataDet = JsonUtility.ToJson(settingsFields.detektorSettings);
         File.WriteAllText(Path.Combine(savePath, settingsFields.settings.aufbauBezeichnung + "_det.txt"), saveDataDet);
         
-        string saveDataSam = JsonUtility.ToJson(sampleSettingsFields.sampleSettings);
+        string saveDataSam = JsonUtility.ToJson(settingsFields.sampleSettings);
         File.WriteAllText(Path.Combine(savePath, settingsFields.settings.aufbauBezeichnung + "_sam.txt"), saveDataSam);
-
     }
 
     public void settingLoader() {
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_set.txt"))) {
             string loadedDataSet = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_set.txt"));
             settingsFields.settings = JsonUtility.FromJson<Settings>(loadedDataSet);
+            settingsFields.aktualisiereModus(true);
             settingsFields.aktualisiere(false);
         }
         
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_det.txt"))) {
             string loadedDataDet = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_det.txt"));
-            detSettingsFields.detektorSettings = JsonUtility.FromJson<DetektorSettings>(loadedDataDet);
-            detSettingsFields.aktualisiere(false);
+            settingsFields.detektorSettings = JsonUtility.FromJson<DetektorSettings>(loadedDataDet);
+            settingsFields.aktualisiere(false);
         }
         
-        if (File.Exists(Path.Combine(savePath, loadFileName.text + "_sam.txt"))) {
-            string loadedDataSam = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_sam.txt"));
-            sampleSettingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(loadedDataSam);
-            sampleSettingsFields.aktualisiere(false);
+        
+        if (File.Exists(savePath + loadFileName.text + "_sam.txt")) {
+            string loadedDataSam = File.ReadAllText(savePath + loadFileName.text + "_sam.txt");
+            settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(loadedDataSam);
+            settingsFields.aktualisiere(false);
         }
     }
     
