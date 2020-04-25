@@ -38,7 +38,7 @@ namespace FoPra.model
 
     private void calculate_meta_data() {
       accuracy_resolution_size = (int) Math.Pow(2, settings.computingAccuracy);
-      r_sample = (sample.totalDiameter - sample.cellThickness) / 2;
+      r_sample = sample.totalDiameter / 2 - sample.cellThickness;
       r_sample_sq = (float) Math.Pow(r_sample, 2);
       r_cell = sample.totalDiameter / 2;
       r_cell_sq = (float) Math.Pow(r_cell, 2);
@@ -60,7 +60,7 @@ namespace FoPra.model
         text = reader.ReadToEnd();
         
       }
-      string[] textArray = text.Split(';');
+      string[] textArray = text.Split('\n');
       angles2D = new float[textArray.Length];
       for (int i = 0; i < textArray.Length; i++) {
         angles2D[i] = float.Parse(textArray[i], CultureInfo.InvariantCulture.NumberFormat);

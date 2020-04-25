@@ -136,8 +136,8 @@ public class LogicHandler {
          calculate_absorptions_2D(size, i);
       }
       
-      writeAbsorbtionFactors(size);
-      //writeData_Dists(size);
+      //writeAbsorbtionFactors(size);
+      writeData_Dists(size);
       inputBuffer.Release();
       outputBufferOuter.Release();
       outputBufferInner.Release();
@@ -164,8 +164,8 @@ public class LogicHandler {
    public void calculate_g2_dists(int size, int i) {
       
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - 2 * model.get_angles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - 2 * model.get_angles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, size, 1, 1);
@@ -190,8 +190,8 @@ public class LogicHandler {
    public void calculate_absorptions_2D(int size, int i) {
       
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - 2 * model.get_angles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - 2 * model.get_angles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, size, 1, 1);
@@ -204,7 +204,7 @@ public class LogicHandler {
    }
 
    void extractAbsorptionFactor(int j) {
-      Vector3 res = new Vector3();
+      Vector3 res = new Vector3(); 
       Vector3 counterVec = new Vector3();
       for (int i = 0; i < size*size; i++) {
          if (absorbtions[i].x < 1f) {
