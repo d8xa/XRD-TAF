@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using FoPra.model;
+using FoPra.util;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,10 +23,10 @@ public class LogicHandler {
    private Vector2[] g1_dists_inner_precomputed;
    private Vector2[] g1_dists_outer_precomputed;
    private int angleSteps = 1;
-   private int size;
+   private int segmentResolution;
    private Vector2[,] g2_dists_inner;
    private Vector2[,] g2_dists_outer;
-   private Vector3[] absorbtions;
+   private Vector3[] absorptions;
    private Vector3[] absorptionFactors;
 
    private int g1_handle;
@@ -39,7 +42,7 @@ public class LogicHandler {
    public LogicHandler(Model model, ComputeShader cs) {
       this.model = model;
       this.cs = cs;
-      size = model.get_accuracy_resolution_size();
+      segmentResolution = model.get_accuracy_resolution_size();
    }
 
    /**
@@ -48,36 +51,34 @@ public class LogicHandler {
     * - defines empty Vector3[] absorptions for absorptions per ???;
     * - sets handles
     */
-   void initDataFields(int size) {
-      var (a, b) = (-model.get_r_sample()*margin, model.get_r_sample()*margin);
-      data = Enumerable.Range(0, size)
-         .Select(i => Enumerable.Range(0, size)
-            .Select(j => 
-                  new Vector2(a + 1f*i*(b-a)/(size-1), a + 1f*j*(b-a)/(size-1))
-               //new Vector2(i,j)
-            ).ToArray())
-         .SelectMany(arr => arr)
-         .ToArray();
+   void initDataFields(int segmentRes) {
+      data = MathTools.LinSpace2D(-model.get_r_sample()*margin, model.get_r_sample()*margin, segmentRes);
+      Debug.Log(data.Length);
       
-      if (model.settings.mode == Model.Modes.Point) {
+      // TODO: maybe use length of angle list directly instead.
+      if (model.settings.mode == Model.Mode.Point)
          angleSteps = model.get_angles2D().Length;
-      } else if (model.settings.mode == Model.Modes.Area) {
+      else if (model.settings.mode == Model.Mode.Area)
          angleSteps = (int) (model.detector.resolution.x * model.detector.resolution.y);
-      } else if (model.settings.mode == Model.Modes.Integrated) {
+      else if (model.settings.mode == Model.Mode.Integrated)
+      {
          // TODO:
       }
+      else
+         angleSteps = model.get_angles2D().Length;
+
+      var segmentCount = segmentRes * segmentRes;
+      g1_dists_inner_precomputed = new Vector2[segmentCount];
+      Array.Clear(g1_dists_inner_precomputed,0,segmentCount);
+      g1_dists_outer_precomputed = new Vector2[segmentCount];
+      Array.Clear(g1_dists_outer_precomputed,0,segmentCount);
+      g2_dists_inner = new Vector2[angleSteps, segmentCount];
+      Array.Clear(g2_dists_inner,0, segmentCount);
+      g2_dists_outer = new Vector2[angleSteps, segmentCount];
+      Array.Clear(g2_dists_outer,0, segmentCount);
       
-      g1_dists_inner_precomputed = new Vector2[size*size];
-      Array.Clear(g1_dists_inner_precomputed,0,size*size);
-      g1_dists_outer_precomputed = new Vector2[size*size];
-      Array.Clear(g1_dists_outer_precomputed,0,size*size);
-      g2_dists_inner = new Vector2[angleSteps, size*size];
-      Array.Clear(g2_dists_inner,0,size*size);
-      g2_dists_outer = new Vector2[angleSteps, size*size];
-      Array.Clear(g2_dists_outer,0,size*size);
-      
-      absorbtions = new Vector3[size*size];
-      Array.Clear(absorbtions,0,size*size);
+      absorptions = new Vector3[segmentCount];
+      Array.Clear(absorptions,0, segmentCount);
       absorptionFactors = new Vector3[angleSteps];
       
       cs.SetFloats("mu", model.get_mu_cell(), model.get_mu_sample());
@@ -89,71 +90,67 @@ public class LogicHandler {
       g1_handle = cs.FindKernel("g1_dists");
       g2_handle = cs.FindKernel("g2_dists");
       absorptions_handle = cs.FindKernel("Absorptions");
-
-      
-         
-      
-
    }
 
-   public void run_shader() {
-      
-      initDataFields(size);
-      Debug.Log(data.Length.ToString());
+   public void run_shader() 
+   {
+      initDataFields(segmentResolution);
+      Debug.Log($"Running shader on resolution={segmentResolution}, mode={model.settings.mode}");
       
       inputBuffer = new ComputeBuffer(data.Length, 8);
       outputBufferOuter = new ComputeBuffer(data.Length, 8);
       outputBufferInner = new ComputeBuffer(data.Length, 8);
       absorptionsBuffer = new ComputeBuffer(data.Length, 12);
-      
-      
-      Debug.Log(data[0].ToString() + ", " + data[1].ToString() + ", " + data[2].ToString());
-
       inputBuffer.SetData(data);
 
-      calculate_g1_dists(size);
+      calculate_g1_dists();
 
-      if (model.settings.mode == Model.Modes.Point) {
+      if (model.settings.mode == Model.Mode.Point) {
          for (int i = 0; i < angleSteps; i++) {
             outputBufferInner.SetData(g1_dists_inner_precomputed);
             outputBufferOuter.SetData(g1_dists_outer_precomputed);
-            calculate_absorptions_2D(size, i);
-            extractAbsorptionFactor(i);
-            
+            calculate_absorptions_2D(i);
+            extractAbsorptionFactor(i, (float) 1E-14);
          }
-      } else if (model.settings.mode == Model.Modes.Area) {
+         WriteAbsorptionFactors();
+      } 
+      else if (model.settings.mode == Model.Mode.Area) 
+      {
+         for (int i = 0; i < angleSteps; i++)
+            calculate_g2_dists(i, true);
+         for (int i = 0; i < angleSteps; i++)
+            calculate_g2_3D_dists(segmentResolution, i);
+      } 
+      else if (model.settings.mode == Model.Mode.Integrated) 
+      {
+         // TODO.
+      }
+      else
+      {
          for (int i = 0; i < angleSteps; i++) {
-            calculate_g2_dists(size, i);
+            outputBufferInner.SetData(g1_dists_inner_precomputed);
+            outputBufferOuter.SetData(g1_dists_outer_precomputed);
+            calculate_g2_dists(i, true);
          }
-         for (int i = 0; i < angleSteps; i++) {
-            calculate_g2_3D_dists(size, i);
-         }
-      } else if (model.settings.mode == Model.Modes.Integrated) {
-         // TODO: 
+         WriteDists();
       }
 
-      for (int i = 0; i <  angleSteps; i++) {
-         calculate_absorptions_2D(size, i);
-      }
       
-      //writeAbsorbtionFactors(size);
-      writeData_Dists(size);
+      //
       inputBuffer.Release();
       outputBufferOuter.Release();
       outputBufferInner.Release();
       absorptionsBuffer.Release();
-      
    }
    
    /**
     * g1 pass: Compute g1 dists in shader buffers
     */
-   public void calculate_g1_dists(int size) {
-      
+   public void calculate_g1_dists() {
       cs.SetBuffer(g1_handle, "segment", inputBuffer);
       cs.SetBuffer(g1_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g1_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g1_handle, size, 1, 1);
+      cs.Dispatch(g1_handle, 1024, 1, 1);   // TODO: handle case threadGroupsX > 1024
       outputBufferInner.GetData(g1_dists_inner_precomputed);
       outputBufferOuter.GetData(g1_dists_outer_precomputed);
    }
@@ -161,107 +158,130 @@ public class LogicHandler {
    /**
     * g2 pass: Add g2 dists to g1 dists in shader buffers
     */
-   public void calculate_g2_dists(int size, int i) {
-      
+   public void calculate_g2_dists(int i, bool copy) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
       cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, size, 1, 1);
-      Vector2[] tempInner = new Vector2[size*size];
-      Vector2[] tempOuter = new Vector2[size*size];
-      outputBufferInner.GetData(tempInner); // .add??
-      outputBufferOuter.GetData(tempOuter); // .add??
-      for (int j = 0; j < tempInner.Length; j++) {
-         g2_dists_inner[i,j] = tempInner[j];
-         g2_dists_outer[i,j] = tempOuter[j];
+      cs.Dispatch(g2_handle, 1024, 1, 1);   // TODO: handle case threadGroupsX > 1024
+      if (copy)
+      {
+         Vector2[] tempInner = new Vector2[data.Length];
+         Vector2[] tempOuter = new Vector2[data.Length];
+         outputBufferInner.GetData(tempInner); // .add??
+         outputBufferOuter.GetData(tempOuter); // .add??
+         for (int j = 0; j < tempInner.Length; j++) {
+            g2_dists_inner[i,j] = tempInner[j];
+            g2_dists_outer[i,j] = tempOuter[j];
+         }
       }
    }
 
    public void calculate_g2_3D_dists(int size, int i) {
-      
+      // TODO.
    }
 
    /**
     * absorptions pass: calculate absorptions from distances in shader buffers
     * (used case chosen in run-method)
     */
-   public void calculate_absorptions_2D(int size, int i) {
-      
+   public void calculate_absorptions_2D(int i) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
       cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, size, 1, 1);
+      cs.Dispatch(g2_handle, 1024, 1, 1);
       
+      cs.SetBuffer(absorptions_handle, "segment", inputBuffer);
       cs.SetBuffer(absorptions_handle, "absorptions", absorptionsBuffer);
       cs.SetBuffer(absorptions_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(absorptions_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(absorptions_handle, size, 1, 1);
-      absorptionsBuffer.GetData(absorbtions);
+      cs.Dispatch(absorptions_handle, 1024, 1, 1);
+      absorptionsBuffer.GetData(absorptions);
    }
 
-   void extractAbsorptionFactor(int j) {
-      Vector3 res = new Vector3(); 
-      Vector3 counterVec = new Vector3();
-      for (int i = 0; i < size*size; i++) {
-         if (absorbtions[i].x < 1f) {
-            counterVec.x++;
-            res.x = res.x + absorbtions[i].x;
-         }
-         if (absorbtions[i].y < 1f) {
-            counterVec.y++;
-            res.y = res.y + absorbtions[i].y;
-         }
-         if ((absorbtions[i].z < 1f)) {
-            counterVec.z++;
-            res.z = res.z + absorbtions[i].z;
-         }
-      }
-
-      res.x = res.x / counterVec.x;
-      res.y = res.y / counterVec.y;
-      res.z = res.z / counterVec.z;
-      absorptionFactors[j] = res;
+   /**
+    * Computes average over all non-zero elements, per axis x,y,z.
+    */
+   void extractAbsorptionFactor(int j, float tol)
+   {
+      absorptionFactors[j] = new Vector3(
+         absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
+      );
    }
 
-   void writeData_Dists(int size) {
-      var res_str = "{";
-      var sep = Path.DirectorySeparatorChar;
-      for (int i = 0; i < angleSteps; i++) {
-         res_str += "\"" + model.get_angles2D()[i] + "\":[";
-         for (int j = 1; j < size*size; j++) {
-            res_str += g2_dists_inner[i, j].ToString("G");
-            if (j<size*size-1) {
-               res_str += ",";
-            }
-         }
-         res_str += "]";
-         if (i < angleSteps-1) {
-            res_str += ",";
-         }
-      }
-
-      res_str = res_str.Replace("(", "[").Replace(")", "]") + "}";
-      Debug.Log(res_str);
-      File.WriteAllText($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_str);
-
-   }
-
-   private void writeAbsorbtionFactors(int size) {
-      var res_string = "Winkel\t A_{s,sc}\t A_{c,sc}\t A_{c,c}\n";
-      var sep = Path.DirectorySeparatorChar;
-
-      for (int i = 0; i < angleSteps; i++) {
-         res_string += model.get_angles2D()[i].ToString("G") + "\t"
-                                                             + absorptionFactors[i].x.ToString("G") + "\t"
-                                                             + absorptionFactors[i].y.ToString("G") + "\t"
-                                                             + absorptionFactors[i].z.ToString("G") + "\n";
-      }
-      File.WriteAllText($"Logs{sep}Distances2D{sep}Output n={size}.txt", res_string);
+   private void WriteDists()
+   {
+      Debug.Log("Writing");
+      var (n, m) = (g2_dists_inner.GetLength(0), g2_dists_inner.GetLength(1));
+      
+      using (var fileStream = File.Create(Path.Combine("Logs", "Distances2D", $"Output n={segmentResolution}.txt")))
+      using (var buffered = new BufferedStream(fileStream))
+      using (var writer = new StreamWriter(buffered))
+      {
+         writer.Write("{");
          
+         var sb = new StringBuilder();
+         for (int i = 0; i < n; i++)
+         {
+            Debug.Log(Enumerable.Range(0, m)
+               .Select(j => g2_dists_inner[i, j])
+               .Count(v => v.x > 0)*1.0f/data.Length
+            );
+            sb.Append("\"" + model.get_angles2D()[i] + "\" : ");
+            var row = Enumerable.Range(0, m)
+               .Select(j => g2_dists_inner[i, j])   
+               .ToArray();   // get i-th row.
+            var rows = Enumerable.Range(0, segmentResolution)
+               .Select(k => 
+                  "[" +
+                  string.Join(",", row
+                     .Skip(k * segmentResolution)
+                     .Take(segmentResolution)
+                     .Select(v => string.Format("[{0:G},{1:G}]", 
+                        v.x.ToString("G", CultureInfo.InvariantCulture),
+                        v.y.ToString("G", CultureInfo.InvariantCulture)))
+                     .ToArray()) + 
+                  "]") 
+               .ToArray();   // break up 1D array into 2D array, format each Vector2 inside.
+            var row_str = string.Join(",", rows).Replace(" ", "");
+            sb.Append("[").Append(row_str).Append("]");
+            if (i + 1 < angleSteps)
+               sb.Append(",");
+            writer.WriteLine(sb.ToString()
+                  .Replace("(", "[")
+                  .Replace(")", "]")
+               );
+            sb.Clear();
+         }
+         
+         writer.Write("}");
+      }
+      
+      // TODO: research JSON serialization.
+      //File.WriteAllText(Path.Combine("Logs", "Distances2D", $"Output n={size}.txt"), res_str);
+   }
+
+   private void WriteAbsorptionFactors()
+   {
+      using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt")))
+      using (BufferedStream buffered = new BufferedStream(fileStream))
+      using (StreamWriter writer = new StreamWriter(buffered))
+      {
+         writer.WriteLine(string.Join("\t", "2 theta","A_{s,sc}", "A_{c,sc}", "A_{c,c}"));
+         for (int i = 0; i < angleSteps; i++)
+         {
+            writer.WriteLine(string.Join("\t", model.get_angles2D()[i].ToString("G", CultureInfo.InvariantCulture),
+               absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
+               absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
+               absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));
+         }
+      }
+      //File.WriteAllText(Path.Combine("Logs", "Distances2D", $"Output n={size}.txt"), res_string);
    }
 
 }

@@ -28,7 +28,7 @@ public class DataHandler : MonoBehaviour{
     public LogicHandler logicHandler;
 
     private void Awake() {
-        savePath = Path.Combine(Application.dataPath, "Settings");
+        savePath = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
     public void fillInBlanks()

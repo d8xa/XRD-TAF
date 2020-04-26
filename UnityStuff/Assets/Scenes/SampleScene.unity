@@ -2735,15 +2735,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 654995070}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3963b171f353cfc24b4a0a1f245e22d0, type: 3}
+  m_Script: {fileID: 11500000, guid: fddfbb681a56d3b41b1565ceaab6fd84, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   settingsFields: {fileID: 139816163}
-  loadFileName: {fileID: 716744258}
+  loadFileName: {fileID: 264984530}
   loadButton: {fileID: 2037594510}
   saveButton: {fileID: 404004457}
   submitButton: {fileID: 757694518}
-  computeShader: {fileID: 7200000, guid: ef04a1623d3bdfcf3bb4ae754ffea03d, type: 3}
+  computeShader: {fileID: 7200000, guid: 37dd3f53620269a4ab7c3c1e39bcabda, type: 3}
 --- !u!4 &654995072
 Transform:
   m_ObjectHideFlags: 0
@@ -7566,7 +7566,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1795846105}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 701043e8a8a5cdda59320ec9d33e7872, type: 3}
+  m_Script: {fileID: 11500000, guid: b6abaaf01b8d53e4497b09bd92f3767b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &1812420769
@@ -8369,6 +8369,8 @@ MonoBehaviour:
     - m_Text: Area
       m_Image: {fileID: 0}
     - m_Text: Integrated
+      m_Image: {fileID: 0}
+    - m_Text: Testing
       m_Image: {fileID: 0}
   m_OnValueChanged:
     m_PersistentCalls:

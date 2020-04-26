@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace FoPra.model
@@ -11,14 +12,14 @@ namespace FoPra.model
   {
     //enum Modes {_1D, _2D}  // to switch between use cases and discard unused fields. TODO: integrate. 
     [Serializable]
-    public enum Modes {
-      Point,Area,Integrated
+    public enum Mode {
+      Point, Area, Integrated, Testing
     }
-    public enum AbsorbtionType {
-      All,Cell,Sample,CellAndSample
+    public enum AbsorptionType {
+      All, Cell, Sample, CellAndSample
     }
-    public enum StrahlProfil {
-      Oval,Rechteck
+    public enum RayProfile {
+      Oval, Rectangle
     }
 
     public Settings settings;
@@ -26,7 +27,7 @@ namespace FoPra.model
     public SampleSettings sample;
     public RaySettings ray;
 
-    private int accuracy_resolution_size;
+    private int segmentResolution;
     private float r_sample;
     private float r_sample_sq;
     private float r_cell;
@@ -37,7 +38,7 @@ namespace FoPra.model
     private List<float> anglesIntegrated;
 
     private void calculate_meta_data() {
-      accuracy_resolution_size = (int) Math.Pow(2, settings.computingAccuracy);
+      segmentResolution = (int) settings.computingAccuracy;  // TODO: rename text field label in GUI.
       r_sample = sample.totalDiameter / 2 - sample.cellThickness;
       r_sample_sq = (float) Math.Pow(r_sample, 2);
       r_cell = sample.totalDiameter / 2;
@@ -45,30 +46,24 @@ namespace FoPra.model
       mu_sample = sample.muSample;
       mu_cell = sample.muCell;
       
-      Debug.Log(r_cell.ToString() + ", " + r_sample.ToString());
-
-
 //      float stepsize = (detector.angleEnd - detector.angleStart)/(detector.angleAmount-1); // -1, damit in der for-Schleife einschliesslich der Grenze gerechnet werden kann
 //      for (float i = detector.angleStart; i <= detector.angleEnd; i+=stepsize) {
 //        anglesIntegrated.Add(i);
 //      }
 
-      string text = "0.0";
-      /* TODO: read angle-File vernuenftig implementieren */
-      if (File.Exists(Application.dataPath + "/Input/" + detector.pathToAngleFile + ".txt")) {
-        StreamReader reader = new StreamReader(Application.dataPath + "/Input/" + detector.pathToAngleFile + ".txt");
-        text = reader.ReadToEnd();
-        
+      var text = "";
+      var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
+      if (File.Exists(path)) {
+        using (var reader = new StreamReader(path))
+          text = reader.ReadToEnd();
       }
-      string[] textArray = text.Split('\n');
-      angles2D = new float[textArray.Length];
-      for (int i = 0; i < textArray.Length; i++) {
-        angles2D[i] = float.Parse(textArray[i], CultureInfo.InvariantCulture.NumberFormat);
 
-      }
-      
-
-
+      angles2D = text
+        .Trim(' ')
+        .Split('\n')
+        .Where(s => s.Length > 0)
+        .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+        .ToArray();
     }
 
     public Model(Settings settings, DetektorSettings detector, SampleSettings sample/*, RaySettings ray*/) {
@@ -79,32 +74,22 @@ namespace FoPra.model
       calculate_meta_data();
     }
 
-    public int get_accuracy_resolution_size() {
-      return accuracy_resolution_size;
-    }
-    public float get_r_sample() {
-      return r_sample;
-    }
-    public float get_r_sample_sq() {
-      return r_sample_sq;
-    }
-    public float get_r_cell() {
-      return r_cell;
-    }
-    public float get_r_cell_sq() {
-      return r_cell_sq;
-    }
-    public float get_mu_sample() {
-      return mu_sample;
-    }
-    public float get_mu_cell() {
-      return mu_cell;
-    }
-    public float[] get_angles2D() {
-      return angles2D;
-    }
-    public List<float> get_anglesIntegrated() {
-      return anglesIntegrated;
-    }
+    public int get_accuracy_resolution_size() => segmentResolution;
+    
+    public float get_r_sample() => r_sample;
+
+    public float get_r_sample_sq() => r_sample_sq;
+
+    public float get_r_cell() => r_cell;
+
+    public float get_r_cell_sq() => r_cell_sq;
+
+    public float get_mu_sample() => mu_sample;
+
+    public float get_mu_cell() => mu_cell;
+
+    public float[] get_angles2D() => angles2D;
+
+    public List<float> get_anglesIntegrated() => anglesIntegrated;
   }
 }

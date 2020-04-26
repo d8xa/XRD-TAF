@@ -93,7 +93,7 @@ public class SettingsFields : MonoBehaviour {
    public void aktualisiereModus(bool userInput) {
       if (userInput) {
          if (dropdownMode.value == 0) {
-            settings.mode = Model.Modes.Point;
+            settings.mode = Model.Mode.Point;
             
             fieldPixelSize.gameObject.SetActive(false);
             fieldOffsetX.gameObject.SetActive(false);
@@ -106,7 +106,7 @@ public class SettingsFields : MonoBehaviour {
             
             
          } else if(dropdownMode.value == 1) {
-            settings.mode = Model.Modes.Area;
+            settings.mode = Model.Mode.Area;
             fieldPathAngleFile.gameObject.SetActive(false);
             
             fieldPixelSize.gameObject.SetActive(true);
@@ -116,7 +116,7 @@ public class SettingsFields : MonoBehaviour {
             fieldResolutionY.gameObject.SetActive(true);
             fieldDstToSample.gameObject.SetActive(true);
          } else if(dropdownMode.value == 2) {
-            settings.mode = Model.Modes.Integrated;
+            settings.mode = Model.Mode.Integrated;
             
             fieldPixelSize.gameObject.SetActive(false);
             fieldOffsetX.gameObject.SetActive(false);
@@ -128,9 +128,9 @@ public class SettingsFields : MonoBehaviour {
 
          }
       } else {
-         if (settings.mode == Model.Modes.Point) {
+         if (settings.mode == Model.Mode.Point) {
             dropdownMode.value = 0;
-            settings.mode = Model.Modes.Point;
+            settings.mode = Model.Mode.Point;
             
             fieldPixelSize.gameObject.SetActive(false);
             fieldOffsetX.gameObject.SetActive(false);
@@ -140,7 +140,7 @@ public class SettingsFields : MonoBehaviour {
             fieldDstToSample.gameObject.SetActive(false);
             
             fieldPathAngleFile.gameObject.SetActive(true);
-         } else if(settings.mode == Model.Modes.Area) {
+         } else if(settings.mode == Model.Mode.Area) {
             dropdownMode.value = 1;
             fieldPathAngleFile.gameObject.SetActive(false);
             
@@ -150,9 +150,9 @@ public class SettingsFields : MonoBehaviour {
             fieldResolutionX.gameObject.SetActive(true);
             fieldResolutionY.gameObject.SetActive(true);
             fieldDstToSample.gameObject.SetActive(true);
-         } else if(settings.mode == Model.Modes.Integrated) {
+         } else if(settings.mode == Model.Mode.Integrated) {
             dropdownMode.value = 2;
-            settings.mode = Model.Modes.Integrated;
+            settings.mode = Model.Mode.Integrated;
             
             fieldPixelSize.gameObject.SetActive(false);
             fieldOffsetX.gameObject.SetActive(false);
@@ -167,7 +167,7 @@ public class SettingsFields : MonoBehaviour {
       
    }
    
-
+   // TODO: make parsing culture invariant.
    public void aktualisiere(bool userInput) {
       if (userInput) {
          if (!fieldDescriptor.text.Equals("")) {

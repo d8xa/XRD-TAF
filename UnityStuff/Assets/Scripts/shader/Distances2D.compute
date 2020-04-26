@@ -2,8 +2,8 @@
 #pragma kernel g1_dists
 #pragma kernel g2_dists
 #pragma kernel Absorptions
-#pragma fragment frag
-#pragma fragmentoption ARB_precision_hint_nicest
+//#pragma fragment frag
+//#pragma fragmentoption ARB_precision_hint_nicest
 
 
 float r_cell;       // outer radius
@@ -95,7 +95,17 @@ void g2_dists (uint3 id : SV_DispatchThreadID)
 
 [numthreads(1024,1,1)]
 void Absorptions(uint3 id : SV_DispatchThreadID){
-    absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]));                 // case A_{s,sc}.
-    absorptions[id.x].y = exp(-dot(mu, distancesOuter[id.x]));                 // case A_{c,sc}.
-    absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), distancesOuter[id.x]));  // case A_{c,c}.
+    float norm = length(segment[id.x]);
+    if (norm <= r_cell)
+    {
+        absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]));                 // case A_{s,sc}.
+        absorptions[id.x].y = exp(-dot(mu, distancesOuter[id.x]));                 // case A_{c,sc}.
+        if (norm > r_sample)
+        {
+            absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), distancesOuter[id.x]));  // case A_{c,c}.
+        }
+    }
+    
+    
+    
 }
