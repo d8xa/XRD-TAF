@@ -66,13 +66,13 @@ public class LogicHandler {
       }
       else
          angleSteps = model.get_angles2D().Length;
-
+      
       var segmentCount = segmentRes * segmentRes;
       g1_dists_inner_precomputed = new Vector2[segmentCount];
       Array.Clear(g1_dists_inner_precomputed,0,segmentCount);
       g1_dists_outer_precomputed = new Vector2[segmentCount];
       Array.Clear(g1_dists_outer_precomputed,0,segmentCount);
-      g2_dists_inner = new Vector2[angleSteps, segmentCount];
+      g2_dists_inner = new Vector2[angleSteps, segmentCount];   // TODO: memory management. prio=mid.
       Array.Clear(g2_dists_inner,0, segmentCount);
       g2_dists_outer = new Vector2[angleSteps, segmentCount];
       Array.Clear(g2_dists_outer,0, segmentCount);
@@ -150,7 +150,7 @@ public class LogicHandler {
       cs.SetBuffer(g1_handle, "segment", inputBuffer);
       cs.SetBuffer(g1_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g1_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g1_handle, 1024, 1, 1);   // TODO: handle case threadGroupsX > 1024
+      cs.Dispatch(g1_handle, segmentResolution, 1, 1);   // TODO: handle case threadGroupsX > 1024
       outputBufferInner.GetData(g1_dists_inner_precomputed);
       outputBufferOuter.GetData(g1_dists_outer_precomputed);
    }
@@ -164,7 +164,7 @@ public class LogicHandler {
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, 1024, 1, 1);   // TODO: handle case threadGroupsX > 1024
+      cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);   // TODO: handle case threadGroupsX > 1024
       if (copy)
       {
          Vector2[] tempInner = new Vector2[data.Length];
@@ -192,13 +192,13 @@ public class LogicHandler {
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, 1024, 1, 1);
+      cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);
       
       cs.SetBuffer(absorptions_handle, "segment", inputBuffer);
       cs.SetBuffer(absorptions_handle, "absorptions", absorptionsBuffer);
       cs.SetBuffer(absorptions_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(absorptions_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(absorptions_handle, 1024, 1, 1);
+      cs.Dispatch(absorptions_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);
       absorptionsBuffer.GetData(absorptions);
    }
 
@@ -228,11 +228,11 @@ public class LogicHandler {
          var sb = new StringBuilder();
          for (int i = 0; i < n; i++)
          {
-            Debug.Log(Enumerable.Range(0, m)
+            /*Debug.Log(Enumerable.Range(0, m)
                .Select(j => g2_dists_inner[i, j])
                .Count(v => v.x > 0)*1.0f/data.Length
-            );
-            sb.Append("\"" + model.get_angles2D()[i] + "\" : ");
+            );*/
+            sb.Append("\"" + model.get_angles2D()[i] + "\" : ");   // angle as dict key.
             var row = Enumerable.Range(0, m)
                .Select(j => g2_dists_inner[i, j])   
                .ToArray();   // get i-th row.
@@ -249,7 +249,7 @@ public class LogicHandler {
                   "]") 
                .ToArray();   // break up 1D array into 2D array, format each Vector2 inside.
             var row_str = string.Join(",", rows).Replace(" ", "");
-            sb.Append("[").Append(row_str).Append("]");
+            sb.Append("[").Append(row_str).Append("]");   // distances array as dict value.
             if (i + 1 < angleSteps)
                sb.Append(",");
             writer.WriteLine(sb.ToString()

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using FoPra.util;
 using UnityEngine;
 
 namespace FoPra.model
@@ -35,7 +36,7 @@ namespace FoPra.model
     private float mu_sample;
     private float mu_cell;
     private float[] angles2D;
-    private List<float> anglesIntegrated;
+    private float[] anglesIntegrated;
 
     private void calculate_meta_data() {
       segmentResolution = (int) settings.computingAccuracy;  // TODO: rename text field label in GUI.
@@ -46,10 +47,7 @@ namespace FoPra.model
       mu_sample = sample.muSample;
       mu_cell = sample.muCell;
       
-//      float stepsize = (detector.angleEnd - detector.angleStart)/(detector.angleAmount-1); // -1, damit in der for-Schleife einschliesslich der Grenze gerechnet werden kann
-//      for (float i = detector.angleStart; i <= detector.angleEnd; i+=stepsize) {
-//        anglesIntegrated.Add(i);
-//      }
+      anglesIntegrated = MathTools.LinSpace1D(detector.angleStart, detector.angleEnd, detector.angleAmount);
 
       var text = "";
       var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
@@ -90,6 +88,6 @@ namespace FoPra.model
 
     public float[] get_angles2D() => angles2D;
 
-    public List<float> get_anglesIntegrated() => anglesIntegrated;
+    public float[] get_anglesIntegrated() => anglesIntegrated;
   }
 }

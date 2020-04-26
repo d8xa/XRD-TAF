@@ -98,14 +98,14 @@ void Absorptions(uint3 id : SV_DispatchThreadID){
     float norm = length(segment[id.x]);
     if (norm <= r_cell)
     {
-        absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]));                 // case A_{s,sc}.
-        absorptions[id.x].y = exp(-dot(mu, distancesOuter[id.x]));                 // case A_{c,sc}.
         if (norm > r_sample)
         {
+            absorptions[id.x].y = exp(-dot(mu, distancesOuter[id.x]));                 // case A_{c,sc}.
             absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), distancesOuter[id.x]));  // case A_{c,c}.
         }
-    }
-    
-    
-    
+        else 
+        {
+            absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]));                 // case A_{s,sc}.
+        }
+    } 
 }

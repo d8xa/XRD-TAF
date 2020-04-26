@@ -11,7 +11,7 @@ namespace FoPra.util
         public static float[] LinSpace1D(float a, float b, int count)
         {
             return Enumerable.Range(0, count)
-                .Select(idx => idx != count-1 ? a + (b - a) / count * idx : b)
+                .Select(i => a + i*(b-a)/(count-1))
                 .ToArray();
         }
 
