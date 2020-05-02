@@ -9,8 +9,8 @@ public class Settings {
     //Kommentarfunktion
 
     public string aufbauBezeichnung;
-    public Model.Modes mode;
-    public Model.AbsorbtionType absType;
+    public Model.Mode mode;
+    public Model.AbsorptionType absType;
     //muss eh alles gemacht werden
     //public Model.AbsorbtionType absorbtionType;
     //public DetektorSettings detektorSettings;
