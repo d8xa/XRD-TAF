@@ -52,7 +52,7 @@ public class LogicHandler {
     * - sets handles
     */
    void initDataFields(int segmentRes) {
-      data = MathTools.LinSpace2D(-model.get_r_sample()*margin, model.get_r_sample()*margin, segmentRes);
+      data = MathTools.LinSpace2D(-model.get_r_cell()*margin, model.get_r_cell()*margin, segmentRes);
       Debug.Log(data.Length);
       
       // TODO: maybe use length of angle list directly instead.
@@ -132,7 +132,8 @@ public class LogicHandler {
             outputBufferOuter.SetData(g1_dists_outer_precomputed);
             calculate_g2_dists(i, true);
          }
-         WriteDists();
+         WriteDists(g2_dists_inner, $"Dists inner n={segmentResolution}.txt");
+         WriteDists(g2_dists_outer, $"Dists outer n={segmentResolution}.txt");
       }
 
       
@@ -150,7 +151,11 @@ public class LogicHandler {
       cs.SetBuffer(g1_handle, "segment", inputBuffer);
       cs.SetBuffer(g1_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g1_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g1_handle, segmentResolution, 1, 1);   // TODO: handle case threadGroupsX > 1024
+      cs.Dispatch(g1_handle, 
+         (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
+         1, 
+         1
+         );   // TODO: handle case threadGroupsX > 1024
       outputBufferInner.GetData(g1_dists_inner_precomputed);
       outputBufferOuter.GetData(g1_dists_outer_precomputed);
    }
@@ -164,7 +169,8 @@ public class LogicHandler {
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);   // TODO: handle case threadGroupsX > 1024
+      cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
+         1, 1);   // TODO: handle case threadGroupsX > 1024
       if (copy)
       {
          Vector2[] tempInner = new Vector2[data.Length];
@@ -192,13 +198,17 @@ public class LogicHandler {
       cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);
+      cs.Dispatch(g2_handle, 
+         (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
+         1, 1);
       
       cs.SetBuffer(absorptions_handle, "segment", inputBuffer);
       cs.SetBuffer(absorptions_handle, "absorptions", absorptionsBuffer);
       cs.SetBuffer(absorptions_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(absorptions_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(absorptions_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 1, 1);
+      cs.Dispatch(absorptions_handle, 
+         (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
+         1, 1);
       absorptionsBuffer.GetData(absorptions);
    }
 
@@ -214,12 +224,12 @@ public class LogicHandler {
       );
    }
 
-   private void WriteDists()
+   private void WriteDists(Vector2[,] distsArray, string filename)
    {
       Debug.Log("Writing");
-      var (n, m) = (g2_dists_inner.GetLength(0), g2_dists_inner.GetLength(1));
+      var (n, m) = (distsArray.GetLength(0), distsArray.GetLength(1));
       
-      using (var fileStream = File.Create(Path.Combine("Logs", "Distances2D", $"Output n={segmentResolution}.txt")))
+      using (var fileStream = File.Create(Path.Combine("Logs", "Distances2D", filename)))
       using (var buffered = new BufferedStream(fileStream))
       using (var writer = new StreamWriter(buffered))
       {
@@ -234,7 +244,7 @@ public class LogicHandler {
             );*/
             sb.Append("\"" + model.get_angles2D()[i] + "\" : ");   // angle as dict key.
             var row = Enumerable.Range(0, m)
-               .Select(j => g2_dists_inner[i, j])   
+               .Select(j => distsArray[i, j])   
                .ToArray();   // get i-th row.
             var rows = Enumerable.Range(0, segmentResolution)
                .Select(k => 
