@@ -1,7 +1,8 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel g1_dists
 #pragma kernel g2_dists
-#pragma kernel Absorptions
+#pragma kernel Absorptions2D
+#pragma kernel Absorptions3D
 //#pragma fragment frag
 //#pragma fragmentoption ARB_precision_hint_nicest
 
@@ -13,6 +14,7 @@ float r_sample_sq;  // inner radius squared
 float cos;          // cos(180-2*theta)
 float sin;          // sin(180-2*theta)
 float2 mu;          // absorption factors in cell, sample.
+float cos_alpha;    // stretch factor for 2D-to-3D transformation of g2_dists.
 
 StructuredBuffer<float2> segment;
 
@@ -20,6 +22,7 @@ StructuredBuffer<float2> segment;
 RWStructuredBuffer<float2> distancesOuter;       // Diffraction only in cell.
 RWStructuredBuffer<float2> distancesInner;       // Diffraction only in sample.
 RWStructuredBuffer<float3> absorptions;          // Absorption values with diffraction/absorption in (s,sc), (c,sc), (c,c).
+//RWStructuredBuffer<float> cos_alphas;          // Absorption values with diffraction/absorption in (s,sc), (c,sc), (c,c).
 
 
 // TODO: test efficiency of radius*radius vs radius_sq.
@@ -88,13 +91,16 @@ void g1_dists (uint3 id : SV_DispatchThreadID)
 [numthreads(1024,1,1)]
 void g2_dists (uint3 id : SV_DispatchThreadID)
 {
-    float2 rv = float2(cos*segment[id.x].x-sin*segment[id.x].y, sin*segment[id.x].x+cos*segment[id.x].y);
+    float2 rv = float2(
+        cos*segment[id.x].x-sin*segment[id.x].y, 
+        sin*segment[id.x].x+cos*segment[id.x].y
+    );
     distancesOuter[id.x] = distancesOuter[id.x] + ER_dists_F2(rv);
     distancesInner[id.x] = distancesInner[id.x] + ER_dists_F1(rv);
 }
 
 [numthreads(1024,1,1)]
-void Absorptions(uint3 id : SV_DispatchThreadID){
+void Absorptions2D(uint3 id : SV_DispatchThreadID){
     float norm = length(segment[id.x]);
     if (norm <= r_cell)
     {
@@ -106,6 +112,25 @@ void Absorptions(uint3 id : SV_DispatchThreadID){
         else 
         {
             absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]));                 // case A_{s,sc}.
+        }
+    } 
+}
+
+[numthreads(1024,1,1)]
+void Absorptions3D(uint3 id : SV_DispatchThreadID){
+    float norm = length(segment[id.x]);
+    if (norm <= r_cell)
+    {
+        if (norm > r_sample)
+        {
+            // TODO: loop over cos_alpha buffer.
+            absorptions[id.x].y = exp(-dot(mu, distancesOuter[id.x]/cos_alpha));                 // case A_{c,sc}.
+            absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), distancesOuter[id.x]/cos_alpha));  // case A_{c,c}.
+        }
+        else 
+        {
+            // TODO: loop over cos_alpha buffer.
+            absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x]/cos_alpha));                 // case A_{s,sc}.
         }
     } 
 }

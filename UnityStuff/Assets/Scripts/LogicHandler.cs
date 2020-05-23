@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.UIElements;
 using UnityEngineInternal;
+using Debug = UnityEngine.Debug;
 
 [Serializable]
 public class LogicHandler {
@@ -28,10 +30,12 @@ public class LogicHandler {
    private Vector2[,] g2_dists_outer;
    private Vector3[] absorptions;
    private Vector3[] absorptionFactors;
+   private Vector3[,] absorptionFactors3D;
 
    private int g1_handle;
    private int g2_handle;
-   private int absorptions_handle;
+   private int absorptions2dHandle;
+   private int absorptions3dHandle;
 
    
    private ComputeBuffer inputBuffer;
@@ -59,7 +63,11 @@ public class LogicHandler {
       if (model.settings.mode == Model.Mode.Point)
          angleSteps = model.get_angles2D().Length;
       else if (model.settings.mode == Model.Mode.Area)
-         angleSteps = (int) (model.detector.resolution.x * model.detector.resolution.y);
+      {
+         // TODO: error checking.
+         angleSteps = (int) model.detector.resolution.x;
+         absorptionFactors3D = new Vector3[(int) model.detector.resolution.x, (int) model.detector.resolution.y];
+      }
       else if (model.settings.mode == Model.Mode.Integrated)
       {
          // TODO:
@@ -86,10 +94,12 @@ public class LogicHandler {
       cs.SetFloat("r_sample", model.get_r_sample());
       cs.SetFloat("r_cell_sq", model.get_r_cell_sq());
       cs.SetFloat("r_sample_sq", model.get_r_sample_sq());
-      
+      cs.SetFloat("cos_alpha", 1.0f);
+
       g1_handle = cs.FindKernel("g1_dists");
       g2_handle = cs.FindKernel("g2_dists");
-      absorptions_handle = cs.FindKernel("Absorptions");
+      absorptions2dHandle = cs.FindKernel("Absorptions2D");
+      absorptions3dHandle = cs.FindKernel("Absorptions3D");
    }
 
    public void run_shader() 
@@ -106,20 +116,30 @@ public class LogicHandler {
       calculate_g1_dists();
 
       if (model.settings.mode == Model.Mode.Point) {
-         for (int i = 0; i < angleSteps; i++) {
+         for (int j = 0; j < angleSteps; j++) {
             outputBufferInner.SetData(g1_dists_inner_precomputed);
             outputBufferOuter.SetData(g1_dists_outer_precomputed);
-            calculate_absorptions_2D(i);
-            extractAbsorptionFactor(i, (float) 1E-14);
+            calculate_absorptions_2D(j);
+            absorptionFactors[j] = extractAbsorptionFactor((float) 1E-14);
          }
          WriteAbsorptionFactors();
       } 
       else if (model.settings.mode == Model.Mode.Area) 
       {
-         for (int i = 0; i < angleSteps; i++)
-            calculate_g2_dists(i, true);
-         for (int i = 0; i < angleSteps; i++)
-            calculate_g2_3D_dists(segmentResolution, i);
+         var stopwatch = new Stopwatch();
+         stopwatch.Start();
+         for (int j = 0; j < angleSteps; j++)
+         {
+            if ((j % 32) == 0)
+               Debug.Log($"Detector absorption factor, iteration={j.ToString()}");
+            outputBufferInner.SetData(g1_dists_inner_precomputed);
+            outputBufferOuter.SetData(g1_dists_outer_precomputed);
+            calculate_g2_dists(j, true);
+            calculateAbsorptions3D_column(j);
+         }
+         stopwatch.Stop();
+         var ts = stopwatch.Elapsed;
+         Debug.Log($"{ts.Hours:00}:{ts.Minutes:00}:{ts.Seconds:00}.{ts.Milliseconds / 10:00}");
       } 
       else if (model.settings.mode == Model.Mode.Integrated) 
       {
@@ -184,14 +204,6 @@ public class LogicHandler {
       }
    }
 
-   public void calculate_g2_3D_dists(int size, int i) {
-      // TODO.
-   }
-
-   /**
-    * absorptions pass: calculate absorptions from distances in shader buffers
-    * (used case chosen in run-method)
-    */
    public void calculate_absorptions_2D(int i) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
       cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
@@ -202,11 +214,38 @@ public class LogicHandler {
          (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
          1, 1);
       
-      cs.SetBuffer(absorptions_handle, "segment", inputBuffer);
-      cs.SetBuffer(absorptions_handle, "absorptions", absorptionsBuffer);
-      cs.SetBuffer(absorptions_handle, "distancesInner", outputBufferInner);
-      cs.SetBuffer(absorptions_handle, "distancesOuter", outputBufferOuter);
-      cs.Dispatch(absorptions_handle, 
+      cs.SetBuffer(absorptions2dHandle, "segment", inputBuffer);
+      cs.SetBuffer(absorptions2dHandle, "absorptions", absorptionsBuffer);
+      cs.SetBuffer(absorptions2dHandle, "distancesInner", outputBufferInner);
+      cs.SetBuffer(absorptions2dHandle, "distancesOuter", outputBufferOuter);
+      cs.Dispatch(absorptions2dHandle, 
+         (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
+         1, 1);
+      absorptionsBuffer.GetData(absorptions);
+   }
+
+   public void calculateAbsorptions3D_column(int j)
+   {
+      double deltaX = Math.Abs(j * model.detector.pixelsize - model.detector.offSetFromDownRightEdge.x);
+      double b = Math.Sqrt(Math.Pow(deltaX, 2) + Math.Pow(model.detector.distToSample, 2));
+            
+      for (int i = 0; i < angleSteps; i++)
+      {
+         double deltaY = Math.Abs(i*model.detector.pixelsize - model.detector.offSetFromDownRightEdge.y);
+         double c = Math.Sqrt(Math.Pow(b, 2) + Math.Pow(deltaY, 2));
+         
+         cs.SetBuffer(absorptions3dHandle, "segment", inputBuffer);
+         calculateAbsorptions3D_point(cosAlpha: b/c);
+         absorptionFactors3D[i,j] = extractAbsorptionFactor((float) 1E-14);
+      }
+   }
+   
+   public void calculateAbsorptions3D_point(double cosAlpha) {
+      cs.SetFloat("cos_alpha", (float) cosAlpha);
+      cs.SetBuffer(absorptions3dHandle, "absorptions", absorptionsBuffer);
+      cs.SetBuffer(absorptions3dHandle, "distancesInner", outputBufferInner);
+      cs.SetBuffer(absorptions3dHandle, "distancesOuter", outputBufferOuter);
+      cs.Dispatch(absorptions3dHandle, 
          (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
          1, 1);
       absorptionsBuffer.GetData(absorptions);
@@ -215,9 +254,9 @@ public class LogicHandler {
    /**
     * Computes average over all non-zero elements, per axis x,y,z.
     */
-   void extractAbsorptionFactor(int j, float tol)
+   Vector3 extractAbsorptionFactor(float tol)
    {
-      absorptionFactors[j] = new Vector3(
+       return new Vector3(
          absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
          absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
          absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()

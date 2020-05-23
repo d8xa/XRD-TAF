@@ -64,7 +64,7 @@ public class SettingsFields : MonoBehaviour {
       }
 
       if (fieldDstToSample.text.Equals("")) {
-         detektorSettings.dstToSample = defaultDetektorSettings.dstToSample;
+         detektorSettings.distToSample = defaultDetektorSettings.distToSample;
       }
 
       if (fieldPathAngleFile.text.Equals("")) {
@@ -190,7 +190,7 @@ public class SettingsFields : MonoBehaviour {
             detektorSettings.resolution.y = float.Parse(fieldResolutionY.text);
          }
          if (!fieldDstToSample.text.Equals("")) {
-            detektorSettings.dstToSample = float.Parse(fieldDstToSample.text);
+            detektorSettings.distToSample = float.Parse(fieldDstToSample.text);
          }
          if (!fieldPathAngleFile.text.Equals("")) {
             detektorSettings.pathToAngleFile = fieldPathAngleFile.text;
@@ -217,7 +217,7 @@ public class SettingsFields : MonoBehaviour {
          fieldPixelSize.text = detektorSettings.pixelsize.ToString();
          fieldOffsetX.text = detektorSettings.offSetFromDownRightEdge.x.ToString();
          fieldOffsetY.text = detektorSettings.offSetFromDownRightEdge.y.ToString();
-         fieldDstToSample.text = detektorSettings.dstToSample.ToString();
+         fieldDstToSample.text = detektorSettings.distToSample.ToString();
          fieldResolutionX.text = detektorSettings.resolution.x.ToString();
          fieldResolutionY.text = detektorSettings.resolution.y.ToString();
          fieldPathAngleFile.text = detektorSettings.pathToAngleFile;

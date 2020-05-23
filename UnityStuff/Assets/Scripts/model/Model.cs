@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using FoPra.util;
 using UnityEngine;
+using UnityEngine.SocialPlatforms;
 
 namespace FoPra.model
 {
@@ -38,8 +39,9 @@ namespace FoPra.model
     private float[] angles2D;
     private float[] anglesIntegrated;
 
-    private void calculate_meta_data() {
-      segmentResolution = (int) settings.computingAccuracy;  // TODO: rename text field label in GUI.
+    private void calculate_meta_data()
+    {
+      segmentResolution = (int) settings.computingAccuracy; // TODO: rename text field label in GUI.
       r_sample = sample.totalDiameter / 2 - sample.cellThickness;
       r_sample_sq = (float) Math.Pow(r_sample, 2);
       r_cell = sample.totalDiameter / 2;
@@ -51,17 +53,24 @@ namespace FoPra.model
 
       var text = "";
       var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
-      if (File.Exists(path)) {
+      if (File.Exists(path))
+      {
         using (var reader = new StreamReader(path))
           text = reader.ReadToEnd();
       }
 
-      angles2D = text
-        .Trim(' ')
-        .Split('\n')
-        .Where(s => s.Length > 0)
-        .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
-        .ToArray();
+
+      if (settings.mode.Equals(Mode.Point) || settings.mode.Equals(Mode.Testing))
+        angles2D = text
+          .Trim(' ')
+          .Split('\n')
+          .Where(s => s.Length > 0)
+          .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+          .ToArray();
+      else
+        angles2D = Enumerable.Range(0, (int) detector.resolution.x)
+          .Select(j => detector.getAngleFromOffset(j, false))
+          .ToArray();
     }
 
     public Model(Settings settings, DetektorSettings detector, SampleSettings sample/*, RaySettings ray*/) {
