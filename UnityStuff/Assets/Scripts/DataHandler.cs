@@ -4,8 +4,11 @@ using UnityEngine;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
+using controller;
 using FoPra.model;
 using FoPra.tests;
+using UnityEngine.PlayerLoop;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class DataHandler : MonoBehaviour{
@@ -25,14 +28,21 @@ public class DataHandler : MonoBehaviour{
     public Button submitButton;
     public ComputeShader computeShader;
 
-    public LogicHandler logicHandler;
+    [FormerlySerializedAs("logicHandler")] 
+    public ShaderAdapter shaderAdapter;
 
     private void Awake() {
+        UpdatePath();
+    }
+
+    private void UpdatePath()
+    {
         savePath = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
     public void fillInBlanks()
     {
+        UpdatePath();
         if (File.Exists(Path.Combine(savePath, "Default_set.txt"))) {
             settingsFields.fillInDefaults(
                 JsonUtility.FromJson<Settings>(File.ReadAllText(Path.Combine(savePath, "Default_set.txt"))));
@@ -49,14 +59,26 @@ public class DataHandler : MonoBehaviour{
 
     public void submitToComputing() {
         fillInBlanks();
+
+        switch (settingsFields.settings.mode)
+        {
+            case Model.Mode.Point:
+                shaderAdapter = new PointModeAdapter(
+                    computeShader,
+                    new Model(
+                        settingsFields.settings, 
+                        settingsFields.detektorSettings, 
+                        settingsFields.sampleSettings
+                    ), 
+                    0.2f,
+                    false,
+                    true);
+                break;
+        }
         //TestSuite.test_Distances2D(computeShader);
-        logicHandler = new LogicHandler(
-            new Model(
-                settingsFields.settings, 
-                settingsFields.detektorSettings, 
-                settingsFields.sampleSettings
-            ), computeShader);
-        logicHandler.run_shader();
+        // TODO: delegate to ShaderAdapter
+        
+        shaderAdapter.Execute();
     }
 
     public void settingSaver() {

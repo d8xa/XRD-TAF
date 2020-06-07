@@ -46,7 +46,7 @@ public class LogicHandler {
    public LogicHandler(Model model, ComputeShader cs) {
       this.model = model;
       this.cs = cs;
-      segmentResolution = model.get_accuracy_resolution_size();
+      segmentResolution = model.get_segment_resolution();
    }
 
    /**
@@ -60,21 +60,27 @@ public class LogicHandler {
       Debug.Log(data.Length);
       
       // TODO: maybe use length of angle list directly instead.
-      if (model.settings.mode == Model.Mode.Point)
-         angleSteps = model.get_angles2D().Length;
-      else if (model.settings.mode == Model.Mode.Area)
+      switch (model.settings.mode)
       {
-         // TODO: error checking.
-         angleSteps = (int) model.detector.resolution.x;
-         absorptionFactors3D = new Vector3[(int) model.detector.resolution.x, (int) model.detector.resolution.y];
+         case Model.Mode.Point:
+            angleSteps = model.get_angles2D().Length;
+            break;
+         
+         case Model.Mode.Area:
+            // TODO: error checking.
+            angleSteps = (int) model.detector.resolution.x;
+            absorptionFactors3D = new Vector3[(int) model.detector.resolution.x, (int) model.detector.resolution.y];
+            break;
+         
+         case Model.Mode.Integrated:
+            // TODO:
+            break;
+         
+         case Model.Mode.Testing:
+            angleSteps = model.get_angles2D().Length;
+            break;
       }
-      else if (model.settings.mode == Model.Mode.Integrated)
-      {
-         // TODO:
-      }
-      else
-         angleSteps = model.get_angles2D().Length;
-      
+
       var segmentCount = segmentRes * segmentRes;
       g1_dists_inner_precomputed = new Vector2[segmentCount];
       Array.Clear(g1_dists_inner_precomputed,0,segmentCount);
@@ -257,10 +263,10 @@ public class LogicHandler {
    Vector3 extractAbsorptionFactor(float tol)
    {
        return new Vector3(
-         absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
-         absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
-         absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
-      );
+         absorptions.Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
+         );
    }
 
    private void WriteDists(Vector2[,] distsArray, string filename)

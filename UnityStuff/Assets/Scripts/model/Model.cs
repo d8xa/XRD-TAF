@@ -77,11 +77,11 @@ namespace FoPra.model
       this.settings = settings;
       this.detector = detector;
       this.sample = sample;
-      this.ray = ray;
+      //this.ray = ray;
       calculate_meta_data();
     }
 
-    public int get_accuracy_resolution_size() => segmentResolution;
+    public int get_segment_resolution() => segmentResolution;
     
     public float get_r_sample() => r_sample;
 

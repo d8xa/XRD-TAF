@@ -1,0 +1,1 @@
+{"aufbauBezeichnung":"new","mode":0,"absType":0,"loadName":"","pathToInputData":"","computingAccuracy":128.0}
