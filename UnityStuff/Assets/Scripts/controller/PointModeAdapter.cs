@@ -3,9 +3,15 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using FoPra.model;
+using FoPra.util;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.Assertions.Comparers;
 using Debug = UnityEngine.Debug;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 namespace controller
 {
@@ -46,7 +52,7 @@ namespace controller
         {
             var sw = new Stopwatch();
             sw.Start();
-
+            
             // initialize g1 distance arrays.
             var g1DistsOuter = new Vector2[_nrSegments];
             var g1DistsInner = new Vector2[_nrSegments];
@@ -71,8 +77,9 @@ namespace controller
 
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
+            //var g2Handle = Shader.FindKernel("g2_dists");
             var absorptionsHandle = Shader.FindKernel("Absorptions");
-            var absorptionFactorsHandle = Shader.FindKernel("AbsorptionFactors");
+            //var absorptionFactorsHandle = Shader.FindKernel("AbsorptionFactors");
             
             Debug.Log($"{sw.Elapsed}: Retrieved kernel handles.");
 
@@ -82,7 +89,7 @@ namespace controller
             var outputBufferOuter = new ComputeBuffer(_coordinates.Length, 8);
             var outputBufferInner = new ComputeBuffer(_coordinates.Length, 8);
             var absorptionsBuffer = new ComputeBuffer(_coordinates.Length, 12);
-            var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesTheta, 12);
+            //var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesTheta, 12);
             
             Debug.Log($"{sw.Elapsed}: Created buffers.");
 
@@ -102,25 +109,43 @@ namespace controller
 
             
             // compute g1 distances.
-            Shader.Dispatch(g1Handle, threadGroupsX, 1, 1);   
+            Shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
             
             Debug.Log($"{sw.Elapsed}: Calculated g1 distances.");
             
+            /*
             // initialize buffers for absorption factor calculation.
             Shader.SetBuffer(absorptionFactorsHandle, "segment", inputBuffer);
             Shader.SetBuffer(absorptionFactorsHandle, "absorptionFactors", absorptionFactorsBuffer);
             
             Debug.Log($"{sw.Elapsed}: Initialized absorption factor buffers.");
+            */
 
 
-            var ts = new TimeSpan();
-            var tmp = new Vector3[_coordinates.Length];
+            var loop_ts = new TimeSpan();
+            var factors_ts = new TimeSpan();
+            var absorptions = new Vector3[_nrSegments];
+            Array.Clear(absorptions, 0, absorptions.Length);
             
             // for each angle:
             for (int j = 0; j < _nrAnglesTheta; j++) {
                 // TODO: check if g2 kernel can access filled distances buffer of g1 kernel.
-                var timeStart = sw.Elapsed;
+                var loopStart = sw.Elapsed;
+                
+                /*
+                //TEST
+                Shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
+                Shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
+                
+                Shader.SetBuffer(g2Handle, "segment", inputBuffer);
+                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.get_angles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.get_angles2D()[j]) * Math.PI / 180));
+                Shader.SetBuffer(g2Handle, "distancesInner", outputBufferInner);
+                Shader.SetBuffer(g2Handle, "distancesOuter", outputBufferOuter);
+                Shader.Dispatch(g2Handle, threadGroupsX, 1, 1);
+                */
 
+                
                 // set coordinate buffer. remove?
                 Shader.SetBuffer(absorptionsHandle, "segment", inputBuffer);
                 Shader.SetFloat("cos", (float) Math.Cos((180 - Model.get_angles2D()[j]) * Math.PI / 180));
@@ -129,34 +154,49 @@ namespace controller
                 Shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
                 Shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
+                
 
-                absorptionsBuffer.GetData(tmp);
+                absorptionsBuffer.GetData(absorptions);
+                var factor_start = sw.Elapsed;
+                _absorptionFactors[j] =
+                    GetAbsorptionFactorLINQ(absorptions, Vector3.kEpsilon);
+                    //GetAbsorptionFactor(absorptions, j);
+                var factor_stop = sw.Elapsed;
+                factors_ts += factor_stop - factor_start;
+
                 // TODO: getData for buffer necessary?
                 // TODO: research buffer counter:
                 // https://docs.unity3d.com/ScriptReference/ComputeBufferType.Counter.html
+                /*
                 Shader.SetInt("bufIndex_Factors", j);
                 Shader.SetBuffer(absorptionFactorsHandle, "absorptions", absorptionsBuffer);
                 Shader.Dispatch(absorptionFactorsHandle, threadGroupsX, 1, 1);
-                var timeStop = sw.Elapsed;
-                ts += timeStop - timeStart;
+                */
+                var loopStop = sw.Elapsed;
+                loop_ts += loopStop - loopStart;
             }
             
-            Debug.Log($"{sw.Elapsed}: Computation done. Took {ts}. Took " +
-                      $"{TimeSpan.FromTicks(ts.Ticks/_nrAnglesTheta)} avg. per loop.");
+            Debug.Log($"{sw.Elapsed}: Computation done. Took {loop_ts}." 
+                      + $" Took {TimeSpan.FromTicks(loop_ts.Ticks/_nrAnglesTheta)} avg. per loop,"
+                      + $" {TimeSpan.FromTicks(factors_ts.Ticks/_nrAnglesTheta)} for absorption factor calculation.");
 
             // save absorption factors from buffer to variable.
             var readBufferStart = sw.Elapsed;
             inputBuffer.Release();
             Debug.Log($"{sw.Elapsed}: Input buffer released.");
+            
+            //System.Threading.Thread.Sleep(10000);
+            //Debug.Log($"{sw.Elapsed}: slept 10s.");
+
             //absorptionFactorsBuffer.GetData(_absorptionFactors);
-            Debug.Log($"{sw.Elapsed}: Retrieved factors from buffers. Took {sw.Elapsed-readBufferStart}");
+            //absorptionsBuffer.GetData(absorptions);
+            //Debug.Log($"{sw.Elapsed}: Retrieved factors from buffers. Took {sw.Elapsed-readBufferStart}");
             
             // release buffers.
-            inputBuffer.Release();
             outputBufferOuter.Release();
             outputBufferInner.Release();
             absorptionsBuffer.Release();
-            absorptionFactorsBuffer.Release();
+            //absorptionFactorsBuffer.Release();
             Debug.Log($"{sw.Elapsed}: Buffers released.");
 
             if (_writeFactors)
@@ -187,6 +227,72 @@ namespace controller
             
             util.ArrayWriteTools.Write2D(path, headCol, headRow, data);
         }
+
+        private Vector3 GetAbsorptionFactor(Vector3[] absorptions, int j)
+        {
+            float[] absorptionSum = new float[]{0.0f, 0.0f, 0.0f};
+            uint[] count = new uint[]{0,0,0};
+
+            for (int i = 0; i < _nrSegments; i++)
+            {
+                double norm = Vector3.Magnitude(_coordinates[i]);
+                if (norm <= Model.get_r_cell())
+                {
+                    if (norm > Model.get_r_sample())
+                    {
+                        absorptionSum[1] += absorptions[i].y;
+                        absorptionSum[2] += absorptions[i].z;
+                        count[1] += 1;
+                        count[2] += 1;
+                    }
+                    else
+                    {
+                        absorptionSum[0] += absorptions[i].x;
+                        count[0] += 1;
+                    }
+                }
+            }
+
+            for (int i = 0; i < 3; i++)
+            {
+                if (count[i] == 0) count[i] = 1;
+            }
+
+            return _absorptionFactors[j] = new Vector3(
+                    absorptionSum[0] / count[0],
+                    absorptionSum[1] / count[1],
+                    absorptionSum[2] / count[2]
+                    );
+        }
+        
+        
+        Vector3 GetAbsorptionFactorLINQ(Vector3[] absorptions, float tol)
+        {
+            return new Vector3(
+                absorptions.AsParallel().Select(v => v.x).Where(x => x >= tol).Average(),
+                absorptions.AsParallel().Select(v => v.y).Where(x => x >= tol).Average(),
+                absorptions.AsParallel().Select(v => v.z).Where(x => x >= tol).Average()
+            );
+        }
+
+        private float IsContained(float norm, int @case)
+        {
+            if (@case == 0)
+                return norm <= Model.get_r_cell() && norm <= Model.get_r_sample() ? 1f : 0f;
+            else
+                return norm <= Model.get_r_cell() && norm > Model.get_r_sample() ? 1f : 0f;
+        }
+
+        private Vector3 IsContained(Vector3 v)
+        {
+            var norm = v.magnitude;
+            return new Vector3(
+                IsContained(norm, 0), 
+                IsContained(norm, 1), 
+                IsContained(norm, 2)
+                );
+        }
+        
         
         private void WriteAbsorptionFactors()
         {
