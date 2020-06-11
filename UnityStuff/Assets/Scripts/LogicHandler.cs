@@ -59,28 +59,24 @@ public class LogicHandler {
       data = MathTools.LinSpace2D(-model.get_r_cell()*margin, model.get_r_cell()*margin, segmentRes);
       Debug.Log(data.Length);
       
+      var sw = new Stopwatch();
       // TODO: maybe use length of angle list directly instead.
-      switch (model.settings.mode)
+      if (model.settings.mode == Model.Mode.Point)
+         angleSteps = model.get_angles2D().Length;
+      else if (model.settings.mode == Model.Mode.Area)
       {
-         case Model.Mode.Point:
-            angleSteps = model.get_angles2D().Length;
-            break;
-         
-         case Model.Mode.Area:
-            // TODO: error checking.
-            angleSteps = (int) model.detector.resolution.x;
-            absorptionFactors3D = new Vector3[(int) model.detector.resolution.x, (int) model.detector.resolution.y];
-            break;
-         
-         case Model.Mode.Integrated:
-            // TODO:
-            break;
-         
-         case Model.Mode.Testing:
-            angleSteps = model.get_angles2D().Length;
-            break;
+         // TODO: error checking.
+         angleSteps = (int) model.detector.resolution.x;
+         absorptionFactors3D = new Vector3[(int) model.detector.resolution.x, (int) model.detector.resolution.y];
       }
-
+      else if (model.settings.mode == Model.Mode.Integrated)
+      {
+         // TODO:
+      }
+      else
+         angleSteps = model.get_angles2D().Length;
+      
+      Debug.Log($"{sw.Elapsed}: Strating Initialized g1 distance arrays.");
       var segmentCount = segmentRes * segmentRes;
       g1_dists_inner_precomputed = new Vector2[segmentCount];
       Array.Clear(g1_dists_inner_precomputed,0,segmentCount);
@@ -122,13 +118,17 @@ public class LogicHandler {
       calculate_g1_dists();
 
       if (model.settings.mode == Model.Mode.Point) {
+         Stopwatch sw = new Stopwatch();
+         sw.Start();
          for (int j = 0; j < angleSteps; j++) {
             outputBufferInner.SetData(g1_dists_inner_precomputed);
             outputBufferOuter.SetData(g1_dists_outer_precomputed);
             calculate_absorptions_2D(j);
-            absorptionFactors[j] = extractAbsorptionFactor((float) 1E-14);
+            absorptionFactors[j] = GetAbsorptionFactor();
          }
-         WriteAbsorptionFactors();
+         Debug.Log(sw.Elapsed.ToString("G"));
+         sw.Stop();
+         //WriteAbsorptionFactors();
       } 
       else if (model.settings.mode == Model.Mode.Area) 
       {
@@ -242,7 +242,7 @@ public class LogicHandler {
          
          cs.SetBuffer(absorptions3dHandle, "segment", inputBuffer);
          calculateAbsorptions3D_point(cosAlpha: b/c);
-         absorptionFactors3D[i,j] = extractAbsorptionFactor((float) 1E-14);
+         absorptionFactors3D[i,j] = GetAbsorptionFactorLINQ((float) 1E-14);
       }
    }
    
@@ -256,17 +256,54 @@ public class LogicHandler {
          1, 1);
       absorptionsBuffer.GetData(absorptions);
    }
+   
+   private Vector3 GetAbsorptionFactor()
+   {
+      float[] absorptionSum = new float[]{0.0f, 0.0f, 0.0f};
+      uint[] count = new uint[]{0,0,0};
+
+      for (int i = 0; i < data.Length; i++)
+      {
+         double norm = Vector3.Magnitude(data[i]);
+         if (norm <= model.get_r_cell())
+         {
+            if (norm > model.get_r_sample())
+            {
+               absorptionSum[1] += absorptions[i].y;
+               absorptionSum[2] += absorptions[i].z;
+               count[1] += 1;
+               count[2] += 1;
+            }
+            else
+            {
+               absorptionSum[0] += absorptions[i].x;
+               count[0] += 1;
+            }
+         }
+      }
+
+      for (int i = 0; i < 3; i++)
+      {
+         if (count[i] == 0) count[i] = 1;
+      }
+
+      return new Vector3(
+         absorptionSum[0] / count[0],
+         absorptionSum[1] / count[1],
+         absorptionSum[2] / count[2]
+      );
+   }
 
    /**
     * Computes average over all non-zero elements, per axis x,y,z.
     */
-   Vector3 extractAbsorptionFactor(float tol)
+   Vector3 GetAbsorptionFactorLINQ(float tol)
    {
        return new Vector3(
-         absorptions.Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
-         absorptions.Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
-         absorptions.Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
-         );
+         absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
+         absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
+      );
    }
 
    private void WriteDists(Vector2[,] distsArray, string filename)
