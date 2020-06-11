@@ -1,7 +1,8 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel g1_dists
+//#pragma kernel g2_dists
 #pragma kernel Absorptions
-#pragma kernel AbsorptionFactors
+//#pragma kernel AbsorptionFactors
 //#pragma fragment frag
 //#pragma fragmentoption ARB_precision_hint_nicest
 
@@ -15,9 +16,9 @@ float cos;          // cos(180-2*theta)
 float sin;          // sin(180-2*theta)
 float2 mu;          // absorption factors in cell, sample.
 
-uint bufCount_Segments;    // number of segment coordinates.
+//uint bufCount_Segments;    // number of segment coordinates.
 //uint bufCount_Factors;   // number of absorption factors in 2D case.
-uint bufIndex_Factors;   // index where to write absorption factor into.
+//uint bufIndex_Factors;   // index where to write absorption factor into.
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
@@ -29,7 +30,7 @@ RWStructuredBuffer<float2> distancesInner;          // Diffraction only in sampl
 
 /* Absorption */
 RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
-RWStructuredBuffer<float3> absorptionFactors;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
+//RWStructuredBuffer<float3> absorptionFactors;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
 
 
 float getIntersectX(float2 v, float radius_sq, bool right)
@@ -84,17 +85,38 @@ void g1_dists(uint3 id : SV_DispatchThreadID)
     distancesInner[id.x] = ER_dists_F1(segment[id.x]);
 }
 
+
+/* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
+/*
+[numthreads(1024,1,1)]
+void g2_dists (uint3 id : SV_DispatchThreadID)
+{
+    float2 rv = float2(
+        cos*segment[id.x].x-sin*segment[id.x].y, 
+        sin*segment[id.x].x+cos*segment[id.x].y
+    );
+    distancesOuter[id.x] = distancesOuter[id.x] + ER_dists_F2(rv);
+    distancesInner[id.x] = distancesInner[id.x] + ER_dists_F1(rv);
+}
+*/
+
+/*
 float2 rotatePoint(uint i)
 {
     return float2(
             cos*segment[i].x-sin*segment[i].y, 
             sin*segment[i].x+cos*segment[i].y);
 }
+*/
 
 
 [numthreads(1024,1,1)]
 void Absorptions(uint3 id : SV_DispatchThreadID){
-    float2 rv = rotatePoint(id.x);
+    //float2 rv = rotatePoint(id.x);//
+    float2 rv = float2(
+        cos*segment[id.x].x-sin*segment[id.x].y, 
+        sin*segment[id.x].x+cos*segment[id.x].y
+    );
     float norm = length(segment[id.x]);
     
     if (norm <= r_cell)
@@ -114,9 +136,11 @@ void Absorptions(uint3 id : SV_DispatchThreadID){
 
 
 
+
 /**
 * @param index: the index of each theta.
 */
+/*
 [numthreads(1,1,1)]
 void AbsorptionFactors(uint3 id : SV_DispatchThreadID)
 {
@@ -150,3 +174,4 @@ void AbsorptionFactors(uint3 id : SV_DispatchThreadID)
     
     absorptionFactors[bufIndex_Factors] = absorptionSum/diffractionPointCounts;
 }
+*/
