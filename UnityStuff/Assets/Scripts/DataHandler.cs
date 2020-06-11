@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ using FoPra.tests;
 using UnityEngine.PlayerLoop;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
+using Debug = UnityEngine.Debug;
 
 public class DataHandler : MonoBehaviour{
 
@@ -30,6 +32,7 @@ public class DataHandler : MonoBehaviour{
 
     [FormerlySerializedAs("logicHandler")] 
     public ShaderAdapter shaderAdapter;
+    public LogicHandler logicHandler;
 
     private void Awake() {
         UpdatePath();
@@ -60,25 +63,47 @@ public class DataHandler : MonoBehaviour{
     public void submitToComputing() {
         fillInBlanks();
 
-        switch (settingsFields.settings.mode)
-        {
-            case Model.Mode.Point:
-                shaderAdapter = new PointModeAdapter(
-                    computeShader,
-                    new Model(
-                        settingsFields.settings, 
-                        settingsFields.detektorSettings, 
-                        settingsFields.sampleSettings
-                    ), 
-                    0.2f,
-                    false,
-                    true);
-                break;
-        }
+        /*
+        shaderAdapter = ShaderAdapterBuilder.New()
+            .SetMode(settingsFields.settings.mode)
+            .SetModel(settingsFields.MakeModel())
+            .SetSegmentMargin(0.2f)
+            .AutoSetShader()
+            //.WriteFactors()
+            .Build();
+        */
+        
+        ///*
+        shaderAdapter = new PointModeAdapter(
+            computeShader,
+            new Model(
+                settingsFields.settings, 
+                settingsFields.detektorSettings, 
+                settingsFields.sampleSettings
+            ), 
+            0.2f,
+            false,
+            false);
+        
+        
         //TestSuite.test_Distances2D(computeShader);
         // TODO: delegate to ShaderAdapter
-        
         shaderAdapter.Execute();
+        //*/
+        /*
+        var sw = new Stopwatch();
+        logicHandler = new LogicHandler(
+            new Model(
+                settingsFields.settings, 
+                settingsFields.detektorSettings, 
+                settingsFields.sampleSettings
+            ), computeShader);
+
+        sw.Start();
+        logicHandler.run_shader();
+        sw.Stop();
+        Debug.Log($"run_shader took {sw.Elapsed}");
+        //*/
     }
 
     public void settingSaver() {
