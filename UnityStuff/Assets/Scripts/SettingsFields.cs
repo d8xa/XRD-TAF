@@ -33,11 +33,14 @@ public class SettingsFields : MonoBehaviour {
    public DetektorSettings detektorSettings;
    public RaySettings raySettings;
 
-   
-   
-   
-   
-   
+
+
+
+
+   public Model MakeModel()
+   {
+      return new Model(settings, detektorSettings, sampleSettings);
+   }
 
    public void fillInDefaults(Settings defaultSettings) {
       if (fieldDescriptor.text.Equals("")) {
