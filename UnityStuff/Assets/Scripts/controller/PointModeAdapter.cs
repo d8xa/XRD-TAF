@@ -3,12 +3,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using FoPra.model;
-using FoPra.util;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.Assertions.Comparers;
 using Debug = UnityEngine.Debug;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
@@ -18,22 +14,22 @@ namespace controller
     public class PointModeAdapter : ShaderAdapter
     {
         private Vector3[] _absorptionFactors;
-        private readonly int _nrSegments;
-        private readonly int _nrAnglesTheta;
+        private int _nrSegments;
+        private int _nrAnglesTheta;
         
+        // Mask of diffraction points
+        private Vector3Int[] _diffractionMask;
+        private Vector3 _nrDiffractionPoints;
+
         public PointModeAdapter(
-            ComputeShader shader, 
-            Model model, 
-            float margin, 
-            bool writeDistances, 
+            ComputeShader shader,
+            Model model,
+            float margin,
+            bool writeDistances,
             bool writeFactors
-            ) : base(shader, model, margin, writeDistances, writeFactors)
+        ) : base(shader, model, margin, writeDistances, writeFactors)
         {
-            _nrAnglesTheta = Model.get_angles2D().Length;
-            _nrSegments = _segmentResolution * _segmentResolution;            // number of points in probe _model.
-            
-            // initialize absorption array. dim n: (#thetas).
-            _absorptionFactors = new Vector3[_nrAnglesTheta];
+            InitializeOtherFields();
         }
 
         public PointModeAdapter(
@@ -41,11 +37,48 @@ namespace controller
             Model model
             ) : base(shader, model)
         {
+            InitializeOtherFields();
+        }
+
+        private void InitializeOtherFields()
+        {
             _nrAnglesTheta = Model.get_angles2D().Length;
-            _nrSegments = _segmentResolution * _segmentResolution;            // number of points in probe _model.
+            _nrSegments = SegmentResolution * SegmentResolution;
             
             // initialize absorption array. dim n: (#thetas).
             _absorptionFactors = new Vector3[_nrAnglesTheta];
+
+            // get indicator mask where each point diffracts in each case.
+            _diffractionMask = new Vector3Int[Coordinates.Length];
+            ComputeIndicatorMask();
+            
+            // count diffracting points in each case.
+            _nrDiffractionPoints = _diffractionMask.AsParallel()
+                .Aggregate(Vector3.zero, (a, v) => a + v);
+            
+            Debug.Log($"Indicator count: {_nrDiffractionPoints}");
+        }
+
+        private void ComputeIndicatorMask()
+        {
+            Shader.SetFloat("r_cell", Model.get_r_cell());
+            Shader.SetFloat("r_sample", Model.get_r_sample());
+            Shader.SetInts("indicatorCount", 0, 0, 0);
+            var maskHandle = Shader.FindKernel("getIndicatorMask");
+            var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            var maskBuffer = new ComputeBuffer(Coordinates.Length, sizeof(uint)*3);
+
+            inputBuffer.SetData(Coordinates);
+            maskBuffer.SetData(_diffractionMask);
+            
+            Shader.SetBuffer(maskHandle, "segment", inputBuffer);
+            Shader.SetBuffer(maskHandle, "indicatorMask", maskBuffer);
+
+            Shader.Dispatch(maskHandle, ThreadGroupsX, 1, 1);
+            maskBuffer.GetData(_diffractionMask);
+            
+            inputBuffer.Release();
+            maskBuffer.Release();
         }
 
         protected override void Compute()
@@ -56,71 +89,49 @@ namespace controller
             // initialize g1 distance arrays.
             var g1DistsOuter = new Vector2[_nrSegments];
             var g1DistsInner = new Vector2[_nrSegments];
-            Array.Clear(g1DistsOuter, 0, _nrSegments);
-            Array.Clear(g1DistsInner, 0, _nrSegments);
-            
+            Array.Clear(g1DistsOuter, 0, _nrSegments);    // necessary ? 
+            Array.Clear(g1DistsInner, 0, _nrSegments);    // necessary ? 
             Debug.Log($"{sw.Elapsed}: Initialized g1 distance arrays.");
 
             // initialize parameters in shader.
+            // necessary here already?
             Shader.SetFloats("mu", Model.get_mu_cell(), Model.get_mu_sample());
             Shader.SetFloat("r_cell", Model.get_r_cell());
             Shader.SetFloat("r_sample", Model.get_r_sample());
             Shader.SetFloat("r_cell_sq", Model.get_r_cell_sq());
             Shader.SetFloat("r_sample_sq", Model.get_r_sample_sq());
-            
-            // necessary here already?
-            Shader.SetInt("bufCount_Segments", _nrSegments);
-            Shader.SetInt("bufIndex_Factors", 0);
-            
             Debug.Log($"{sw.Elapsed}: Set shader parameters.");
 
 
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
-            //var g2Handle = Shader.FindKernel("g2_dists");
             var absorptionsHandle = Shader.FindKernel("Absorptions");
-            //var absorptionFactorsHandle = Shader.FindKernel("AbsorptionFactors");
-            
             Debug.Log($"{sw.Elapsed}: Retrieved kernel handles.");
 
  
             // make buffers.
-            var inputBuffer = new ComputeBuffer(_coordinates.Length, 8);
-            var outputBufferOuter = new ComputeBuffer(_coordinates.Length, 8);
-            var outputBufferInner = new ComputeBuffer(_coordinates.Length, 8);
-            var absorptionsBuffer = new ComputeBuffer(_coordinates.Length, 12);
-            //var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesTheta, 12);
-            
+            var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            var outputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            var outputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
             Debug.Log($"{sw.Elapsed}: Created buffers.");
 
 
             // set thread groups on X axis
-            var threadGroupsX = (int) Math.Min(Math.Pow(2, 16) - 1, Math.Pow(_nrSegments, 2));
             // TODO: handle case threadGroupsX > 1024.
 
             
-            // write data to buffers.
-            inputBuffer.SetData(_coordinates);
+            // set buffers for g1 kernel.
             Shader.SetBuffer(g1Handle, "segment", inputBuffer);
             Shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
             Shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
-            
             Debug.Log($"{sw.Elapsed}: Wrote data to buffers.");
 
             
             // compute g1 distances.
-            Shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
-            
+            Shader.Dispatch(g1Handle, ThreadGroupsX, 1, 1);
             Debug.Log($"{sw.Elapsed}: Calculated g1 distances.");
             
-            /*
-            // initialize buffers for absorption factor calculation.
-            Shader.SetBuffer(absorptionFactorsHandle, "segment", inputBuffer);
-            Shader.SetBuffer(absorptionFactorsHandle, "absorptionFactors", absorptionFactorsBuffer);
-            
-            Debug.Log($"{sw.Elapsed}: Initialized absorption factor buffers.");
-            */
-
 
             var loop_ts = new TimeSpan();
             var factors_ts = new TimeSpan();
@@ -131,21 +142,7 @@ namespace controller
             for (int j = 0; j < _nrAnglesTheta; j++) {
                 // TODO: check if g2 kernel can access filled distances buffer of g1 kernel.
                 var loopStart = sw.Elapsed;
-                
-                /*
-                //TEST
-                Shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
-                Shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
-                
-                Shader.SetBuffer(g2Handle, "segment", inputBuffer);
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.get_angles2D()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.get_angles2D()[j]) * Math.PI / 180));
-                Shader.SetBuffer(g2Handle, "distancesInner", outputBufferInner);
-                Shader.SetBuffer(g2Handle, "distancesOuter", outputBufferOuter);
-                Shader.Dispatch(g2Handle, threadGroupsX, 1, 1);
-                */
 
-                
                 // set coordinate buffer. remove?
                 Shader.SetBuffer(absorptionsHandle, "segment", inputBuffer);
                 Shader.SetFloat("cos", (float) Math.Cos((180 - Model.get_angles2D()[j]) * Math.PI / 180));
@@ -153,14 +150,14 @@ namespace controller
                 Shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 Shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
-                Shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
+                Shader.Dispatch(absorptionsHandle, ThreadGroupsX, 1, 1);
                 
 
                 absorptionsBuffer.GetData(absorptions);
                 var factor_start = sw.Elapsed;
                 _absorptionFactors[j] =
-                    GetAbsorptionFactorLINQ(absorptions, Vector3.kEpsilon);
-                    //GetAbsorptionFactor(absorptions, j);
+                    //GetAbsorptionFactorLINQ(absorptions, Vector3.kEpsilon);
+                    GetAbsorptionFactor(absorptions);
                 var factor_stop = sw.Elapsed;
                 factors_ts += factor_stop - factor_start;
 
@@ -199,7 +196,7 @@ namespace controller
             //absorptionFactorsBuffer.Release();
             Debug.Log($"{sw.Elapsed}: Buffers released.");
 
-            if (_writeFactors)
+            if (WriteFactors)
             {
                 Debug.Log($"{sw.Elapsed}: Started writing data to disk.");
                 WriteAbsorptionFactors();
@@ -211,7 +208,7 @@ namespace controller
 
         protected override void Write()
         {
-            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={_segmentResolution}.txt");
+            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = Model.get_angles2D()
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
@@ -228,14 +225,15 @@ namespace controller
             util.ArrayWriteTools.Write2D(path, headCol, headRow, data);
         }
 
-        private Vector3 GetAbsorptionFactor(Vector3[] absorptions, int j)
+        private Vector3 GetAbsorptionFactorNaive(Vector3[] absorptions)
         {
-            float[] absorptionSum = new float[]{0.0f, 0.0f, 0.0f};
-            uint[] count = new uint[]{0,0,0};
+            // TODO: make thread safe.
+            var absorptionSum = new[]{0.0f, 0.0f, 0.0f};
+            var count = new uint[]{0,0,0};
 
             for (int i = 0; i < _nrSegments; i++)
             {
-                double norm = Vector3.Magnitude(_coordinates[i]);
+                double norm = Vector3.Magnitude(Coordinates[i]);
                 if (norm <= Model.get_r_cell())
                 {
                     if (norm > Model.get_r_sample())
@@ -258,11 +256,29 @@ namespace controller
                 if (count[i] == 0) count[i] = 1;
             }
 
-            return _absorptionFactors[j] = new Vector3(
+            return new Vector3(
                     absorptionSum[0] / count[0],
                     absorptionSum[1] / count[1],
                     absorptionSum[2] / count[2]
                     );
+        }
+
+        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+        {
+            return new Vector3(
+                ParallelEnumerable.Range(0, absorptions.Length)
+                    .Where(i => _diffractionMask[i].x > 0)
+                    .Select(i => absorptions[i].x)
+                    .Sum() / _nrDiffractionPoints.x,
+                ParallelEnumerable.Range(0, absorptions.Length)
+                    .Where(i => _diffractionMask[i].y > 0)
+                    .Select(i => absorptions[i].y)
+                    .Sum() / _nrDiffractionPoints.y,
+                ParallelEnumerable.Range(0, absorptions.Length)
+                    .Where(i => _diffractionMask[i].z > 0)
+                    .Select(i => absorptions[i].z)
+                    .Sum() / _nrDiffractionPoints.z
+            );
         }
         
         
@@ -275,18 +291,18 @@ namespace controller
             );
         }
 
-        private float IsContained(float norm, int @case)
+        private int IsContained(float norm, int @case)
         {
             if (@case == 0)
-                return norm <= Model.get_r_cell() && norm <= Model.get_r_sample() ? 1f : 0f;
+                return norm <= Model.get_r_cell() && norm <= Model.get_r_sample() ? 1 : 0;
             else
-                return norm <= Model.get_r_cell() && norm > Model.get_r_sample() ? 1f : 0f;
+                return norm <= Model.get_r_cell() && norm > Model.get_r_sample() ? 1 : 0;
         }
 
-        private Vector3 IsContained(Vector3 v)
+        private Vector3Int IsContained(Vector3 v)
         {
             var norm = v.magnitude;
-            return new Vector3(
+            return new Vector3Int(
                 IsContained(norm, 0), 
                 IsContained(norm, 1), 
                 IsContained(norm, 2)
@@ -296,7 +312,7 @@ namespace controller
         
         private void WriteAbsorptionFactors()
         {
-            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={_segmentResolution}.txt")))
+            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt")))
             using (BufferedStream buffered = new BufferedStream(fileStream))
             using (StreamWriter writer = new StreamWriter(buffered))
             {

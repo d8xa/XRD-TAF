@@ -1,28 +1,18 @@
-﻿// Each #kernel tells which function to compile; you can have many kernels
+﻿#pragma kernel getIndicatorMask
 #pragma kernel g1_dists
-//#pragma kernel g2_dists
 #pragma kernel Absorptions
-//#pragma kernel AbsorptionFactors
-//#pragma fragment frag
-//#pragma fragmentoption ARB_precision_hint_nicest
-
 
 float r_cell;       // outer radius
 float r_sample;     // inner radius
 float r_cell_sq;    // outer radius squared
 float r_sample_sq;  // inner radius squared
 
-float cos;          // cos(180-2*theta)
-float sin;          // sin(180-2*theta)
+float cos;          // cos to use for rotation matrix
+float sin;          // sin to use for rotation matrix
 float2 mu;          // absorption factors in cell, sample.
-
-//uint bufCount_Segments;    // number of segment coordinates.
-//uint bufCount_Factors;   // number of absorption factors in 2D case.
-//uint bufIndex_Factors;   // index where to write absorption factor into.
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
-//StructuredBuffer<float2> trig;                      // list of (cos,sin) tuples for each theta angle.
 
 /* CONTENT: g1_dists from script, precomputed in shader. */
 RWStructuredBuffer<float2> distancesOuter;          // Diffraction only in cell.
@@ -30,8 +20,7 @@ RWStructuredBuffer<float2> distancesInner;          // Diffraction only in sampl
 
 /* Absorption */
 RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
-//RWStructuredBuffer<float3> absorptionFactors;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
-
+RWStructuredBuffer<uint3> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
 
 float getIntersectX(float2 v, float radius_sq, bool right)
 {
@@ -41,6 +30,7 @@ float getIntersectX(float2 v, float radius_sq, bool right)
     } 
     return -sqrt(abs(radius_sq - pow(v.y, 2)));
 }
+
 
 float2 ER_dists_F1(float2 v)
 {
@@ -54,6 +44,7 @@ float2 ER_dists_F1(float2 v)
     }
     return float2(d_cell, d_sample);
 }
+
 
 float2 ER_dists_F2(float2 v)
 {
@@ -77,6 +68,7 @@ float2 ER_dists_F2(float2 v)
     return float2(d_cell, d_sample);
 }
 
+
 /* call ER_dists for coordinate per diffraction case, save in shader variable. */
 [numthreads(1024,1,1)]
 void g1_dists(uint3 id : SV_DispatchThreadID)
@@ -86,28 +78,29 @@ void g1_dists(uint3 id : SV_DispatchThreadID)
 }
 
 
-/* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
-/*
+/* call ER_dists for coordinate per diffraction case, save in shader variable. */
 [numthreads(1024,1,1)]
-void g2_dists (uint3 id : SV_DispatchThreadID)
+void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 {
-    float2 rv = float2(
-        cos*segment[id.x].x-sin*segment[id.x].y, 
-        sin*segment[id.x].x+cos*segment[id.x].y
-    );
-    distancesOuter[id.x] = distancesOuter[id.x] + ER_dists_F2(rv);
-    distancesInner[id.x] = distancesInner[id.x] + ER_dists_F1(rv);
+    float norm = length(segment[id.x]);
+    
+    if (norm <= r_cell)
+    {
+        if (norm > r_sample)
+        {
+            // case A_{c,sc}.
+            indicatorMask[id.x].y = true;   
+            
+            // case A_{c,c}.
+            indicatorMask[id.x].z = true;   
+        }
+        else 
+        {
+            // case A_{c,c}.
+            indicatorMask[id.x].x = true;   
+        }
+    }
 }
-*/
-
-/*
-float2 rotatePoint(uint i)
-{
-    return float2(
-            cos*segment[i].x-sin*segment[i].y, 
-            sin*segment[i].x+cos*segment[i].y);
-}
-*/
 
 
 [numthreads(1024,1,1)]
@@ -133,45 +126,3 @@ void Absorptions(uint3 id : SV_DispatchThreadID){
         }
     }
 }
-
-
-
-
-/**
-* @param index: the index of each theta.
-*/
-/*
-[numthreads(1,1,1)]
-void AbsorptionFactors(uint3 id : SV_DispatchThreadID)
-{
-    // TODO: check float accuracy.
-    float3 absorptionSum = float3(0.0, 0.0, 0.0);
-    uint3 diffractionPointCounts = uint3(0, 0, 0);
-    
-    for (uint i = 0; i < bufCount_Segments; i++)
-    {
-        float norm = length(segment[i]);
-        if (norm <= r_cell)
-        {
-            if (norm > r_sample)
-            {
-                absorptionSum.y = absorptionSum.y + absorptions[i].y;
-                absorptionSum.z = absorptionSum.z + absorptions[i].z;
-                diffractionPointCounts.y += 1;
-                diffractionPointCounts.z += 1;
-            }
-            else
-            {
-                absorptionSum.x = absorptionSum.x + absorptions[i].x;
-                diffractionPointCounts.x += 1;
-            }
-        }
-    }
-    
-    if (diffractionPointCounts.x==0) diffractionPointCounts.x = 1;
-    if (diffractionPointCounts.y==0) diffractionPointCounts.y = 1;
-    if (diffractionPointCounts.z==0) diffractionPointCounts.z = 1;
-    
-    absorptionFactors[bufIndex_Factors] = absorptionSum/diffractionPointCounts;
-}
-*/
