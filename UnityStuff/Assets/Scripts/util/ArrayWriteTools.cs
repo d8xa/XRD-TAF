@@ -66,5 +66,10 @@ namespace util
                 }
             }
         }
+
+        public static void Write2D(string path, Vector3[,] data, string sep = "\t")
+        {
+            Write2D(path, null, null, data, sep);
+        }
     }
 }
