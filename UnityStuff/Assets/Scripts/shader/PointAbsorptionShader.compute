@@ -20,7 +20,7 @@ RWStructuredBuffer<float2> distancesInner;          // Diffraction only in sampl
 
 /* Absorption */
 RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
-RWStructuredBuffer<uint3> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
+RWStructuredBuffer<uint2> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
 
 float getIntersectX(float2 v, float radius_sq, bool right)
 {
@@ -89,15 +89,12 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
         if (norm > r_sample)
         {
             // case A_{c,sc}.
-            indicatorMask[id.x].y = true;   
-            
-            // case A_{c,c}.
-            indicatorMask[id.x].z = true;   
+            indicatorMask[id.x].y = 1;   
         }
         else 
         {
-            // case A_{c,c}.
-            indicatorMask[id.x].x = true;   
+            // case A_{s,sc}.
+            indicatorMask[id.x].x = 1;   
         }
     }
 }
