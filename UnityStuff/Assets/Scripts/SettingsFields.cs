@@ -1,6 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using FoPra.model;
+﻿using FoPra.model;
+using model;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -189,8 +188,8 @@ public class SettingsFields : MonoBehaviour {
             detektorSettings.pixelsize = float.Parse(fieldPixelSize.text);
          }
          if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals("")) {
-            detektorSettings.resolution.x = float.Parse(fieldResolutionX.text);
-            detektorSettings.resolution.y = float.Parse(fieldResolutionY.text);
+            detektorSettings.resolution.x = int.Parse(fieldResolutionX.text);
+            detektorSettings.resolution.y = int.Parse(fieldResolutionY.text);
          }
          if (!fieldDstToSample.text.Equals("")) {
             detektorSettings.distToSample = float.Parse(fieldDstToSample.text);

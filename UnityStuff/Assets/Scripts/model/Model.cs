@@ -1,102 +1,122 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using FoPra.util;
+using FoPra.model;
 using UnityEngine;
-using UnityEngine.SocialPlatforms;
+using util;
 
-namespace FoPra.model
+namespace model
 {
-  public class Model
-  {
-    //enum Modes {_1D, _2D}  // to switch between use cases and discard unused fields. TODO: integrate. 
-    [Serializable]
-    public enum Mode {
-      Point, Area, Integrated, Testing, Undefined
-    }
-    public enum AbsorptionType {
-      All, Cell, Sample, CellAndSample
-    }
-    public enum RayProfile {
-      Oval, Rectangle
-    }
-
-    public Settings settings;
-    public DetektorSettings detector;
-    public SampleSettings sample;
-    public RaySettings ray;
-
-    private int segmentResolution;
-    private float r_sample;
-    private float r_sample_sq;
-    private float r_cell;
-    private float r_cell_sq;
-    private float mu_sample;
-    private float mu_cell;
-    private float[] angles2D;
-    private float[] anglesIntegrated;
-
-    private void calculate_meta_data()
+    public class Model
     {
-      segmentResolution = (int) settings.computingAccuracy; // TODO: rename text field label in GUI.
-      r_sample = sample.totalDiameter / 2 - sample.cellThickness;
-      r_sample_sq = (float) Math.Pow(r_sample, 2);
-      r_cell = sample.totalDiameter / 2;
-      r_cell_sq = (float) Math.Pow(r_cell, 2);
-      mu_sample = sample.muSample;
-      mu_cell = sample.muCell;
+        [Serializable]
+        public enum Mode {
+            Point, Area, Integrated, Testing, Undefined
+        }
+        public enum AbsorptionType {
+            All, Cell, Sample, CellAndSample
+        }
+        public enum RayProfile {
+            Oval, Rectangle
+        }
+
+        public readonly Settings settings;
+        public readonly DetektorSettings detector;
+        private readonly SampleSettings _sample;
+        public RaySettings ray;
+
+        private int _segmentResolution;
+        private float _rSample;
+        private float _rSampleSq;
+        private float _rCell;
+        private float _rCellSq;
+        private float _muSample;
+        private float _muCell;
+        private float[] _angles2D;
+        private float[] _anglesIntegrated;    // TODO: check if both angle lists are necessary, else use one list.
+        private float[] _cos3D;
+
+        private void calculate_meta_data()
+        {
+            // set case-shared variables:
+            _segmentResolution = (int) settings.computingAccuracy; // TODO: rename text field label in GUI.
+            _rSample = _sample.totalDiameter / 2 - _sample.cellThickness;
+            _rSampleSq = (float) Math.Pow(_rSample, 2);
+            _rCell = _sample.totalDiameter / 2;
+            _rCellSq = (float) Math.Pow(_rCell, 2);
+            _muSample = _sample.muSample;
+            _muCell = _sample.muCell;
+            
+            // set case-specific variables:
+            switch (settings.mode)
+            {
+                case Mode.Point:
+                    _angles2D = ImportAngles();
+                    break;
+
+                case Mode.Area:
+                    _angles2D = Enumerable.Range(0, (int) detector.resolution.x)
+                        .Select(j => detector.GetAngleFromOffset(j, false))
+                        .ToArray();
+                    _cos3D = Enumerable.Range(0, (int) detector.resolution.y)
+                        .Select(j => detector.GetRatioFromOffset(j, true))
+                        .ToArray();
+                    break;
+
+                case Mode.Integrated:
+                    _anglesIntegrated = MathTools.LinSpace1D(
+                        detector.angleStart,
+                        detector.angleEnd,
+                        detector.angleAmount);
+                    break;
+            }
+        }
+
+        public Model(Settings settings, DetektorSettings detector, SampleSettings sample/*, RaySettings ray*/) {
+            this.settings = settings;
+            this.detector = detector;
+            this._sample = sample;
+            //this.ray = ray;
+            calculate_meta_data();
+        }
+
+        private float[] ImportAngles()
+        {
+            var text = "";
+            var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
+            if (File.Exists(path))
+            {
+                using (var reader = new StreamReader(path))
+                    text = reader.ReadToEnd();
+            }
       
-      anglesIntegrated = MathTools.LinSpace1D(detector.angleStart, detector.angleEnd, detector.angleAmount);
+            return text
+                .Trim(' ')
+                .Split('\n')
+                .Where(s => s.Length > 0)
+                .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+                .ToArray();
+        }
 
-      var text = "";
-      var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
-      if (File.Exists(path))
-      {
-        using (var reader = new StreamReader(path))
-          text = reader.ReadToEnd();
-      }
-
-
-      if (settings.mode.Equals(Mode.Point) || settings.mode.Equals(Mode.Testing))
-        angles2D = text
-          .Trim(' ')
-          .Split('\n')
-          .Where(s => s.Length > 0)
-          .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
-          .ToArray();
-      else
-        angles2D = Enumerable.Range(0, (int) detector.resolution.x)
-          .Select(j => detector.getAngleFromOffset(j, false))
-          .ToArray();
-    }
-
-    public Model(Settings settings, DetektorSettings detector, SampleSettings sample/*, RaySettings ray*/) {
-      this.settings = settings;
-      this.detector = detector;
-      this.sample = sample;
-      //this.ray = ray;
-      calculate_meta_data();
-    }
-
-    public int get_segment_resolution() => segmentResolution;
+        public int GetSegmentResolution() => _segmentResolution;
     
-    public float get_r_sample() => r_sample;
+        public float GetRSample() => _rSample;
 
-    public float get_r_sample_sq() => r_sample_sq;
+        public float GetRSampleSq() => _rSampleSq;
 
-    public float get_r_cell() => r_cell;
+        public float GetRCell() => _rCell;
 
-    public float get_r_cell_sq() => r_cell_sq;
+        public float GetRCellSq() => _rCellSq;
 
-    public float get_mu_sample() => mu_sample;
+        public float GetMuSample() => _muSample;
 
-    public float get_mu_cell() => mu_cell;
+        public float GetMuCell() => _muCell;
 
-    public float[] get_angles2D() => angles2D;
+        public float[] GetAngles2D() => _angles2D;
 
-    public float[] get_anglesIntegrated() => anglesIntegrated;
-  }
+        public float[] GetAnglesIntegrated() => _anglesIntegrated;
+
+        public float[] GetCos3D() => _cos3D;
+    }
 }

@@ -1,12 +1,10 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using System.Diagnostics;
 using System.IO;
-using FoPra.util;
-using UnityEngine.UIElements;
+using util;
 using Debug = UnityEngine.Debug;
 
 namespace FoPra.tests
@@ -138,11 +136,22 @@ namespace FoPra.tests
                 
                 var strings = res.Select(v => v.ToString("G")).ToArray();
                 var path = Path.Combine("Logs", "Distances2D", $"Output n={size}.txt");
-                MathTools.WriteArray2D(path, strings, size);
+                WriteArray2D(path, strings, size);
                 Debug.Log($"executed_Distances2D(cs, {size}, {write}): Wrote data");
                 return res_scaled;
             }
             else return res;
+        }
+        
+        public static void WriteArray2D(string path, string[] lines, int stride)
+        {
+            var resStr = Enumerable
+                .Range(0, stride)
+                .Select(i => String.Join("; ",
+                    lines.Skip(i * stride).Take(stride).ToArray())
+                )
+                .ToArray();
+            File.WriteAllLines(path, resStr);
         }
     }
 }

@@ -1,7 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using FoPra.model;
-using UnityEngine;
+﻿using model;
 
 [System.Serializable]
 public class Settings {

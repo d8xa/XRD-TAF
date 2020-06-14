@@ -3,10 +3,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using FoPra.model;
+using model;
 using UnityEngine;
 using util;
-using Debug = UnityEngine.Debug;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Logger = util.Logger;
@@ -51,7 +50,7 @@ namespace controller
         {
             _logger.SetPrintLevel(Logger.LogLevel.All);
             _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = Model.get_angles2D().Length;
+            _nrAnglesTheta = Model.GetAngles2D().Length;
             _nrSegments = SegmentResolution * SegmentResolution;
             
             // initialize absorption array. dim n: (#thetas).
@@ -75,8 +74,8 @@ namespace controller
             _logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            Shader.SetFloat("r_cell", Model.get_r_cell());
-            Shader.SetFloat("r_sample", Model.get_r_sample());
+            Shader.SetFloat("r_cell", Model.GetRCell());
+            Shader.SetFloat("r_sample", Model.GetRSample());
             Shader.SetInts("indicatorCount", 0, 0, 0);
             var maskHandle = Shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
@@ -116,11 +115,11 @@ namespace controller
 
             // initialize parameters in shader.
             // necessary here already?
-            Shader.SetFloats("mu", Model.get_mu_cell(), Model.get_mu_sample());
-            Shader.SetFloat("r_cell", Model.get_r_cell());
-            Shader.SetFloat("r_sample", Model.get_r_sample());
-            Shader.SetFloat("r_cell_sq", Model.get_r_cell_sq());
-            Shader.SetFloat("r_sample_sq", Model.get_r_sample_sq());
+            Shader.SetFloats("mu", Model.GetMuCell(), Model.GetMuSample());
+            Shader.SetFloat("r_cell", Model.GetRCell());
+            Shader.SetFloat("r_sample", Model.GetRSample());
+            Shader.SetFloat("r_cell_sq", Model.GetRCellSq());
+            Shader.SetFloat("r_sample_sq", Model.GetRSampleSq());
             _logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
@@ -168,8 +167,8 @@ namespace controller
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.get_angles2D()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.get_angles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
                 Shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 Shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
@@ -233,7 +232,7 @@ namespace controller
         {
             var path = Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = Model.get_angles2D()
+            var headCol = Model.GetAngles2D()
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -260,7 +259,7 @@ namespace controller
                 for (int i = 0; i < _nrAnglesTheta; i++)
                 {
                     writer.WriteLine(string.Join("\t", 
-                        Model.get_angles2D()[i].ToString("G", CultureInfo.InvariantCulture),
+                        Model.GetAngles2D()[i].ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));

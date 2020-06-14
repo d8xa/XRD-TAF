@@ -1,7 +1,9 @@
 ﻿using System;
 using FoPra.model;
 using FoPra.util;
+using model;
 using UnityEngine;
+using util;
 using Logger = util.Logger;
 
 namespace controller
@@ -42,9 +44,9 @@ namespace controller
 
         private void InitSharedFields()
         {
-            SegmentResolution = Model.get_segment_resolution();
+            SegmentResolution = Model.GetSegmentResolution();
             Coordinates = MathTools.LinSpace2D(
-                -Model.get_r_cell()*(1+_margin), Model.get_r_cell()*(1+_margin), SegmentResolution);
+                -Model.GetRCell()*(1+_margin), Model.GetRCell()*(1+_margin), SegmentResolution);
             ThreadGroupsX =  (int) Math.Min(Math.Pow(2, 16) - 1, Math.Pow(SegmentResolution, 2));
         }
         

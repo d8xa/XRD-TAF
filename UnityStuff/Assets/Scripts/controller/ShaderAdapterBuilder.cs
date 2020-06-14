@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using FoPra.model;
 using JetBrains.Annotations;
+using model;
 using UnityEngine;
 
 namespace controller

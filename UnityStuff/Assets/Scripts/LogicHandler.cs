@@ -1,18 +1,12 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
-using FoPra.model;
-using FoPra.util;
-using UnityEditor.Experimental.GraphView;
+using model;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.UIElements;
-using UnityEngineInternal;
+using util;
 using Debug = UnityEngine.Debug;
 
 [Serializable]
@@ -46,7 +40,7 @@ public class LogicHandler {
    public LogicHandler(Model model, ComputeShader cs) {
       this.model = model;
       this.cs = cs;
-      segmentResolution = model.get_segment_resolution();
+      segmentResolution = model.GetSegmentResolution();
    }
 
    /**
@@ -56,13 +50,13 @@ public class LogicHandler {
     * - sets handles
     */
    void initDataFields(int segmentRes) {
-      data = MathTools.LinSpace2D(-model.get_r_cell()*margin, model.get_r_cell()*margin, segmentRes);
+      data = MathTools.LinSpace2D(-model.GetRCell()*margin, model.GetRCell()*margin, segmentRes);
       Debug.Log(data.Length);
       
       var sw = new Stopwatch();
       // TODO: maybe use length of angle list directly instead.
       if (model.settings.mode == Model.Mode.Point)
-         angleSteps = model.get_angles2D().Length;
+         angleSteps = model.GetAngles2D().Length;
       else if (model.settings.mode == Model.Mode.Area)
       {
          // TODO: error checking.
@@ -74,7 +68,7 @@ public class LogicHandler {
          // TODO:
       }
       else
-         angleSteps = model.get_angles2D().Length;
+         angleSteps = model.GetAngles2D().Length;
       
       Debug.Log($"{sw.Elapsed}: Strating Initialized g1 distance arrays.");
       var segmentCount = segmentRes * segmentRes;
@@ -91,11 +85,11 @@ public class LogicHandler {
       Array.Clear(absorptions,0, segmentCount);
       absorptionFactors = new Vector3[angleSteps];
       
-      cs.SetFloats("mu", model.get_mu_cell(), model.get_mu_sample());
-      cs.SetFloat("r_cell", model.get_r_cell());
-      cs.SetFloat("r_sample", model.get_r_sample());
-      cs.SetFloat("r_cell_sq", model.get_r_cell_sq());
-      cs.SetFloat("r_sample_sq", model.get_r_sample_sq());
+      cs.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
+      cs.SetFloat("r_cell", model.GetRCell());
+      cs.SetFloat("r_sample", model.GetRSample());
+      cs.SetFloat("r_cell_sq", model.GetRCellSq());
+      cs.SetFloat("r_sample_sq", model.GetRSampleSq());
       cs.SetFloat("cos_alpha", 1.0f);
 
       g1_handle = cs.FindKernel("g1_dists");
@@ -191,8 +185,8 @@ public class LogicHandler {
     */
    public void calculate_g2_dists(int i, bool copy) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles2D()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
@@ -212,8 +206,8 @@ public class LogicHandler {
 
    public void calculate_absorptions_2D(int i) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - model.get_angles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - model.get_angles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles2D()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles2D()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, 
@@ -265,9 +259,9 @@ public class LogicHandler {
       for (int i = 0; i < data.Length; i++)
       {
          double norm = Vector3.Magnitude(data[i]);
-         if (norm <= model.get_r_cell())
+         if (norm <= model.GetRCell())
          {
-            if (norm > model.get_r_sample())
+            if (norm > model.GetRSample())
             {
                absorptionSum[1] += absorptions[i].y;
                absorptionSum[2] += absorptions[i].z;
@@ -324,7 +318,7 @@ public class LogicHandler {
                .Select(j => g2_dists_inner[i, j])
                .Count(v => v.x > 0)*1.0f/data.Length
             );*/
-            sb.Append("\"" + model.get_angles2D()[i] + "\" : ");   // angle as dict key.
+            sb.Append("\"" + model.GetAngles2D()[i] + "\" : ");   // angle as dict key.
             var row = Enumerable.Range(0, m)
                .Select(j => distsArray[i, j])   
                .ToArray();   // get i-th row.
@@ -367,7 +361,7 @@ public class LogicHandler {
          writer.WriteLine(string.Join("\t", "2 theta","A_{s,sc}", "A_{c,sc}", "A_{c,c}"));
          for (int i = 0; i < angleSteps; i++)
          {
-            writer.WriteLine(string.Join("\t", model.get_angles2D()[i].ToString("G", CultureInfo.InvariantCulture),
+            writer.WriteLine(string.Join("\t", model.GetAngles2D()[i].ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));

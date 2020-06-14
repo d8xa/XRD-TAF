@@ -3,6 +3,7 @@ using UnityEngine;
 using System.IO;
 using controller;
 using FoPra.model;
+using model;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
@@ -21,7 +22,6 @@ public class DataHandler : MonoBehaviour{
     public Button loadButton;
     public Button saveButton;
     public Button submitButton;
-    //public List<ComputeShader> computeShaders;
     public ComputeShader pointModeShader;
     public ComputeShader planeModeShader;
     //public ComputeShader integratedModeShader;
@@ -70,7 +70,7 @@ public class DataHandler : MonoBehaviour{
             //.AddShader(Model.Mode.Integrated, integratedModeShader)
             .SetSegmentMargin(0.2f)
             .AutoSetShader()
-            //.WriteFactors()
+            .WriteFactors()
             .Build();
             
         shaderAdapter.Execute();

@@ -1,12 +1,11 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using Vector2 = UnityEngine.Vector2;
 
-namespace FoPra.util
+namespace util
 {
-    public class MathTools
+    public static class MathTools
     {
         public static float[] LinSpace1D(float a, float b, int count)
         {
@@ -32,18 +31,5 @@ namespace FoPra.util
                 .SelectMany(arr => arr)
                 .ToArray();
         }
-
-        public static void WriteArray2D(string path, string[] lines, int stride)
-        {
-            var res_str = Enumerable
-                .Range(0, stride)
-                .Select(i => String.Join("; ",
-                    lines.Skip(i * stride).Take(stride).ToArray())
-                )
-                .ToArray();
-            File.WriteAllLines(path, res_str);
-        }
-        
-        //public static string[] ArrayToString2D()
     }
 }

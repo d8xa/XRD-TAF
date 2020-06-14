@@ -1,3 +1,4 @@
+using model;
 using UnityEngine;
 
 namespace FoPra.model
