@@ -2,11 +2,14 @@
 using FoPra.model;
 using FoPra.util;
 using UnityEngine;
+using Logger = util.Logger;
 
 namespace controller
 {
     public abstract class ShaderAdapter
     {
+        public Logger _logger;
+        
         private protected readonly ComputeShader Shader;
         private protected readonly Model Model;
         private protected int ThreadGroupsX;
@@ -15,16 +18,17 @@ namespace controller
         private protected int SegmentResolution;
         private readonly float _margin;
     
-        private protected bool WriteDistances;
-        private protected bool WriteFactors;
+        private protected bool WriteDistancesFlag;
+        private protected bool WriteAbsorptionsFlag;
+        private protected bool WriteFactorsFlag;
 
-        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeDistances, bool writeFactors)
+        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeDistancesFlag, bool writeFactorsFlag)
         {
             Shader = shader;
             Model = model;
             _margin = margin;
-            WriteDistances = writeDistances;
-            WriteFactors = writeFactors;
+            WriteDistancesFlag = writeDistancesFlag;
+            WriteFactorsFlag = writeFactorsFlag;
             
             InitSharedFields();
         }
@@ -34,13 +38,13 @@ namespace controller
             Shader = shader;
             Model = model;
             _margin = 0.2f;
-            WriteDistances = false;
-            WriteFactors = false;
+            WriteDistancesFlag = false;
+            WriteFactorsFlag = false;
             
             InitSharedFields();
         }
 
-        void InitSharedFields()
+        private void InitSharedFields()
         {
             SegmentResolution = Model.get_segment_resolution();
             Coordinates = MathTools.LinSpace2D(
@@ -52,11 +56,16 @@ namespace controller
         {
             InitSharedFields();
             Compute();
-            // TODO: add Write() delegation logic.
+            if (WriteFactorsFlag || WriteAbsorptionsFlag || WriteDistancesFlag) Write();
         }
         
         protected abstract void Compute();
 
         protected abstract void Write();
+
+        public void SetLogger(Logger logger)
+        {
+            _logger = logger;
+        }
     }
 }
