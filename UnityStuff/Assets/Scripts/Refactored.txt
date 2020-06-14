@@ -1,4 +1,0 @@
-verschiebe Zuweisung von Variablen nach Settings
-Tupel durch Vector ersetzt
-Offset und Dst zu Detector verschoben
-Evaluations-Funktionen hinzugefuegt (bisher ohne Inhalt)
