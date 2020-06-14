@@ -1,17 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using controller;
 using FoPra.model;
-using FoPra.tests;
-using UnityEngine.PlayerLoop;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
-using Debug = UnityEngine.Debug;
 
 public class DataHandler : MonoBehaviour{
 
@@ -28,13 +21,18 @@ public class DataHandler : MonoBehaviour{
     public Button loadButton;
     public Button saveButton;
     public Button submitButton;
-    public ComputeShader computeShader;
+    //public List<ComputeShader> computeShaders;
+    public ComputeShader pointModeShader;
+    public ComputeShader planeModeShader;
+    //public ComputeShader integratedModeShader;
 
     [FormerlySerializedAs("logicHandler")] 
     public ShaderAdapter shaderAdapter;
     public LogicHandler logicHandler;
 
     private void Awake() {
+        //QualitySettings.vSyncCount = 0;
+        //Application.targetFrameRate = 30;
         UpdatePath();
     }
 
@@ -60,20 +58,27 @@ public class DataHandler : MonoBehaviour{
         }
     }
 
-    public void submitToComputing() {
+    public void submitToComputing()
+    {
         fillInBlanks();
 
-        /*
         shaderAdapter = ShaderAdapterBuilder.New()
             .SetMode(settingsFields.settings.mode)
             .SetModel(settingsFields.MakeModel())
+            .AddShader(Model.Mode.Point, pointModeShader)
+            .AddShader(Model.Mode.Area, planeModeShader)
+            //.AddShader(Model.Mode.Integrated, integratedModeShader)
             .SetSegmentMargin(0.2f)
             .AutoSetShader()
             //.WriteFactors()
             .Build();
-        */
+            
+        shaderAdapter.Execute();
         
-        ///*
+        
+
+        
+        /*
         shaderAdapter = new PointModeAdapter(
             computeShader,
             new Model(
@@ -81,15 +86,15 @@ public class DataHandler : MonoBehaviour{
                 settingsFields.detektorSettings, 
                 settingsFields.sampleSettings
             ), 
-            0.2f,
+            0.02f,
             false,
-            false);
+            true);
         
         
         //TestSuite.test_Distances2D(computeShader);
         // TODO: delegate to ShaderAdapter
         shaderAdapter.Execute();
-        //*/
+        */
         /*
         var sw = new Stopwatch();
         logicHandler = new LogicHandler(

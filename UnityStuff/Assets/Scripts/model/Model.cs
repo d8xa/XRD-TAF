@@ -15,7 +15,7 @@ namespace FoPra.model
     //enum Modes {_1D, _2D}  // to switch between use cases and discard unused fields. TODO: integrate. 
     [Serializable]
     public enum Mode {
-      Point, Area, Integrated, Testing
+      Point, Area, Integrated, Testing, Undefined
     }
     public enum AbsorptionType {
       All, Cell, Sample, CellAndSample

@@ -2,26 +2,21 @@
 using System.Collections.Generic;
 using System.IO;
 using FoPra.model;
+using JetBrains.Annotations;
 using UnityEngine;
 
 namespace controller
 {
     public class ShaderAdapterBuilder
     {
-        private bool _writeDistances;
         private bool _writeFactors;
-        private float _margin;
-        private Model _model;
-        private ComputeShader _shader;
-        private Model.Mode _mode;
-        private static readonly Dictionary<Model.Mode, string> ShaderMapping = new Dictionary<Model.Mode, string>
-        {
-            {Model.Mode.Point, "PointAbsorptionShader"}, 
-            {Model.Mode.Area, "PlaneAbsorptionShader"},
-            {Model.Mode.Integrated, "IntegratedAbsorptionShader"},
-            {Model.Mode.Testing, "Distances2D"}
-        };
-        private static readonly string ShaderDir = Path.Combine("Assets", "Scripts", "controller");
+        private float? _margin;
+        [CanBeNull] private Model _model;
+        [CanBeNull] private ComputeShader _shader;
+        private Model.Mode _mode = Model.Mode.Undefined;
+        private static Dictionary<Model.Mode, ComputeShader> _shaderMapping;
+
+        //private static readonly string ShaderDir = Path.Combine("Assets", "Scripts", "controller");
 
         private ShaderAdapterBuilder() {}
 
@@ -30,38 +25,43 @@ namespace controller
             return new ShaderAdapterBuilder();
         }
 
-        public static ShaderAdapterBuilder GetDefault()
-        {
-            return New()
-                .SetMode(Model.Mode.Point)
-                .AutoSetShader()
-                .WriteFactors()
-                .WriteDistances();
-        }
-
-        private ComputeShader getShader(Model.Mode mode)
-        {
-            return (ComputeShader) Resources.Load(Path.Combine(ShaderDir, ShaderMapping[mode]));
-        }
-
-        public ShaderAdapterBuilder AutoSetShader()
-        {
-            if (_mode == null) 
-                throw new NullReferenceException("Please specify mode.");
-
-            _shader = getShader(_mode);
-            return this;
-        }
-
         public ShaderAdapterBuilder SetMode(Model.Mode mode)
         {
             _mode = mode;
             return this;
         }
 
-        public ShaderAdapterBuilder SetShader(ComputeShader shader)
+        public ShaderAdapterBuilder AutoSetShader()
         {
-            _shader = shader;
+            if (_mode == Model.Mode.Undefined)
+                throw new InvalidOperationException("Mode must be set.");
+            if (_shaderMapping == null)
+                throw new InvalidOperationException("Shader must be set.");
+
+            if (!_shaderMapping.ContainsKey(_mode)) 
+                throw new KeyNotFoundException("Shader not found.");
+            
+            _shader = _shaderMapping[_mode];
+            return this;
+        }
+
+        public ShaderAdapterBuilder SelectShader(Model.Mode mode)
+        {
+            if (!_shaderMapping.ContainsKey(mode))
+                throw new KeyNotFoundException();
+            if (mode == Model.Mode.Undefined)
+                throw new InvalidOperationException("Mode must be set.");
+            
+            _shader = _shaderMapping[mode];
+            return this;
+        }
+
+        public ShaderAdapterBuilder AddShader(Model.Mode mode, ComputeShader shader)
+        {
+            if (_shaderMapping == null) 
+                _shaderMapping = new Dictionary<Model.Mode, ComputeShader>();
+            
+            _shaderMapping.Add(mode, shader);
             return this;
         }
 
@@ -77,17 +77,13 @@ namespace controller
             return this;
         }
 
-        public ShaderAdapterBuilder WriteDistances()
-        {
-            _writeDistances = true;
-            return this;
-        }
-
         public ShaderAdapterBuilder WriteFactors()
         {
             _writeFactors = true;
             return this;
         }
+
+        private float GetDefaultMargin() => 0.2f;
 
         public ShaderAdapter Build()
         {
@@ -97,10 +93,11 @@ namespace controller
                 switch (_mode)
                 {
                     case Model.Mode.Point:
-                        adapter = new PointModeAdapter(_shader, _model, _margin, _writeDistances, _writeFactors);
+                        adapter = new PointModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
                         break;
                     case Model.Mode.Area:
-                        throw new NotImplementedException();
+                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
+                        break;
                     case Model.Mode.Integrated:
                         throw new NotImplementedException();
                 }
@@ -116,7 +113,7 @@ namespace controller
                     throw new NullReferenceException("Please specify a shader.");
                 else if (_model == null)
                     throw new NullReferenceException("Please specify a model.");
-                else if (_mode == null)
+                else if (_mode == Model.Mode.Undefined)
                     throw new NullReferenceException("Please specify a mode.");
                 else if (_margin == null)
                     throw new NullReferenceException("");

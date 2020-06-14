@@ -17,17 +17,14 @@ namespace controller
         private protected Vector2[] Coordinates;
         private protected int SegmentResolution;
         private readonly float _margin;
-    
-        private protected bool WriteDistancesFlag;
-        private protected bool WriteAbsorptionsFlag;
+
         private protected bool WriteFactorsFlag;
 
-        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeDistancesFlag, bool writeFactorsFlag)
+        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeFactorsFlag)
         {
             Shader = shader;
             Model = model;
             _margin = margin;
-            WriteDistancesFlag = writeDistancesFlag;
             WriteFactorsFlag = writeFactorsFlag;
             
             InitSharedFields();
@@ -38,7 +35,6 @@ namespace controller
             Shader = shader;
             Model = model;
             _margin = 0.2f;
-            WriteDistancesFlag = false;
             WriteFactorsFlag = false;
             
             InitSharedFields();
@@ -56,7 +52,7 @@ namespace controller
         {
             InitSharedFields();
             Compute();
-            if (WriteFactorsFlag || WriteAbsorptionsFlag || WriteDistancesFlag) Write();
+            if (WriteFactorsFlag) Write();
         }
         
         protected abstract void Compute();

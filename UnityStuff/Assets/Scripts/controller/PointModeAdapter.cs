@@ -29,9 +29,8 @@ namespace controller
             ComputeShader shader,
             Model model,
             float margin,
-            bool writeDistancesFlag,
             bool writeFactorsFlag
-        ) : base(shader, model, margin, writeDistancesFlag, writeFactorsFlag)
+        ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new NullLogger());
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");

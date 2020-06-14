@@ -31,9 +31,8 @@ namespace controller
             ComputeShader shader, 
             Model model, 
             float margin, 
-            bool writeDistancesFlag, 
             bool writeFactorsFlag
-            ) : base(shader, model, margin, writeDistancesFlag, writeFactorsFlag)
+            ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new Logger());
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -204,8 +203,6 @@ namespace controller
             absorptionFactorsBuffer.Release();
             _logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
             
-            if (WriteFactorsFlag) WriteAbsorptionFactors();
-
             sw.Stop();
             _logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
@@ -214,7 +211,7 @@ namespace controller
         { 
             // TODO: create path if not exists.
             var path = Path.Combine("Logs", "Absorptions3D", $"Output n={SegmentResolution}.txt");
-            ArrayWriteTools.Write2D(path, null, null, _absorptionFactors);
+            ArrayWriteTools.Write2D(path, _absorptionFactors);
         }
 
         private void WriteAbsorptionFactors()
