@@ -18,7 +18,7 @@ float2 mu;          // absorption factors in cell, sample.
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
-StructuredBuffer<float> cosBuffer;                      // list of cos values for each alpha angle between flat ray and 3D ray.
+StructuredBuffer<float> cosBuffer;                      // list of cos(alpha) values for each alpha angle between flat ray and 3D ray.
 uint bufCount_Segments;
 uint3 indicatorCount;
 

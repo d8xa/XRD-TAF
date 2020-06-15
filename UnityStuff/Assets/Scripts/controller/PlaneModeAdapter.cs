@@ -48,8 +48,8 @@ namespace controller
         private void InitializeOtherFields()
         {
             _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = // TODO
-            _nrAnglesAlpha = // TODO
+            _nrAnglesTheta = Model.detector.resolution.x;
+            _nrAnglesAlpha = Model.detector.resolution.y;
             _nrSegments = SegmentResolution * SegmentResolution;
             
             // initialize absorption array. dim n: (#thetas).
@@ -129,29 +129,28 @@ namespace controller
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
             var g2Handle = Shader.FindKernel("g2_dists");
-            //var absorptionsHandle = Shader.FindKernel("Absorptions");
             var absorptionFactorsHandle = Shader.FindKernel("AbsorptionFactors");
             _logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
             
             // make buffers.
-            var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            //var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g1OutputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g1OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            //var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
+            var cosBuffer = new ComputeBuffer(_nrAnglesTheta, sizeof(float));
             var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesAlpha, sizeof(float)*3);
             _logger.Log(Logger.EventType.Data, "Created buffers.");
             
             
             // set buffers for g1 kernel.
-            Shader.SetBuffer(g1Handle, "segment", inputBuffer);
+            Shader.SetBuffer(g1Handle, "segment", _inputBuffer);
             Shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferInner);
             Shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferOuter);
             _logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
             
-            inputBuffer.SetData(Coordinates);
+            _inputBuffer.SetData(Coordinates);
             
             // compute g1 distances.
             _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
@@ -160,6 +159,17 @@ namespace controller
             
             var absorptionFactorColumn = new Vector3[_nrAnglesAlpha];
             //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
+            
+            cosBuffer.SetData(Model.GetCos3D());
+            Shader.SetBuffer(g2Handle, "segment", _inputBuffer);
+            Shader.SetBuffer(g2Handle, "g1DistancesInner", g1OutputBufferInner);
+            Shader.SetBuffer(g2Handle, "g1DistancesOuter", g1OutputBufferOuter);
+
+            Shader.SetBuffer(absorptionFactorsHandle, "segment", _inputBuffer);
+            Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesInner", g1OutputBufferInner);
+            Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesOuter", g1OutputBufferOuter);
+            Shader.SetBuffer(absorptionFactorsHandle, "cosBuffer", cosBuffer);
+            Shader.SetBuffer(absorptionFactorsHandle, "indicatorMask", _maskBuffer);
 
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
@@ -168,16 +178,10 @@ namespace controller
                 Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
                 
                 // set buffers for g2 kernel.
-                Shader.SetBuffer(g2Handle, "segment", inputBuffer);
-                Shader.SetBuffer(g2Handle, "g1DistancesInner", g1OutputBufferInner);
-                Shader.SetBuffer(g2Handle, "g1DistancesOuter", g1OutputBufferOuter);
                 Shader.SetBuffer(g2Handle, "g2DistancesInner", g2OutputBufferInner);
                 Shader.SetBuffer(g2Handle, "g2DistancesOuter", g2OutputBufferOuter);
                 
                 // set buffers for absorption factors kernel.
-                Shader.SetBuffer(absorptionFactorsHandle, "segment", inputBuffer);
-                Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesInner", g1OutputBufferInner);
-                Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesOuter", g1OutputBufferOuter);
                 Shader.SetBuffer(absorptionFactorsHandle, "g2DistancesInner", g2OutputBufferInner);
                 Shader.SetBuffer(absorptionFactorsHandle, "g2DistancesOuter", g2OutputBufferOuter);
                 Shader.SetBuffer(absorptionFactorsHandle, "absorptionFactors", absorptionFactorsBuffer);
@@ -194,11 +198,14 @@ namespace controller
             // TODO: add performance measure log entry.
             
             // release buffers.
-            inputBuffer.Release();
+            _inputBuffer.Release();
+            _maskBuffer.Release();
             g1OutputBufferOuter.Release();
             g1OutputBufferInner.Release();
             g2OutputBufferOuter.Release();
             g2OutputBufferInner.Release();
+            cosBuffer.Release();
+            cosBuffer.Release();
             absorptionFactorsBuffer.Release();
             _logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
             
@@ -207,15 +214,11 @@ namespace controller
         }
 
         protected override void Write()
-        { 
-            // TODO: create path if not exists.
-            var path = Path.Combine("Logs", "Absorptions3D", $"Output n={SegmentResolution}.txt");
-            ArrayWriteTools.Write2D(path, _absorptionFactors);
-        }
-
-        private void WriteAbsorptionFactors()
         {
-            throw new NotImplementedException();
+            var saveDir = Path.Combine("Logs", "Absorptions3D");
+            Directory.CreateDirectory(saveDir);
+            var saveName = $"Output n={SegmentResolution}.txt";
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
         }
     }
 }
