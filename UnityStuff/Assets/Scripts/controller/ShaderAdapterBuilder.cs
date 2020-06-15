@@ -59,8 +59,8 @@ namespace controller
         {
             if (_shaderMapping == null) 
                 _shaderMapping = new Dictionary<Model.Mode, ComputeShader>();
-            
-            _shaderMapping.Add(mode, shader);
+            if (!_shaderMapping.ContainsKey(mode)) 
+                _shaderMapping.Add(mode, shader);
             return this;
         }
 
