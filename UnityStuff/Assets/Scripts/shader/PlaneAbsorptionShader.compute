@@ -6,7 +6,6 @@
 #pragma kernel AbsorptionFactors
 
 
-
 float r_cell;       // outer radius
 float r_sample;     // inner radius
 float r_cell_sq;    // outer radius squared
@@ -34,7 +33,7 @@ RWStructuredBuffer<float2> g2DistancesInner;          // Diffraction only in sam
 
 /* Absorption */
 //RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
-RWStructuredBuffer<uint3> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
+RWStructuredBuffer<uint2> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
 RWStructuredBuffer<float3> absorptionFactors;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
 
 
@@ -99,8 +98,8 @@ void g2_dists (uint3 id : SV_DispatchThreadID)
         cos*segment[id.x].x-sin*segment[id.x].y, 
         sin*segment[id.x].x+cos*segment[id.x].y
     );
-    g2DistancesOuter[id.x] = g1DistancesOuter[id.x] + ER_dists_F2(rv);
-    g2DistancesInner[id.x] = g1DistancesInner[id.x] + ER_dists_F1(rv);
+    g2DistancesOuter[id.x] = ER_dists_F2(rv);
+    g2DistancesInner[id.x] = ER_dists_F1(rv);
 }
 
 
@@ -114,43 +113,20 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
     {
         if (norm > r_sample)
         {
-            // case A_{c,sc}.
-            indicatorMask[id.x].y = true;
-            indicatorCount.y += 1;
-            
-            // case A_{c,c}.
-            indicatorMask[id.x].z = true;
-            indicatorCount.z += 1;
+            // cases A_{c,sc}, A_{c,c}.
+            indicatorMask[id.x].y = 1;
         }
         else 
         {
             // case A_{c,c}.
-            indicatorMask[id.x].x = true;
-            indicatorCount.x += 1;
+            indicatorMask[id.x].x = 1;
         }
     }
+    else
+    {
+        indicatorMask[id.x] = uint2(0, 0);
+    }
 }
-
-
-/*
-float2 rotatePoint(uint i)
-{
-    return float2(
-            cos*segment[i].x-sin*segment[i].y, 
-            sin*segment[i].x+cos*segment[i].y);
-}
-*/
-
-
-/*
-[numthreads(1024,1,1)]
-void Absorptions(uint3 id : SV_DispatchThreadID)
-{
-    absorptions[id.x].x = indicatorMask[id.x].x * exp(-dot(mu, distancesInner[id.x]));    // case A_{s,sc}.
-    absorptions[id.x].y = indicatorMask[id.x].y * exp(-dot(mu, distancesOuter[id.x]));    // case A_{s,sc}.
-    absorptions[id.x].z = indicatorMask[id.x].z * exp(-dot(float2(mu.x, 0.0), distancesOuter[id.x]));    // case A_{s,sc}.
-}
-*/ 
 
 
 /**
@@ -168,7 +144,7 @@ void AbsorptionFactors(uint3 id : SV_DispatchThreadID)
             -dot(mu, g1DistancesInner[i] + g2DistancesInner[i]/cosBuffer[id.x]));    // case A_{s,sc}.
         absorptionSum.y += indicatorMask[i].y * exp(
             -dot(mu, g1DistancesOuter[i] + g2DistancesOuter[i]/cosBuffer[id.x]));    // case A_{s,sc}.
-        absorptionSum.z += indicatorMask[i].z * exp(
+        absorptionSum.z += indicatorMask[i].y * exp(
             -dot(float2(mu.x, 0.0), g1DistancesOuter[i] + g2DistancesOuter[i]/cosBuffer[id.x]));    // case A_{s,sc}.
     }
     
