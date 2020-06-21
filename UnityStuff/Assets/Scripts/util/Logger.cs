@@ -10,7 +10,7 @@ namespace util
     public class Logger
     {
         
-        public enum LogLevel : uint
+        public enum LogLevel : int
         {
             All = 70,              // 1 + any event.
             Verbose = 60,          // 2 + statements.
@@ -19,7 +19,8 @@ namespace util
             Debug = 30,            // 3 + object creation- and destruction.
             Warning = 20,          // 6 + warnings.
             Error = 10,            // only errors.
-            None = 00
+            None = 00,
+            Custom = -10
         }
 
         public enum EventType : uint
@@ -64,6 +65,9 @@ namespace util
         private LogLevel PrintLevel { get; set; } = LogLevel.All;
         private LogLevel WriteLevel { get; set; } = LogLevel.All;
 
+        private List<EventType> _printEvents;
+        private List<EventType> _writeEvents;
+
         public Logger SetPrintLevel(LogLevel logLevel)
         {
             PrintLevel = logLevel;
@@ -76,6 +80,20 @@ namespace util
             return this;
         }
 
+        public Logger SetPrintFilter(List<EventType> eventTypes)
+        {
+            PrintLevel = LogLevel.Custom;
+            _printEvents = eventTypes;
+            return this;
+        }
+        
+        public Logger SetWriteFilter(List<EventType> eventTypes)
+        {
+            PrintLevel = LogLevel.Custom;
+            _printEvents = eventTypes;
+            return this;
+        }
+
         public Logger()
         {
             _logEntries = new List<LogEntry>();
@@ -85,7 +103,8 @@ namespace util
         {
             var entry = new LogEntry(eventType, DateTime.Now, message);
             _logEntries.Add(entry);
-            if (printDebug || (int) eventType <= (int) PrintLevel) 
+            if (printDebug || PrintLevel == LogLevel.Custom && _printEvents.Contains(eventType) 
+                           || (int) eventType <= (int) PrintLevel)
                 Debug.Log(entry.ToString());
         }
 
