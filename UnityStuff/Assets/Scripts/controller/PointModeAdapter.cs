@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -21,6 +22,8 @@ namespace controller
         // Mask of diffraction points
         private Vector2Int[] _diffractionMask;
         private Vector2 _nrDiffractionPoints;
+        private int[] _innerIndices;
+        private int[] _outerIndices;
         
         private ComputeBuffer _inputBuffer;
         
@@ -32,6 +35,12 @@ namespace controller
         ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new NullLogger());
+            _logger.SetPrintFilter(new List<Logger.EventType>()
+            {
+                Logger.EventType.Performance,
+                Logger.EventType.Class,
+                Logger.EventType.InitializerMethod
+            });
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
@@ -60,11 +69,17 @@ namespace controller
             _diffractionMask = new Vector2Int[Coordinates.Length];
             ComputeIndicatorMask();
             
+            _innerIndices = ParallelEnumerable.Range(0, _diffractionMask.Length)
+                .Where(i => _diffractionMask[i].x > 0.0)
+                .ToArray();
+            _outerIndices = ParallelEnumerable.Range(0, _diffractionMask.Length)
+                .Where(i => _diffractionMask[i].y > 0.0)
+                .ToArray();
+            
             // count diffracting points in each case.
-            _nrDiffractionPoints = _diffractionMask.AsParallel()
-                .Aggregate(Vector2.zero, (a, v) => a + v);
             _logger.Log(Logger.EventType.Step, 
-                $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrSegments}).");
+                "InitializeOtherFields():" +
+                $" found ({_innerIndices.Length}, {_outerIndices.Length}) diffraction points (of {_nrSegments}).");
             
             _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
@@ -204,22 +219,13 @@ namespace controller
             sw.Stop();
             _logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
-        
-        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+
+        Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
-                ParallelEnumerable.Range(0, absorptions.Length)
-                    .Where(i => _diffractionMask[i].x > 0)
-                    .Select(i => absorptions[i].x)
-                    .Sum() / _nrDiffractionPoints.x,
-                ParallelEnumerable.Range(0, absorptions.Length)
-                    .Where(i => _diffractionMask[i].y > 0)
-                    .Select(i => absorptions[i].y)
-                    .Sum() / _nrDiffractionPoints.y,
-                ParallelEnumerable.Range(0, absorptions.Length)
-                    .Where(i => _diffractionMask[i].y > 0)
-                    .Select(i => absorptions[i].z)
-                    .Sum() / _nrDiffractionPoints.y
+                _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].y).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
             );
         }
 

@@ -27,6 +27,8 @@ namespace controller
         // Mask of diffraction points
         //private Vector3Int[] _diffractionMask;
         private Vector2 _nrDiffractionPoints;
+        private int[] _innerIndices;
+        private int[] _outerIndices;
 
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
@@ -42,8 +44,8 @@ namespace controller
             _logger.SetPrintFilter(new List<Logger.EventType>() 
                 {
                     Logger.EventType.Performance, 
-                    Logger.EventType.Class, 
-                    Logger.EventType.InitializerMethod
+                    //Logger.EventType.Class, 
+                    //Logger.EventType.InitializerMethod
                 }
             );
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -75,8 +77,13 @@ namespace controller
             // count diffracting points in each case.
             var mask = new Vector2Int[_nrSegments];
             _maskBuffer.GetData(mask);
-            _nrDiffractionPoints = mask.AsParallel()
-                .Aggregate(Vector2.zero, (a, v) => a + v);
+            _innerIndices = ParallelEnumerable.Range(0, mask.Length)
+                .Where(i => mask[i].x > 0.0)
+                .ToArray();
+            _outerIndices = ParallelEnumerable.Range(0, mask.Length)
+                .Where(i => mask[i].y > 0.0)
+                .ToArray();
+            _nrDiffractionPoints = new Vector2(_innerIndices.Length, _outerIndices.Length);
             _logger.Log(Logger.EventType.Step, 
                 $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrSegments}).");
             
@@ -201,7 +208,7 @@ namespace controller
                     Shader.Dispatch(absorptionsHandle, ThreadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
 
-                    _absorptionFactors[i, j] = GetAbsorptionFactorLINQ(absorptionsTemp, Vector3.kEpsilon);
+                    _absorptionFactors[i, j] = GetAbsorptionFactor(absorptionsTemp);
                     
                     avg_inner_loop += sw.Elapsed - start_inner_loop;
                 }
@@ -237,13 +244,13 @@ namespace controller
             var saveName = $"Output res={SegmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
         }
-        
-        Vector3 GetAbsorptionFactorLINQ(Vector3[] absorptions, float tol)
+
+        Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
-                absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
-                absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
-                absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
+                _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].y).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
             );
         }
     }
