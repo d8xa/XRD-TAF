@@ -130,12 +130,12 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 void Absorptions(uint3 id : SV_DispatchThreadID){
     if (indicatorMask[id.x].x > 0)
     {
-        absorptions[id.x].x = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));    // case A_{s,sc}.
+        absorptions[id.x].x = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesInner[id.x]/vCos));    // case A_{s,sc}.
     }
     
     if (indicatorMask[id.x].y > 0) 
     {
-        absorptions[id.x].y = exp(-dot(mu, g2DistancesOuter[id.x]/vCos));                 // case A_{c,sc}.
-        absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), g2DistancesOuter[id.x]/vCos));  // case A_{c,c}.
+        absorptions[id.x].y = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));                 // case A_{c,sc}.
+        absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));  // case A_{c,c}.
     }
 }
