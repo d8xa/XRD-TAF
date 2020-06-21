@@ -56,7 +56,7 @@ public class LogicHandler {
       var sw = new Stopwatch();
       // TODO: maybe use length of angle list directly instead.
       if (model.settings.mode == Model.Mode.Point)
-         angleSteps = model.GetAngles2D().Length;
+         angleSteps = model.GetAngles().Length;
       else if (model.settings.mode == Model.Mode.Area)
       {
          // TODO: error checking.
@@ -68,7 +68,7 @@ public class LogicHandler {
          // TODO:
       }
       else
-         angleSteps = model.GetAngles2D().Length;
+         angleSteps = model.GetAngles().Length;
       
       Debug.Log($"{sw.Elapsed}: Strating Initialized g1 distance arrays.");
       var segmentCount = segmentRes * segmentRes;
@@ -185,8 +185,8 @@ public class LogicHandler {
     */
    public void calculate_g2_dists(int i, bool copy) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, (int) Math.Min(Math.Pow(2,16)-1, Math.Pow(segmentResolution, 2)), 
@@ -206,8 +206,8 @@ public class LogicHandler {
 
    public void calculate_absorptions_2D(int i) {
       cs.SetBuffer(g2_handle, "segment", inputBuffer);
-      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles2D()[i]) * Math.PI / 180));
-      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles2D()[i]) * Math.PI / 180));      
+      cs.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles()[i]) * Math.PI / 180));
+      cs.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles()[i]) * Math.PI / 180));      
       cs.SetBuffer(g2_handle, "distancesInner", outputBufferInner);
       cs.SetBuffer(g2_handle, "distancesOuter", outputBufferOuter);
       cs.Dispatch(g2_handle, 
@@ -318,7 +318,7 @@ public class LogicHandler {
                .Select(j => g2_dists_inner[i, j])
                .Count(v => v.x > 0)*1.0f/data.Length
             );*/
-            sb.Append("\"" + model.GetAngles2D()[i] + "\" : ");   // angle as dict key.
+            sb.Append("\"" + model.GetAngles()[i] + "\" : ");   // angle as dict key.
             var row = Enumerable.Range(0, m)
                .Select(j => distsArray[i, j])   
                .ToArray();   // get i-th row.
@@ -361,7 +361,7 @@ public class LogicHandler {
          writer.WriteLine(string.Join("\t", "2 theta","A_{s,sc}", "A_{c,sc}", "A_{c,c}"));
          for (int i = 0; i < angleSteps; i++)
          {
-            writer.WriteLine(string.Join("\t", model.GetAngles2D()[i].ToString("G", CultureInfo.InvariantCulture),
+            writer.WriteLine(string.Join("\t", model.GetAngles()[i].ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));

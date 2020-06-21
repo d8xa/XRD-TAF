@@ -44,15 +44,15 @@ public class DataHandler : MonoBehaviour{
     {
         UpdatePath();
         if (File.Exists(Path.Combine(savePath, "Default_set.txt"))) {
-            settingsFields.fillInDefaults(
+            settingsFields.FillInDefaults(
                 JsonUtility.FromJson<Settings>(File.ReadAllText(Path.Combine(savePath, "Default_set.txt"))));
         }
         if (File.Exists(Path.Combine(savePath, "Default_det.txt"))) {
-            settingsFields.fillInDefaults(
+            settingsFields.FillInDefaults(
                 JsonUtility.FromJson<DetektorSettings>(File.ReadAllText(Path.Combine(savePath, "Default_det.txt"))));
         }
         if (File.Exists(Path.Combine(savePath, "Default_sam.txt"))) {
-            settingsFields.fillInDefaults(
+            settingsFields.FillInDefaults(
                 JsonUtility.FromJson<SampleSettings>(File.ReadAllText(Path.Combine(savePath, "Default_sam.txt"))));
         }
     }
@@ -103,43 +103,9 @@ public class DataHandler : MonoBehaviour{
             
         shaderAdapter.Execute();
         //*/
-        
-
-        
-        /*
-        shaderAdapter = new PointModeAdapter(
-            computeShader,
-            new Model(
-                settingsFields.settings, 
-                settingsFields.detektorSettings, 
-                settingsFields.sampleSettings
-            ), 
-            0.02f,
-            false,
-            true);
-        
-        
-        //TestSuite.test_Distances2D(computeShader);
-        // TODO: delegate to ShaderAdapter
-        shaderAdapter.Execute();
-        */
-        /*
-        var sw = new Stopwatch();
-        logicHandler = new LogicHandler(
-            new Model(
-                settingsFields.settings, 
-                settingsFields.detektorSettings, 
-                settingsFields.sampleSettings
-            ), computeShader);
-
-        sw.Start();
-        logicHandler.run_shader();
-        sw.Stop();
-        Debug.Log($"run_shader took {sw.Elapsed}");
-        //*/
     }
 
-    public void settingSaver() {
+    public void SaveSettings() {
         string saveDataSet = JsonUtility.ToJson(settingsFields.settings);
         File.WriteAllText(Path.Combine(savePath, settingsFields.settings.aufbauBezeichnung + "_set.txt"), saveDataSet);
         
@@ -150,24 +116,24 @@ public class DataHandler : MonoBehaviour{
         File.WriteAllText(Path.Combine(savePath, settingsFields.settings.aufbauBezeichnung + "_sam.txt"), saveDataSam);
     }
 
-    public void settingLoader() {
+    public void LoadSettings() {
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_set.txt"))) {
             string loadedDataSet = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_set.txt"));
             settingsFields.settings = JsonUtility.FromJson<Settings>(loadedDataSet);
-            settingsFields.aktualisiereModus(false);
-            settingsFields.aktualisiere(false);
+            settingsFields.ModeChanged();
+            settingsFields.DataChanged();
         }
         
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_det.txt"))) {
             string loadedDataDet = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_det.txt"));
             settingsFields.detektorSettings = JsonUtility.FromJson<DetektorSettings>(loadedDataDet);
-            settingsFields.aktualisiere(false);
+            settingsFields.DataChanged();
         }
 
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_sam.txt"))) {
             string loadedDataSam = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_sam.txt"));
             settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(loadedDataSam);
-            settingsFields.aktualisiere(false);
+            settingsFields.DataChanged();
         }
     }
     

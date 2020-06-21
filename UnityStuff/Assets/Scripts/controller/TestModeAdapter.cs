@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -38,6 +39,13 @@ namespace controller
             ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new Logger());
+            _logger.SetPrintFilter(new List<Logger.EventType>() 
+                {
+                    Logger.EventType.Performance, 
+                    Logger.EventType.Class, 
+                    Logger.EventType.InitializerMethod
+                }
+            );
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
@@ -172,8 +180,8 @@ namespace controller
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles()[j]) * Math.PI / 180));
+                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles()[j]) * Math.PI / 180));
                 
                 // compute g2 distances.
                 _logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -226,7 +234,7 @@ namespace controller
         {
             var saveDir = Path.Combine("Logs", "Absorptions3D");
             Directory.CreateDirectory(saveDir);
-            var saveName = $"Output n={SegmentResolution}.txt";
+            var saveName = $"Output res={SegmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
         }
         

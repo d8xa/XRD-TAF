@@ -50,7 +50,7 @@ namespace controller
         {
             _logger.SetPrintLevel(Logger.LogLevel.All);
             _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = Model.GetAngles2D().Length;
+            _nrAnglesTheta = Model.GetAngles().Length;
             _nrSegments = SegmentResolution * SegmentResolution;
             
             // initialize absorption array. dim n: (#thetas).
@@ -167,8 +167,8 @@ namespace controller
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles()[j]) * Math.PI / 180));
+                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles()[j]) * Math.PI / 180));
                 Shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 Shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
@@ -232,7 +232,7 @@ namespace controller
         {
             var path = Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = Model.GetAngles2D()
+            var headCol = Model.GetAngles()
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -259,7 +259,7 @@ namespace controller
                 for (int i = 0; i < _nrAnglesTheta; i++)
                 {
                     writer.WriteLine(string.Join("\t", 
-                        Model.GetAngles2D()[i].ToString("G", CultureInfo.InvariantCulture),
+                        Model.GetAngles()[i].ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));

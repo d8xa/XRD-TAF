@@ -179,8 +179,8 @@ namespace controller
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles2D()[j]) * Math.PI / 180));
+                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles()[j]) * Math.PI / 180));
+                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles()[j]) * Math.PI / 180));
                 
                 // compute g2 distances.
                 _logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");

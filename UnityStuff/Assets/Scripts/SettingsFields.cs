@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using FoPra.model;
 using model;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -33,17 +35,14 @@ public class SettingsFields : MonoBehaviour {
    public SampleSettings sampleSettings;
    public DetektorSettings detektorSettings;
    public RaySettings raySettings;
-
-
-
-
-
+   
+   
    public Model MakeModel()
    {
       return new Model(settings, detektorSettings, sampleSettings);
    }
 
-   public void fillInDefaults(Settings defaultSettings) {
+   public void FillInDefaults(Settings defaultSettings) {
       if (fieldDescriptor.text.Equals("")) {
          settings.aufbauBezeichnung = "Default_" + namelessNumber;
          namelessNumber++;
@@ -53,57 +52,52 @@ public class SettingsFields : MonoBehaviour {
       if (fieldAccuracy.text.Equals("")) {
          settings.computingAccuracy = defaultSettings.computingAccuracy;
       }
-      aktualisiere(false);
+      DataChanged();
    }
    
-   public void fillInDefaults(DetektorSettings defaultDetektorSettings) {
+   public void FillInDefaults(DetektorSettings defaultSettings) {
       if (fieldOffsetX.text.Equals("") && fieldOffsetY.text.Equals("")) {
-         detektorSettings.offSetFromDownRightEdge = defaultDetektorSettings.offSetFromDownRightEdge;
+         detektorSettings.offSetFromDownRightEdge = defaultSettings.offSetFromDownRightEdge;
       }
       if (fieldPixelSize.text.Equals("")) {
-         detektorSettings.pixelsize = defaultDetektorSettings.pixelsize;
+         detektorSettings.pixelsize = defaultSettings.pixelsize;
       }
       if (fieldResolutionX.text.Equals("") && fieldResolutionY.text.Equals("")) {
-         detektorSettings.resolution = defaultDetektorSettings.resolution;
+         detektorSettings.resolution = defaultSettings.resolution;
       }
 
       if (fieldDstToSample.text.Equals("")) {
-         detektorSettings.distToSample = defaultDetektorSettings.distToSample;
+         detektorSettings.distToSample = defaultSettings.distToSample;
       }
 
       if (fieldPathAngleFile.text.Equals("")) {
-         detektorSettings.pathToAngleFile = defaultDetektorSettings.pathToAngleFile;
+         detektorSettings.pathToAngleFile = defaultSettings.pathToAngleFile;
       }
-      aktualisiere(false);
+      DataChanged();
    }
    
-   public void fillInDefaults(SampleSettings defaultSampleSettings) {
+   public void FillInDefaults(SampleSettings defaultSettings) {
       if (fieldDiameter.text.Equals("")) {
-         sampleSettings.totalDiameter = defaultSampleSettings.totalDiameter;
+         sampleSettings.totalDiameter = defaultSettings.totalDiameter;
       }
       if (fieldCellThickness.text.Equals("")) {
-         sampleSettings.cellThickness = defaultSampleSettings.cellThickness;
+         sampleSettings.cellThickness = defaultSettings.cellThickness;
       }
       if (fieldMuCell.text.Equals("")) {
-         sampleSettings.muCell = defaultSampleSettings.muCell;
+         sampleSettings.muCell = defaultSettings.muCell;
       }
       if (fieldMuSample.text.Equals("")) {
-         sampleSettings.muSample = defaultSampleSettings.muSample;
+         sampleSettings.muSample = defaultSettings.muSample;
       }
-      aktualisiere(false);
+      DataChanged();
    }
 
-   
-   // TODO: refactor
-   public void aktualisiereModus(bool userInput) {
-      if (userInput) PrepareMode();
-      else PrepareDropdown();
-      
-      
-      SetObjects();
-   }
-
-   private void SetObjects()
+   /// <summary>
+   /// Updates main menu upon change of computation mode.
+   /// Mode-relevant fields are set to visible, all other to invisible.
+   /// </summary>
+   /// <exception cref="InvalidOperationException"></exception>
+      private void DropdownValueChanged()
    {
       switch (settings.mode)
       {
@@ -155,116 +149,102 @@ public class SettingsFields : MonoBehaviour {
       }
    }
 
-   private void PrepareMode()
-   {
-      switch (dropdownMode.value)
-         {
-            case 0:
-               settings.mode = Model.Mode.Point;
-               break;
-            
-            case 1:
-               settings.mode = Model.Mode.Area;
-               break;
-            
-            case 2:
-               settings.mode = Model.Mode.Integrated;
-               break;
-            
-            case 3:
-               settings.mode = Model.Mode.Testing;
-               break;
-            
-            default:
-               throw new InvalidOperationException();
-         }
+   
+   public void ModeChanged() {
+      SetDropdownTo(settings.mode);
+      DropdownValueChanged();
    }
 
-   private void PrepareDropdown()
+
+   private readonly Dictionary<int, Model.Mode> _dropdownMap = new Dictionary<int, Model.Mode>
    {
-      switch (settings.mode)
-      {
-         case Model.Mode.Point:
-            dropdownMode.value = 0;
-            break;
-         
-         case Model.Mode.Area:
-            dropdownMode.value = 1;
-            break;
-         
-         case Model.Mode.Integrated:
-            dropdownMode.value = 2;
-            break;
-         
-         case Model.Mode.Testing:
-            dropdownMode.value = 3;
-            break;
-            
-         default: 
-            throw new NotImplementedException();
-      }
+      {0, Model.Mode.Point},
+      {1, Model.Mode.Area},
+      {2, Model.Mode.Integrated},
+      {3, Model.Mode.Testing},
+   };
+
+   public void DropdownChanged()
+   {
+      if (!_dropdownMap.ContainsKey(dropdownMode.value)) throw new InvalidOperationException();
+      settings.mode = _dropdownMap[dropdownMode.value];
+      DropdownValueChanged();
+   }
+
+   /// <summary>Sets the internal dropdown value according to the supplied mode.</summary>
+   private void SetDropdownTo(Model.Mode mode)
+   {
+      if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
+      dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
    }
    
-   // TODO: make parsing culture invariant.
-   public void aktualisiere(bool userInput) {
-      if (userInput) {
-         if (!fieldDescriptor.text.Equals("")) {
-            settings.aufbauBezeichnung = fieldDescriptor.text;
-         }
+   /// <summary>Updates each data field in the model with parsed input from UI input fields.</summary>
+   public void InputChanged()
+   {
+      var cultureInfo = CultureInfo.InvariantCulture;
+      
+      if (!fieldDescriptor.text.Equals("")) 
+         settings.aufbauBezeichnung = fieldDescriptor.text;
 
-         if (!fieldAccuracy.text.Equals("")) {
-            settings.computingAccuracy = float.Parse(fieldAccuracy.text);
-         }
-         
-         if (!fieldOffsetX.text.Equals("") && !fieldOffsetY.text.Equals("")) {
-            detektorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text);
-            detektorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text);
-         }
-         if (!fieldPixelSize.text.Equals("")) {
-            detektorSettings.pixelsize = float.Parse(fieldPixelSize.text);
-         }
-         if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals("")) {
-            detektorSettings.resolution.x = int.Parse(fieldResolutionX.text);
-            detektorSettings.resolution.y = int.Parse(fieldResolutionY.text);
-         }
-         if (!fieldDstToSample.text.Equals("")) {
-            detektorSettings.distToSample = float.Parse(fieldDstToSample.text);
-         }
-         if (!fieldPathAngleFile.text.Equals("")) {
-            detektorSettings.pathToAngleFile = fieldPathAngleFile.text;
-         }
-         
-         if (!fieldDiameter.text.Equals("")) {
-            sampleSettings.totalDiameter = float.Parse(fieldDiameter.text);
-         }
-         if (!fieldCellThickness.text.Equals("")) {
-            sampleSettings.cellThickness = float.Parse(fieldCellThickness.text);
-         }
-         if (!fieldMuCell.text.Equals("")) {
-            sampleSettings.muCell = float.Parse(fieldMuCell.text);
-         }
-         if (!fieldMuSample.text.Equals("")) {
-            sampleSettings.muSample = float.Parse(fieldMuSample.text);
-         }
-         
-      } else {
+      if (!fieldAccuracy.text.Equals("")) 
+         settings.computingAccuracy = float.Parse(fieldAccuracy.text, cultureInfo);
 
-         fieldDescriptor.text = settings.aufbauBezeichnung;
-         fieldAccuracy.text = settings.computingAccuracy.ToString();
-         
-         fieldPixelSize.text = detektorSettings.pixelsize.ToString();
-         fieldOffsetX.text = detektorSettings.offSetFromDownRightEdge.x.ToString();
-         fieldOffsetY.text = detektorSettings.offSetFromDownRightEdge.y.ToString();
-         fieldDstToSample.text = detektorSettings.distToSample.ToString();
-         fieldResolutionX.text = detektorSettings.resolution.x.ToString();
-         fieldResolutionY.text = detektorSettings.resolution.y.ToString();
-         fieldPathAngleFile.text = detektorSettings.pathToAngleFile;
-         
-         fieldDiameter.text = sampleSettings.totalDiameter.ToString();
-         fieldCellThickness.text = sampleSettings.cellThickness.ToString();
-         fieldMuCell.text = sampleSettings.muCell.ToString();
-         fieldMuSample.text = sampleSettings.muSample.ToString();
+      if (!fieldOffsetX.text.Equals("") && !fieldOffsetY.text.Equals(""))
+      {
+         detektorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text, cultureInfo);
+         detektorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text, cultureInfo);
       }
+
+      if (!fieldPixelSize.text.Equals("")) 
+         detektorSettings.pixelsize = float.Parse(fieldPixelSize.text, cultureInfo);
+
+      if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals(""))
+      {
+         detektorSettings.resolution.x = int.Parse(fieldResolutionX.text);
+         detektorSettings.resolution.y = int.Parse(fieldResolutionY.text);
+      }
+
+      if (!fieldDstToSample.text.Equals("")) 
+         detektorSettings.distToSample = float.Parse(fieldDstToSample.text, cultureInfo);
+
+      if (!fieldPathAngleFile.text.Equals("")) 
+         detektorSettings.pathToAngleFile = fieldPathAngleFile.text;
+
+      if (!fieldDiameter.text.Equals("")) 
+         sampleSettings.totalDiameter = float.Parse(fieldDiameter.text, cultureInfo);
+
+      if (!fieldCellThickness.text.Equals("")) 
+         sampleSettings.cellThickness = float.Parse(fieldCellThickness.text, cultureInfo);
+
+      if (!fieldMuCell.text.Equals("")) 
+         sampleSettings.muCell = float.Parse(fieldMuCell.text, cultureInfo);
+
+      if (!fieldMuSample.text.Equals("")) 
+         sampleSettings.muSample = float.Parse(fieldMuSample.text, cultureInfo);
+   }
+
+   /// <summary>
+   /// Updates all input fields in the UI with the changed data from the model.
+   /// </summary>
+   public void DataChanged()
+   {
+      var cultureInfo = CultureInfo.InvariantCulture;
+      
+      fieldDescriptor.text = settings.aufbauBezeichnung;
+      fieldAccuracy.text = settings.computingAccuracy.ToString(cultureInfo);
+         
+      fieldPixelSize.text = detektorSettings.pixelsize.ToString(cultureInfo);
+      fieldOffsetX.text = detektorSettings.offSetFromDownRightEdge.x.ToString(cultureInfo);
+      fieldOffsetY.text = detektorSettings.offSetFromDownRightEdge.y.ToString(cultureInfo);
+      fieldDstToSample.text = detektorSettings.distToSample.ToString(cultureInfo);
+      fieldResolutionX.text = detektorSettings.resolution.x.ToString(cultureInfo);
+      fieldResolutionY.text = detektorSettings.resolution.y.ToString(cultureInfo);
+      fieldPathAngleFile.text = detektorSettings.pathToAngleFile;
+         
+      fieldDiameter.text = sampleSettings.totalDiameter.ToString(cultureInfo);
+      fieldCellThickness.text = sampleSettings.cellThickness.ToString(cultureInfo);
+      fieldMuCell.text = sampleSettings.muCell.ToString(cultureInfo);
+      fieldMuSample.text = sampleSettings.muSample.ToString(cultureInfo);
    }
 
 }

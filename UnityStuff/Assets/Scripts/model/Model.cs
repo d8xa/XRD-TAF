@@ -12,7 +12,11 @@ namespace model
     {
         [Serializable]
         public enum Mode {
-            Point, Area, Integrated, Testing, Undefined
+            Point = 0, 
+            Area = 1, 
+            Integrated = 2, 
+            Testing = 3, 
+            Undefined = 4
         }
         public enum AbsorptionType {
             All, Cell, Sample, CellAndSample
@@ -33,11 +37,10 @@ namespace model
         private float _rCellSq;
         private float _muSample;
         private float _muCell;
-        private float[] _angles2D;
-        private float[] _anglesIntegrated;    // TODO: check if both angle lists are necessary, else use one list.
+        private float[] _angles;
         private float[] _cos3D;
 
-        private void calculate_meta_data()
+        private void GatherMetaData()
         {
             // set case-shared variables:
             _segmentResolution = (int) settings.computingAccuracy; // TODO: rename text field label in GUI.
@@ -52,11 +55,11 @@ namespace model
             switch (settings.mode)
             {
                 case Mode.Point:
-                    _angles2D = ImportAngles();
+                    _angles = Parser.ImportAngles(Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt"));
                     break;
 
                 case Mode.Area:
-                    _angles2D = Enumerable.Range(0, (int) detector.resolution.x)
+                    _angles = Enumerable.Range(0, (int) detector.resolution.x)
                         .Select(j => detector.GetRatioFromOffset(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
@@ -66,14 +69,14 @@ namespace model
                     break;
 
                 case Mode.Integrated:
-                    _anglesIntegrated = MathTools.LinSpace1D(
+                    _angles = MathTools.LinSpace1D(
                         detector.angleStart,
                         detector.angleEnd,
                         detector.angleAmount);
                     break;
                 
                 case Mode.Testing:
-                    _angles2D = Enumerable.Range(0, (int) detector.resolution.x)
+                    _angles = Enumerable.Range(0, (int) detector.resolution.x)
                         .Select(j => detector.GetRatioFromOffset(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
@@ -89,25 +92,7 @@ namespace model
             this.detector = detector;
             this._sample = sample;
             //this.ray = ray;
-            calculate_meta_data();
-        }
-
-        private float[] ImportAngles()
-        {
-            var text = "";
-            var path = Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt");
-            if (File.Exists(path))
-            {
-                using (var reader = new StreamReader(path))
-                    text = reader.ReadToEnd();
-            }
-      
-            return text
-                .Trim(' ')
-                .Split('\n')
-                .Where(s => s.Length > 0)
-                .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
-                .ToArray();
+            GatherMetaData();
         }
 
         public int GetSegmentResolution() => _segmentResolution;
@@ -124,10 +109,8 @@ namespace model
 
         public float GetMuCell() => _muCell;
 
-        public float[] GetAngles2D() => _angles2D;
-
-        public float[] GetAnglesIntegrated() => _anglesIntegrated;
-
+        public float[] GetAngles() => _angles;
+        
         public float[] GetCos3D() => _cos3D;
     }
 }
