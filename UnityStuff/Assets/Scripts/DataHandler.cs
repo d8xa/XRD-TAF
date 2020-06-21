@@ -1,8 +1,6 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using System.IO;
 using controller;
-using FoPra.model;
 using model;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -24,6 +22,7 @@ public class DataHandler : MonoBehaviour{
     public Button submitButton;
     public ComputeShader pointModeShader;
     public ComputeShader planeModeShader;
+    public ComputeShader planeModeShaderBf;
     //public ComputeShader integratedModeShader;
 
     [FormerlySerializedAs("logicHandler")] 
@@ -61,12 +60,41 @@ public class DataHandler : MonoBehaviour{
     public void submitToComputing()
     {
         fillInBlanks();
+        /*
+        Debug.Log("Alpha ratios: " + 
+                  string.Join(", ", 
+            Enumerable.Range(0, settingsFields.detektorSettings.resolution.y)
+                .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, true))
+                .Select(v => v.ToString("F5"))
+                .ToArray()
+        ));
+        
+        Debug.Log("Theta angles from ratios: " + 
+                  string.Join(", ", 
+            Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
+                .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
+                .Select(v => Math.Acos(1/v) * 180.0 / Math.PI)
+                .Select(v => v.ToString("F5"))
+                .ToArray()
+        ));
+        
+        Debug.Log("Theta angles native: " + 
+                  string.Join(", ", 
+                      Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
+                          .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
+                          .Select(ratio => settingsFields.detektorSettings.GetAngleFromRatio(ratio))
+                          .Select(v => v.ToString("F5"))
+                          .ToArray()
+                  ));
+        */
 
+        ///*
         shaderAdapter = ShaderAdapterBuilder.New()
             .SetMode(settingsFields.settings.mode)
             .SetModel(settingsFields.MakeModel())
             .AddShader(Model.Mode.Point, pointModeShader)
             .AddShader(Model.Mode.Area, planeModeShader)
+            .AddShader(Model.Mode.Testing, planeModeShaderBf)
             //.AddShader(Model.Mode.Integrated, integratedModeShader)
             .SetSegmentMargin(0.2f)
             .AutoSetShader()
@@ -74,7 +102,7 @@ public class DataHandler : MonoBehaviour{
             .Build();
             
         shaderAdapter.Execute();
-        
+        //*/
         
 
         
@@ -126,7 +154,7 @@ public class DataHandler : MonoBehaviour{
         if (File.Exists(Path.Combine(savePath, loadFileName.text + "_set.txt"))) {
             string loadedDataSet = File.ReadAllText(Path.Combine(savePath, loadFileName.text + "_set.txt"));
             settingsFields.settings = JsonUtility.FromJson<Settings>(loadedDataSet);
-            settingsFields.aktualisiereModus(true);
+            settingsFields.aktualisiereModus(false);
             settingsFields.aktualisiere(false);
         }
         

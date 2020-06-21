@@ -167,6 +167,13 @@ namespace controller
             Shader.SetBuffer(absorptionFactorsHandle, "cosBuffer", cosBuffer);
             Shader.SetBuffer(absorptionFactorsHandle, "indicatorMask", _maskBuffer);
 
+            var cosValues = new float[_nrAnglesAlpha];
+            cosBuffer.GetData(cosValues);
+            Debug.Log(string.Join(", ", 
+                cosValues.Select(v => v.ToString("F3"))));
+            
+
+
             var start_loop = sw.Elapsed;
             
             for (int j = 0; j < _nrAnglesTheta; j++)
@@ -188,7 +195,7 @@ namespace controller
                 Shader.Dispatch(absorptionFactorsHandle, ThreadGroupsX, 1, 1);
                 absorptionFactorsBuffer.GetData(absorptionFactorColumn);
                 
-                ///*
+                /*
                 var tmp1Count = absorptionFactorColumn
                     .Count(v => Math.Abs(v.x) > 0 || Math.Abs(v.y) > 0 || Math.Abs(v.z) > 0);
                 Debug.Log(tmp1Count);
@@ -196,7 +203,7 @@ namespace controller
                 if (tmp1Count > 0) Debug.Log(string.Join(", ", 
                     absorptionFactorColumn.Select(v => v.ToString("F3")).ToArray())
                 );
-                //*/
+                */
                 
                 var j1 = j;
                 ParallelEnumerable.Range(0, _nrAnglesAlpha)
