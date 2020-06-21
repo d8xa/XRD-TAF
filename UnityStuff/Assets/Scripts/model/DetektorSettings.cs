@@ -15,21 +15,17 @@ public class DetektorSettings {
     public float angleEnd;
     public int angleAmount;
 
-    public float GetAngleFromOffset(int pixelIndex, bool vertical)
+    public double GetRatioFromOffset(int pixelIndex, bool vertical)
     {
-        return (float) (Math.Atan(
-                Math.Abs(pixelIndex*pixelsize-offSetFromDownRightEdge[vertical ? 1 : 0])/distToSample
-                ) * 180.0 / Math.PI);
+        return Math.Sqrt(
+            Math.Pow(pixelIndex*pixelsize-offSetFromDownRightEdge[vertical ? 1 : 0], 2) + 
+            Math.Pow(distToSample, 2)
+        ) / distToSample;
     }
 
-    public float GetRatioFromOffset(int pixelIndex, bool vertical)
+    public float GetAngleFromRatio(double ratio)
     {
-        return (float) (
-            Math.Sqrt(
-                Math.Pow(pixelIndex*pixelsize-offSetFromDownRightEdge[vertical ? 1 : 0], 2) + 
-                Math.Pow(distToSample, 2)
-            ) / distToSample
-        );
+        return (float) (Math.Acos(1 / ratio) * 180.0 / Math.PI);
     }
 }
 

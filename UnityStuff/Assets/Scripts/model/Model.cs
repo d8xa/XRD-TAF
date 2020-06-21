@@ -57,10 +57,11 @@ namespace model
 
                 case Mode.Area:
                     _angles2D = Enumerable.Range(0, (int) detector.resolution.x)
-                        .Select(j => detector.GetAngleFromOffset(j, false))
+                        .Select(j => detector.GetRatioFromOffset(j, false))
+                        .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
                     _cos3D = Enumerable.Range(0, (int) detector.resolution.y)
-                        .Select(j => detector.GetRatioFromOffset(j, true))
+                        .Select(j => (float) detector.GetRatioFromOffset(j, true))
                         .ToArray();
                     break;
 
@@ -69,6 +70,16 @@ namespace model
                         detector.angleStart,
                         detector.angleEnd,
                         detector.angleAmount);
+                    break;
+                
+                case Mode.Testing:
+                    _angles2D = Enumerable.Range(0, (int) detector.resolution.x)
+                        .Select(j => detector.GetRatioFromOffset(j, false))
+                        .Select(v => detector.GetAngleFromRatio(v))
+                        .ToArray();
+                    _cos3D = Enumerable.Range(0, (int) detector.resolution.y)
+                        .Select(j => (float) detector.GetRatioFromOffset(j, true))
+                        .ToArray();
                     break;
             }
         }

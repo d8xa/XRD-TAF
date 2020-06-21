@@ -1,0 +1,141 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel getIndicatorMask
+#pragma kernel g1_dists
+#pragma kernel g2_dists
+#pragma kernel Absorptions
+
+
+float r_cell;       // outer radius
+float r_sample;     // inner radius
+float r_cell_sq;    // outer radius squared
+float r_sample_sq;  // inner radius squared
+
+float cos;          // cos(180-2*theta)
+float sin;          // sin(180-2*theta)
+float2 mu;          // absorption factors in cell, sample.
+float vCos;         // vertical cosine.
+
+/* CONTENT: Read-only buffers. */
+StructuredBuffer<float2> segment;                   // list of segment coordinates.
+
+/* CONTENT: 
+* Initially: g1_dists from script, precomputed in shader. 
+* Later: g1_dists+g2_dists for current theta angle. 
+*/
+RWStructuredBuffer<float2> g1DistancesOuter;          // Diffraction only in cell.
+RWStructuredBuffer<float2> g1DistancesInner;          // Diffraction only in sample.
+RWStructuredBuffer<float2> g2DistancesOuter;          // Diffraction only in cell.
+RWStructuredBuffer<float2> g2DistancesInner;          // Diffraction only in sample.
+
+
+/* Absorption */
+//RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
+RWStructuredBuffer<uint2> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
+RWStructuredBuffer<float3> absorptions;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
+
+
+float getIntersectX(float2 v, float radius_sq, bool right)
+{
+    if (right)
+    { 
+        return sqrt(abs(radius_sq - pow(v.y, 2)));
+    } 
+    return -sqrt(abs(radius_sq - pow(v.y, 2)));
+}
+
+float2 ER_dists_F1(float2 v)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
+    
+    if (length(v) <= r_sample)
+    {
+        d_cell = abs(getIntersectX(v, r_sample_sq, false) - getIntersectX(v, r_cell_sq, false));
+        d_sample = abs(v.x - getIntersectX(v, r_sample_sq, false));
+    }
+    return float2(d_cell, d_sample);
+}
+
+float2 ER_dists_F2(float2 v)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
+    if (length(v) > r_sample & length(v) <= r_cell)
+    {
+        float RENx_o = getIntersectX(v, r_cell_sq, false);
+        if (v.x >= 0 & abs(v.y) < r_sample)
+        {
+            float RENx_i = getIntersectX(v, r_sample_sq, false);
+            float REXx_i = getIntersectX(v, r_sample_sq, true);
+            d_cell = abs(RENx_o - RENx_i) + abs(REXx_i - v.x);
+            d_sample = abs(RENx_i - REXx_i);
+        }
+        else
+        {
+            d_cell = abs(RENx_o - v.x);
+        }
+    }
+    return float2(d_cell, d_sample);
+}
+
+/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+[numthreads(1024,1,1)]
+void g1_dists(uint3 id : SV_DispatchThreadID)
+{
+    g1DistancesOuter[id.x] = ER_dists_F2(segment[id.x]); 
+    g1DistancesInner[id.x] = ER_dists_F1(segment[id.x]);
+}
+
+
+/* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
+[numthreads(1024,1,1)]
+void g2_dists (uint3 id : SV_DispatchThreadID)
+{
+    float2 rv = float2(
+        cos*segment[id.x].x-sin*segment[id.x].y, 
+        sin*segment[id.x].x+cos*segment[id.x].y
+    );
+    g2DistancesOuter[id.x] = ER_dists_F2(rv);
+    g2DistancesInner[id.x] = ER_dists_F1(rv);
+}
+
+
+/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+[numthreads(1024,1,1)]
+void getIndicatorMask(uint3 id : SV_DispatchThreadID)
+{
+    float norm = length(segment[id.x]);
+    
+    if (norm <= r_cell)
+    {
+        if (norm > r_sample)
+        {
+            // cases A_{c,sc}, A_{c,c}.
+            indicatorMask[id.x].y = 1;
+        }
+        else 
+        {
+            // case A_{c,c}.
+            indicatorMask[id.x].x = 1;
+        }
+    }
+    else
+    {
+        indicatorMask[id.x] = uint2(0, 0);
+    }
+}
+
+
+[numthreads(1024,1,1)]
+void Absorptions(uint3 id : SV_DispatchThreadID){
+    if (indicatorMask[id.x].x > 0)
+    {
+        absorptions[id.x].x = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));    // case A_{s,sc}.
+    }
+    
+    if (indicatorMask[id.x].y > 0) 
+    {
+        absorptions[id.x].y = exp(-dot(mu, g2DistancesOuter[id.x]/vCos));                 // case A_{c,sc}.
+        absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), g2DistancesOuter[id.x]/vCos));  // case A_{c,c}.
+    }
+}

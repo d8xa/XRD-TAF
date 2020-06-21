@@ -2,17 +2,19 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using model;
 using UnityEngine;
 using util;
 using Debug = UnityEngine.Debug;
 using Logger = util.Logger;
+using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
 
 namespace controller
 {
-    public class PlaneModeAdapter : ShaderAdapter
+    public class TestModeAdapter : ShaderAdapter
     {
 
         private Vector3[,] _absorptionFactors;
@@ -23,12 +25,12 @@ namespace controller
         
         // Mask of diffraction points
         //private Vector3Int[] _diffractionMask;
-        //private Vector3 _nrDiffractionPoints;
+        private Vector2 _nrDiffractionPoints;
 
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
         
-        public PlaneModeAdapter(
+        public TestModeAdapter(
             ComputeShader shader, 
             Model model, 
             float margin, 
@@ -40,7 +42,7 @@ namespace controller
             InitializeOtherFields();
         }
 
-        public PlaneModeAdapter(ComputeShader shader, Model model) : base(shader, model)
+        public TestModeAdapter(ComputeShader shader, Model model) : base(shader, model)
         {
             SetLogger(new Logger());
             _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -65,14 +67,11 @@ namespace controller
             // count diffracting points in each case.
             var mask = new Vector2Int[_nrSegments];
             _maskBuffer.GetData(mask);
-            var indicatorCount = mask.AsParallel()
-                .Aggregate(Vector2Int.zero, (a, v) => a + v);
+            _nrDiffractionPoints = mask.AsParallel()
+                .Aggregate(Vector2.zero, (a, v) => a + v);
             _logger.Log(Logger.EventType.Step, 
-                $"InitializeOtherFields(): found {indicatorCount} diffraction points (of {_nrSegments}).");
+                $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrSegments}).");
             
-            Shader.SetInts("indicatorCount", indicatorCount.x, indicatorCount.y, indicatorCount.y);
-            _logger.Log(Logger.EventType.Step, "InitializeOtherFields(): Set indicatorCount in shader.");
-
             _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
         
@@ -115,14 +114,13 @@ namespace controller
             Shader.SetFloat("r_sample", Model.GetRSample());
             Shader.SetFloat("r_cell_sq", Model.GetRCellSq());
             Shader.SetFloat("r_sample_sq", Model.GetRSampleSq());
-            Shader.SetInt("bufCount_Segments", _nrSegments);
             _logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
             var g2Handle = Shader.FindKernel("g2_dists");
-            var absorptionFactorsHandle = Shader.FindKernel("AbsorptionFactors");
+            var absorptionsHandle = Shader.FindKernel("Absorptions");
             _logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
             
@@ -132,8 +130,7 @@ namespace controller
             var g1OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            var cosBuffer = new ComputeBuffer(_nrAnglesAlpha, sizeof(float));
-            var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesAlpha, sizeof(float)*3);
+            var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
             _logger.Log(Logger.EventType.Data, "Created buffers.");
             
             
@@ -150,31 +147,27 @@ namespace controller
             Shader.Dispatch(g1Handle, ThreadGroupsX, 1, 1);
             _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
-            var absorptionFactorColumn = new Vector3[_nrAnglesAlpha];
             //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
             
-            cosBuffer.SetData(Model.GetCos3D());
-
             // set buffers for g2 kernel.
             Shader.SetBuffer(g2Handle, "segment", _inputBuffer);
             Shader.SetBuffer(g2Handle, "g2DistancesInner", g2OutputBufferInner);
             Shader.SetBuffer(g2Handle, "g2DistancesOuter", g2OutputBufferOuter);
 
             // set shared buffers for absorption factor kernel.
-            Shader.SetBuffer(absorptionFactorsHandle, "segment", _inputBuffer);
-            Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesInner", g1OutputBufferInner);
-            Shader.SetBuffer(absorptionFactorsHandle, "g1DistancesOuter", g1OutputBufferOuter);
-            Shader.SetBuffer(absorptionFactorsHandle, "cosBuffer", cosBuffer);
-            Shader.SetBuffer(absorptionFactorsHandle, "indicatorMask", _maskBuffer);
+            Shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
+            Shader.SetBuffer(absorptionsHandle, "g1DistancesInner", g1OutputBufferInner);
+            Shader.SetBuffer(absorptionsHandle, "g1DistancesOuter", g1OutputBufferOuter);
+            Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
+            Shader.SetBuffer(absorptionsHandle, "indicatorMask", _maskBuffer);
 
-            var cosValues = new float[_nrAnglesAlpha];
-            cosBuffer.GetData(cosValues);
-            Debug.Log(string.Join(", ", 
-                cosValues.Select(v => v.ToString("F3"))));
+            var absorptionsTemp = new Vector3[Coordinates.Length];
+            Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
+            absorptionsBuffer.SetData(absorptionsTemp);
+
+            var total_outer_loop = sw.Elapsed;
+            var avg_inner_loop = sw.Elapsed;
             
-
-
-            var start_loop = sw.Elapsed;
             
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
@@ -188,34 +181,32 @@ namespace controller
                 _logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
 
                 // set iterative buffers for absorption factors kernel.
-                Shader.SetBuffer(absorptionFactorsHandle, "g2DistancesInner", g2OutputBufferInner);
-                Shader.SetBuffer(absorptionFactorsHandle, "g2DistancesOuter", g2OutputBufferOuter);
-                Shader.SetBuffer(absorptionFactorsHandle, "absorptionFactors", absorptionFactorsBuffer);
-                
-                Shader.Dispatch(absorptionFactorsHandle, ThreadGroupsX, 1, 1);
-                absorptionFactorsBuffer.GetData(absorptionFactorColumn);
-                
-                /*
-                var tmp1Count = absorptionFactorColumn
-                    .Count(v => Math.Abs(v.x) > 0 || Math.Abs(v.y) > 0 || Math.Abs(v.z) > 0);
-                Debug.Log(tmp1Count);
-                
-                if (tmp1Count > 0) Debug.Log(string.Join(", ", 
-                    absorptionFactorColumn.Select(v => v.ToString("F3")).ToArray())
-                );
-                */
-                
-                var j1 = j;
-                ParallelEnumerable.Range(0, _nrAnglesAlpha)
-                    .ForAll(i => _absorptionFactors[i,j1] = absorptionFactorColumn[i]);
-                // TODO: rewrite to save without copying from temporary column array. 
+                Shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
+                Shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
+
+                for (int i = 0; i < _nrAnglesAlpha; i++)
+                {
+                    var start_inner_loop = sw.Elapsed;
+                    
+                    Shader.SetFloat("vCos", Model.GetCos3D()[i]);
+                    Shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
+                    Shader.Dispatch(absorptionsHandle, ThreadGroupsX, 1, 1);
+                    absorptionsBuffer.GetData(absorptionsTemp);
+
+                    _absorptionFactors[i, j] = GetAbsorptionFactorLINQ(absorptionsTemp, Vector3.kEpsilon);
+                    
+                    avg_inner_loop += sw.Elapsed - start_inner_loop;
+                }
             }
 
-            var loop_time = sw.Elapsed - start_loop;
+            avg_inner_loop = TimeSpan.FromTicks(avg_inner_loop.Ticks/_nrSegments);
+            total_outer_loop = sw.Elapsed - total_outer_loop;
 
             _logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
-            _logger.Log(Logger.EventType.Performance, $"Absorption factor calculation took {loop_time}.");
-            // TODO: add performance measure log entry.
+            _logger.Log(Logger.EventType.Performance, 
+                $"Absorption factor calculation took {total_outer_loop}"
+                + $", {avg_inner_loop} on avg. for each inner loop (Column)"
+                + ".");
             
             // release buffers.
             _inputBuffer.Release();
@@ -224,8 +215,7 @@ namespace controller
             g1OutputBufferInner.Release();
             g2OutputBufferOuter.Release();
             g2OutputBufferInner.Release();
-            cosBuffer.Release();
-            absorptionFactorsBuffer.Release();
+            absorptionsBuffer.Release();
             _logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
             
             sw.Stop();
@@ -238,6 +228,15 @@ namespace controller
             Directory.CreateDirectory(saveDir);
             var saveName = $"Output n={SegmentResolution}.txt";
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
+        }
+        
+        Vector3 GetAbsorptionFactorLINQ(Vector3[] absorptions, float tol)
+        {
+            return new Vector3(
+                absorptions.AsParallel().Select(v => v.x).Where(x => Math.Abs(x) >= tol).Average(),
+                absorptions.AsParallel().Select(v => v.y).Where(x => Math.Abs(x) >= tol).Average(),
+                absorptions.AsParallel().Select(v => v.z).Where(x => Math.Abs(x) >= tol).Average()
+            );
         }
     }
 }

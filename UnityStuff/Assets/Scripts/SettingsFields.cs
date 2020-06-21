@@ -1,5 +1,7 @@
-﻿using FoPra.model;
+﻿using System;
+using FoPra.model;
 using model;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -92,81 +94,115 @@ public class SettingsFields : MonoBehaviour {
    }
 
    
+   // TODO: refactor
    public void aktualisiereModus(bool userInput) {
-      if (userInput) {
-         if (dropdownMode.value == 0) {
-            settings.mode = Model.Mode.Point;
-            
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            
-            fieldPathAngleFile.gameObject.SetActive(true);
-            
-            
-         } else if(dropdownMode.value == 1) {
-            settings.mode = Model.Mode.Area;
-            fieldPathAngleFile.gameObject.SetActive(false);
-            
-            fieldPixelSize.gameObject.SetActive(true);
-            fieldOffsetX.gameObject.SetActive(true);
-            fieldOffsetY.gameObject.SetActive(true);
-            fieldResolutionX.gameObject.SetActive(true);
-            fieldResolutionY.gameObject.SetActive(true);
-            fieldDstToSample.gameObject.SetActive(true);
-         } else if(dropdownMode.value == 2) {
-            settings.mode = Model.Mode.Integrated;
-            
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            fieldPathAngleFile.gameObject.SetActive(false);
-
-         }
-      } else {
-         if (settings.mode == Model.Mode.Point) {
-            dropdownMode.value = 0;
-            settings.mode = Model.Mode.Point;
-            
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            
-            fieldPathAngleFile.gameObject.SetActive(true);
-         } else if(settings.mode == Model.Mode.Area) {
-            dropdownMode.value = 1;
-            fieldPathAngleFile.gameObject.SetActive(false);
-            
-            fieldPixelSize.gameObject.SetActive(true);
-            fieldOffsetX.gameObject.SetActive(true);
-            fieldOffsetY.gameObject.SetActive(true);
-            fieldResolutionX.gameObject.SetActive(true);
-            fieldResolutionY.gameObject.SetActive(true);
-            fieldDstToSample.gameObject.SetActive(true);
-         } else if(settings.mode == Model.Mode.Integrated) {
-            dropdownMode.value = 2;
-            settings.mode = Model.Mode.Integrated;
-            
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            fieldPathAngleFile.gameObject.SetActive(false);
-         }
-      }
-
+      if (userInput) PrepareMode();
+      else PrepareDropdown();
       
+      
+      SetObjects();
+   }
+
+   private void SetObjects()
+   {
+      switch (settings.mode)
+      {
+         case Model.Mode.Point:
+            fieldPixelSize.gameObject.SetActive(false);
+            fieldOffsetX.gameObject.SetActive(false);
+            fieldOffsetY.gameObject.SetActive(false);
+            fieldResolutionX.gameObject.SetActive(false);
+            fieldResolutionY.gameObject.SetActive(false);
+            fieldDstToSample.gameObject.SetActive(false);
+            
+            fieldPathAngleFile.gameObject.SetActive(true);
+            break;
+         
+         case Model.Mode.Area:
+            fieldPathAngleFile.gameObject.SetActive(false);
+            
+            fieldPixelSize.gameObject.SetActive(true);
+            fieldOffsetX.gameObject.SetActive(true);
+            fieldOffsetY.gameObject.SetActive(true);
+            fieldResolutionX.gameObject.SetActive(true);
+            fieldResolutionY.gameObject.SetActive(true);
+            fieldDstToSample.gameObject.SetActive(true);
+            break;
+         
+         case Model.Mode.Integrated:
+            fieldPixelSize.gameObject.SetActive(false);
+            fieldOffsetX.gameObject.SetActive(false);
+            fieldOffsetY.gameObject.SetActive(false);
+            fieldResolutionX.gameObject.SetActive(false);
+            fieldResolutionY.gameObject.SetActive(false);
+            fieldDstToSample.gameObject.SetActive(false);
+            fieldPathAngleFile.gameObject.SetActive(false);
+            break;
+         
+         case Model.Mode.Testing:
+            fieldPathAngleFile.gameObject.SetActive(false);
+            
+            fieldPixelSize.gameObject.SetActive(true);
+            fieldOffsetX.gameObject.SetActive(true);
+            fieldOffsetY.gameObject.SetActive(true);
+            fieldResolutionX.gameObject.SetActive(true);
+            fieldResolutionY.gameObject.SetActive(true);
+            fieldDstToSample.gameObject.SetActive(true);
+            break;
+         
+         default:
+            throw new InvalidOperationException();
+      }
+   }
+
+   private void PrepareMode()
+   {
+      switch (dropdownMode.value)
+         {
+            case 0:
+               settings.mode = Model.Mode.Point;
+               break;
+            
+            case 1:
+               settings.mode = Model.Mode.Area;
+               break;
+            
+            case 2:
+               settings.mode = Model.Mode.Integrated;
+               break;
+            
+            case 3:
+               settings.mode = Model.Mode.Testing;
+               break;
+            
+            default:
+               throw new InvalidOperationException();
+         }
+   }
+
+   private void PrepareDropdown()
+   {
+      switch (settings.mode)
+      {
+         case Model.Mode.Point:
+            dropdownMode.value = 0;
+            break;
+         
+         case Model.Mode.Area:
+            dropdownMode.value = 1;
+            break;
+         
+         case Model.Mode.Integrated:
+            dropdownMode.value = 2;
+            break;
+         
+         case Model.Mode.Testing:
+            dropdownMode.value = 3;
+            break;
+            
+         default: 
+            throw new NotImplementedException();
+      }
    }
    
    // TODO: make parsing culture invariant.
