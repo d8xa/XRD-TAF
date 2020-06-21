@@ -115,7 +115,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
         }
         else 
         {
-            // case A_{c,c}.
+            // case A_{s,sc}.
             indicatorMask[id.x].x = 1;
         }
     }
