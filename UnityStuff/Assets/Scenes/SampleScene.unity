@@ -2745,6 +2745,7 @@ MonoBehaviour:
   submitButton: {fileID: 757694518}
   pointModeShader: {fileID: 7200000, guid: 05d48a2afd5e4f34b8c84d93a4035bb0, type: 3}
   planeModeShader: {fileID: 7200000, guid: 9571e04ef5ca4755adb7a2ddd95d8425, type: 3}
+  planeModeShaderBf: {fileID: 7200000, guid: e86e4e25b47943ec964b0d2582ddf969, type: 3}
 --- !u!4 &654995072
 Transform:
   m_ObjectHideFlags: 0
