@@ -133,7 +133,7 @@ namespace controller
             var g2OutputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var cosBuffer = new ComputeBuffer(_nrAnglesAlpha, sizeof(float));
-            var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesTheta, sizeof(float)*3);
+            var absorptionFactorsBuffer = new ComputeBuffer(_nrAnglesAlpha, sizeof(float)*3);
             _logger.Log(Logger.EventType.Data, "Created buffers.");
             
             
@@ -167,6 +167,8 @@ namespace controller
             Shader.SetBuffer(absorptionFactorsHandle, "cosBuffer", cosBuffer);
             Shader.SetBuffer(absorptionFactorsHandle, "indicatorMask", _maskBuffer);
 
+            var start_loop = sw.Elapsed;
+            
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
@@ -201,8 +203,11 @@ namespace controller
                     .ForAll(i => _absorptionFactors[i,j1] = absorptionFactorColumn[i]);
                 // TODO: rewrite to save without copying from temporary column array. 
             }
-            
+
+            var loop_time = sw.Elapsed - start_loop;
+
             _logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+            _logger.Log(Logger.EventType.Performance, $"Absorption factor calculation took {loop_time}.");
             // TODO: add performance measure log entry.
             
             // release buffers.
