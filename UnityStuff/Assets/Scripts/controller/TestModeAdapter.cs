@@ -41,27 +41,27 @@ namespace controller
             ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new Logger());
-            _logger.SetPrintFilter(new List<Logger.EventType>() 
+            logger.SetPrintFilter(new List<Logger.EventType>() 
                 {
                     Logger.EventType.Performance, 
                     //Logger.EventType.Class, 
                     //Logger.EventType.InitializerMethod
                 }
             );
-            _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
 
         public TestModeAdapter(ComputeShader shader, Model model) : base(shader, model)
         {
             SetLogger(new Logger());
-            _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
         
         private void InitializeOtherFields()
         {
-            _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
+            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             _nrAnglesTheta = Model.detector.resolution.x;
             _nrAnglesAlpha = Model.detector.resolution.y;
             _nrSegments = SegmentResolution * SegmentResolution;
@@ -84,15 +84,15 @@ namespace controller
                 .Where(i => mask[i].y > 0.0)
                 .ToArray();
             _nrDiffractionPoints = new Vector2(_innerIndices.Length, _outerIndices.Length);
-            _logger.Log(Logger.EventType.Step, 
+            logger.Log(Logger.EventType.Step, 
                 $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrSegments}).");
             
-            _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
+            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
         
         private void ComputeIndicatorMask()
         {
-            _logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
+            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
             Shader.SetFloat("r_cell", Model.GetRCell());
@@ -106,18 +106,18 @@ namespace controller
             Shader.SetBuffer(maskHandle, "segment", _inputBuffer);
             Shader.SetBuffer(maskHandle, "indicatorMask", _maskBuffer);
 
-            _logger.Log(Logger.EventType.ShaderInteraction, 
+            logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader dispatch.");
             Shader.Dispatch(maskHandle, ThreadGroupsX, 1, 1);
-            _logger.Log(Logger.EventType.ShaderInteraction, 
+            logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader return.");
 
-            _logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
+            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
         }
 
         protected override void Compute()
         {
-            _logger.Log(Logger.EventType.Method, "Compute(): started.");
+            logger.Log(Logger.EventType.Method, "Compute(): started.");
 
             var sw = new Stopwatch();
             sw.Start();
@@ -129,14 +129,14 @@ namespace controller
             Shader.SetFloat("r_sample", Model.GetRSample());
             Shader.SetFloat("r_cell_sq", Model.GetRCellSq());
             Shader.SetFloat("r_sample_sq", Model.GetRSampleSq());
-            _logger.Log(Logger.EventType.Step, "Set shader parameters.");
+            logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
             var g2Handle = Shader.FindKernel("g2_dists");
             var absorptionsHandle = Shader.FindKernel("Absorptions");
-            _logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
             
             // make buffers.
@@ -146,21 +146,21 @@ namespace controller
             var g2OutputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g2OutputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
-            _logger.Log(Logger.EventType.Data, "Created buffers.");
+            logger.Log(Logger.EventType.Data, "Created buffers.");
             
             
             // set buffers for g1 kernel.
             Shader.SetBuffer(g1Handle, "segment", _inputBuffer);
             Shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferInner);
             Shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferOuter);
-            _logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
             
             _inputBuffer.SetData(Coordinates);
             
             // compute g1 distances.
-            _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
             Shader.Dispatch(g1Handle, ThreadGroupsX, 1, 1);
-            _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
             //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
             
@@ -191,9 +191,9 @@ namespace controller
                 Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles()[j]) * Math.PI / 180));
                 
                 // compute g2 distances.
-                _logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
+                logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
                 Shader.Dispatch(g2Handle, ThreadGroupsX, 1, 1);
-                _logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
+                logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
 
                 // set iterative buffers for absorption factors kernel.
                 Shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
@@ -217,8 +217,8 @@ namespace controller
             avg_inner_loop = TimeSpan.FromTicks(avg_inner_loop.Ticks/_nrSegments);
             total_outer_loop = sw.Elapsed - total_outer_loop;
 
-            _logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
-            _logger.Log(Logger.EventType.Performance, 
+            logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+            logger.Log(Logger.EventType.Performance, 
                 $"Absorption factor calculation took {total_outer_loop}"
                 + $", {avg_inner_loop} on avg. for each inner loop (Column)"
                 + ".");
@@ -231,10 +231,10 @@ namespace controller
             g2OutputBufferOuter.Release();
             g2OutputBufferInner.Release();
             absorptionsBuffer.Release();
-            _logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
             
             sw.Stop();
-            _logger.Log(Logger.EventType.Method, "Compute(): done.");
+            logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
 
         protected override void Write()
@@ -245,7 +245,13 @@ namespace controller
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
         }
 
-        Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+        protected override void Cleanup()
+        {
+            _inputBuffer.Release();
+            _maskBuffer.Release();
+        }
+
+        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
                 _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),

@@ -22,6 +22,5 @@ namespace util
                 .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
                 .ToArray();
         }
-        // TODO: implement.
     }
 }

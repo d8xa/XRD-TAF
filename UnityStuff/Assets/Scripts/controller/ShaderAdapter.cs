@@ -9,7 +9,7 @@ namespace controller
 {
     public abstract class ShaderAdapter
     {
-        public Logger _logger;
+        protected Logger logger;
         
         private protected readonly ComputeShader Shader;
         private protected readonly Model Model;
@@ -53,6 +53,7 @@ namespace controller
         {
             InitSharedFields();
             Compute();
+            Cleanup();
             if (WriteFactorsFlag) Write();
         }
         
@@ -60,9 +61,11 @@ namespace controller
 
         protected abstract void Write();
 
-        public void SetLogger(Logger logger)
+        protected void SetLogger(Logger logger)
         {
-            _logger = logger;
+            this.logger = logger;
         }
+
+        protected virtual void Cleanup() {}
     }
 }

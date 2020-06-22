@@ -35,13 +35,13 @@ namespace controller
         ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new NullLogger());
-            _logger.SetPrintFilter(new List<Logger.EventType>()
+            logger.SetPrintFilter(new List<Logger.EventType>()
             {
                 Logger.EventType.Performance,
                 Logger.EventType.Class,
                 Logger.EventType.InitializerMethod
             });
-            _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
 
@@ -51,14 +51,14 @@ namespace controller
             ) : base(shader, model)
         {
             SetLogger(new Logger());
-            _logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
 
         private void InitializeOtherFields()
         {
-            _logger.SetPrintLevel(Logger.LogLevel.All);
-            _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
+            logger.SetPrintLevel(Logger.LogLevel.All);
+            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             _nrAnglesTheta = Model.GetAngles().Length;
             _nrSegments = SegmentResolution * SegmentResolution;
             
@@ -77,16 +77,16 @@ namespace controller
                 .ToArray();
             
             // count diffracting points in each case.
-            _logger.Log(Logger.EventType.Step, 
+            logger.Log(Logger.EventType.Step, 
                 "InitializeOtherFields():" +
                 $" found ({_innerIndices.Length}, {_outerIndices.Length}) diffraction points (of {_nrSegments}).");
             
-            _logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
+            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
 
         private void ComputeIndicatorMask()
         {
-            _logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
+            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
             Shader.SetFloat("r_cell", Model.GetRCell());
@@ -102,21 +102,21 @@ namespace controller
             Shader.SetBuffer(maskHandle, "segment", _inputBuffer);
             Shader.SetBuffer(maskHandle, "indicatorMask", maskBuffer);
 
-            _logger.Log(Logger.EventType.ShaderInteraction, 
+            logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader dispatch.");
             Shader.Dispatch(maskHandle, ThreadGroupsX, 1, 1);
-            _logger.Log(Logger.EventType.ShaderInteraction, 
+            logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader return.");
             maskBuffer.GetData(_diffractionMask);
             
             maskBuffer.Release();
 
-            _logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
+            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
         }
 
         protected override void Compute()
         {
-            _logger.Log(Logger.EventType.Method, "Compute(): started.");
+            logger.Log(Logger.EventType.Method, "Compute(): started.");
 
             var sw = new Stopwatch();
             sw.Start();
@@ -126,7 +126,7 @@ namespace controller
             var g1DistsInner = new Vector2[_nrSegments];
             Array.Clear(g1DistsOuter, 0, _nrSegments);    // necessary ? 
             Array.Clear(g1DistsInner, 0, _nrSegments);    // necessary ? 
-            _logger.Log(Logger.EventType.Step, "Initialized g1 distance arrays.");
+            logger.Log(Logger.EventType.Step, "Initialized g1 distance arrays.");
 
             // initialize parameters in shader.
             // necessary here already?
@@ -135,13 +135,13 @@ namespace controller
             Shader.SetFloat("r_sample", Model.GetRSample());
             Shader.SetFloat("r_cell_sq", Model.GetRCellSq());
             Shader.SetFloat("r_sample_sq", Model.GetRSampleSq());
-            _logger.Log(Logger.EventType.Step, "Set shader parameters.");
+            logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
             // get kernel handles.
             var g1Handle = Shader.FindKernel("g1_dists");
             var absorptionsHandle = Shader.FindKernel("Absorptions");
-            _logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
 
  
             // make buffers.
@@ -150,7 +150,7 @@ namespace controller
             var outputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var outputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
-            _logger.Log(Logger.EventType.Data, "Created buffers.");
+            logger.Log(Logger.EventType.Data, "Created buffers.");
             
             _inputBuffer.SetData(Coordinates);
             
@@ -160,13 +160,13 @@ namespace controller
             Shader.SetBuffer(g1Handle, "segment", _inputBuffer);
             Shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
             Shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
-            _logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
 
             
             // compute g1 distances.
-            _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
             Shader.Dispatch(g1Handle, ThreadGroupsX, 1, 1);
-            _logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
                      
             var loopTs = new TimeSpan();
@@ -203,8 +203,8 @@ namespace controller
                 loopTs += loopStop - loopStart;
             }
             
-            _logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
-            _logger.Log(Logger.EventType.Performance, 
+            logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+            logger.Log(Logger.EventType.Performance, 
                 $"Absorption calculation took {loopTs}, " +
                 $"{TimeSpan.FromTicks(loopTs.Ticks/_nrAnglesTheta)} avg. per loop, " + 
                 $"{TimeSpan.FromTicks(factorsTs.Ticks/_nrAnglesTheta)} of which for absorption factor calculation.");
@@ -214,10 +214,10 @@ namespace controller
             outputBufferOuter.Release();
             outputBufferInner.Release();
             absorptionsBuffer.Release();
-            _logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+            logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
 
             sw.Stop();
-            _logger.Log(Logger.EventType.Method, "Compute(): done.");
+            logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
 
         Vector3 GetAbsorptionFactor(Vector3[] absorptions)
@@ -255,7 +255,7 @@ namespace controller
         
         private void WriteAbsorptionFactorsNative()
         {
-            _logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): started.");
+            logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): started.");
 
             using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt")))
             using (BufferedStream buffered = new BufferedStream(fileStream))
@@ -272,7 +272,7 @@ namespace controller
                 }
             }
             
-            _logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): done.");
+            logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): done.");
         }
     }
 }

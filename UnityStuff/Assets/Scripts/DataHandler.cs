@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using System.IO;
+using System.Linq;
 using controller;
 using model;
 using UnityEngine.Serialization;
@@ -60,6 +62,26 @@ public class DataHandler : MonoBehaviour{
     public void submitToComputing()
     {
         fillInBlanks();
+        
+        var alphaRatios = Enumerable.Range(0, settingsFields.detektorSettings.resolution.y)
+            .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, true))
+            .Select(v => v.ToString("G"))
+            .ToArray();
+        var thetaAngles = Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
+            .Reverse()
+            .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
+            .Select(v => Math.Acos(1.0/v) * 180.0 / Math.PI)
+            .Select(v => v.ToString("G"))
+            .ToArray();
+        
+        var saveDir = Path.Combine("Logs", "Absorptions3D", "Data");
+        Directory.CreateDirectory(saveDir);
+
+        var saveName = $"Ratios m={settingsFields.detektorSettings.resolution.y}.txt";
+        File.WriteAllLines(Path.Combine(saveDir, saveName), alphaRatios);
+        
+        saveName = $"Angles n={settingsFields.detektorSettings.resolution.x}.txt";
+        File.WriteAllLines(Path.Combine(saveDir, saveName), thetaAngles);
         /*
         Debug.Log("Alpha ratios: " + 
                   string.Join(", ", 
@@ -98,10 +120,10 @@ public class DataHandler : MonoBehaviour{
             //.AddShader(Model.Mode.Integrated, integratedModeShader)
             .SetSegmentMargin(0.2f)
             .AutoSetShader()
-            .WriteFactors()
+            //.WriteFactors()
             .Build();
             
-        shaderAdapter.Execute();
+        //shaderAdapter.Execute();
         //*/
     }
 
