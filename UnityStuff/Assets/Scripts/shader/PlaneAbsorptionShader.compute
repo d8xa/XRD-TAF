@@ -2,8 +2,7 @@
 #pragma kernel getIndicatorMask
 #pragma kernel g1_dists
 #pragma kernel g2_dists
-//#pragma kernel Absorptions
-#pragma kernel AbsorptionFactors
+#pragma kernel Absorptions
 
 
 float r_cell;       // outer radius
@@ -14,12 +13,10 @@ float r_sample_sq;  // inner radius squared
 float cos;          // cos(180-2*theta)
 float sin;          // sin(180-2*theta)
 float2 mu;          // absorption factors in cell, sample.
+float vCos;         // vertical cosine.
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
-StructuredBuffer<float> cosBuffer;                      // list of cos(alpha) values for each alpha angle between flat ray and 3D ray.
-uint bufCount_Segments;
-uint3 indicatorCount;
 
 /* CONTENT: 
 * Initially: g1_dists from script, precomputed in shader. 
@@ -34,7 +31,7 @@ RWStructuredBuffer<float2> g2DistancesInner;          // Diffraction only in sam
 /* Absorption */
 //RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
 RWStructuredBuffer<uint2> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
-RWStructuredBuffer<float3> absorptionFactors;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
+RWStructuredBuffer<float3> absorptions;     // Absorption factors with diffraction/absorption in (s,sc), (c,sc), (c,c).
 
 
 float getIntersectX(float2 v, float radius_sq, bool right)
@@ -118,7 +115,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
         }
         else 
         {
-            // case A_{c,c}.
+            // case A_{s,sc}.
             indicatorMask[id.x].x = 1;
         }
     }
@@ -129,24 +126,16 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 }
 
 
-/**
-* @param index: the index of each cos(alpha).
-*/
 [numthreads(1024,1,1)]
-void AbsorptionFactors(uint3 id : SV_DispatchThreadID)
-{
-    // TODO: check float accuracy.
-    float3 absorptionSum = float3(0.0, 0.0, 0.0);
-    
-    for (uint i = 0; i < bufCount_Segments; i++)
+void Absorptions(uint3 id : SV_DispatchThreadID){
+    if (indicatorMask[id.x].x > 0)
     {
-        absorptionSum.x += indicatorMask[i].x * exp(
-            -dot(mu, g1DistancesInner[i] + g2DistancesInner[i]/cosBuffer[id.x]));    // case A_{s,sc}.
-        absorptionSum.y += indicatorMask[i].y * exp(
-            -dot(mu, g1DistancesOuter[i] + g2DistancesOuter[i]/cosBuffer[id.x]));    // case A_{c,sc}.
-        absorptionSum.z += indicatorMask[i].y * exp(
-            -dot(float2(mu.x, 0.0), g1DistancesOuter[i] + g2DistancesOuter[i]/cosBuffer[id.x]));    // case A_{c,c}.
+        absorptions[id.x].x = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesInner[id.x]/vCos));    // case A_{s,sc}.
     }
     
-    absorptionFactors[id.x] = absorptionSum/indicatorCount;
+    if (indicatorMask[id.x].y > 0) 
+    {
+        absorptions[id.x].y = exp(-dot(mu, g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));                 // case A_{c,sc}.
+        absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), g1DistancesInner[id.x] + g2DistancesOuter[id.x]/vCos));  // case A_{c,c}.
+    }
 }

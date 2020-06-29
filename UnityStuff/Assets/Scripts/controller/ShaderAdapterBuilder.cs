@@ -100,7 +100,7 @@ namespace controller
                     case Model.Mode.Integrated:
                         throw new NotImplementedException();
                     case Model.Mode.Testing:
-                        adapter = new TestModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
+                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
                         break;
                 }
             }

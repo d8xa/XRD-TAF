@@ -11,42 +11,42 @@ namespace controller
     {
         protected Logger logger;
         
-        private protected readonly ComputeShader Shader;
-        private protected readonly Model Model;
-        private protected int ThreadGroupsX;
+        private protected readonly ComputeShader shader;
+        private protected readonly Model model;
+        private protected int threadGroupsX;
     
-        private protected Vector2[] Coordinates;
-        private protected int SegmentResolution;
+        private protected Vector2[] coordinates;
+        private protected int segmentResolution;
         private readonly float _margin;
 
-        private protected bool WriteFactorsFlag;
+        private protected bool writeFactorsFlag;
 
         protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeFactorsFlag)
         {
-            Shader = shader;
-            Model = model;
+            this.shader = shader;
+            this.model = model;
             _margin = margin;
-            WriteFactorsFlag = writeFactorsFlag;
+            this.writeFactorsFlag = writeFactorsFlag;
             
             InitSharedFields();
         }
 
         protected ShaderAdapter(ComputeShader shader, Model model)
         {
-            Shader = shader;
-            Model = model;
+            this.shader = shader;
+            this.model = model;
             _margin = 0.2f;
-            WriteFactorsFlag = false;
+            writeFactorsFlag = false;
             
             InitSharedFields();
         }
 
         private void InitSharedFields()
         {
-            SegmentResolution = Model.GetSegmentResolution();
-            Coordinates = MathTools.LinSpace2D(
-                -Model.GetRCell()*(1+_margin), Model.GetRCell()*(1+_margin), SegmentResolution);
-            ThreadGroupsX =  (int) Math.Min(Math.Pow(2, 16) - 1, Math.Pow(SegmentResolution, 2));
+            segmentResolution = model.GetSegmentResolution();
+            coordinates = MathTools.LinSpace2D(
+                -model.GetRCell()*(1+_margin), model.GetRCell()*(1+_margin), segmentResolution);
+            threadGroupsX =  (int) Math.Min(Math.Pow(2, 16) - 1, Math.Pow(segmentResolution, 2));
         }
         
         public void Execute()
@@ -54,16 +54,16 @@ namespace controller
             InitSharedFields();
             Compute();
             Cleanup();
-            if (WriteFactorsFlag) Write();
+            if (writeFactorsFlag) Write();
         }
         
         protected abstract void Compute();
 
         protected abstract void Write();
 
-        protected void SetLogger(Logger logger)
+        protected void SetLogger(Logger newLogger)
         {
-            this.logger = logger;
+            logger = newLogger;
         }
 
         protected virtual void Cleanup() {}

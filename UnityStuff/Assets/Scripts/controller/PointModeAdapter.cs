@@ -59,14 +59,14 @@ namespace controller
         {
             logger.SetPrintLevel(Logger.LogLevel.All);
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = Model.GetAngles().Length;
-            _nrSegments = SegmentResolution * SegmentResolution;
+            _nrAnglesTheta = model.GetAngles().Length;
+            _nrSegments = segmentResolution * segmentResolution;
             
             // initialize absorption array. dim n: (#thetas).
             _absorptionFactors = new Vector3[_nrAnglesTheta];
 
             // get indicator mask where each point diffracts in each case.
-            _diffractionMask = new Vector2Int[Coordinates.Length];
+            _diffractionMask = new Vector2Int[coordinates.Length];
             ComputeIndicatorMask();
             
             _innerIndices = ParallelEnumerable.Range(0, _diffractionMask.Length)
@@ -89,22 +89,22 @@ namespace controller
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            Shader.SetFloat("r_cell", Model.GetRCell());
-            Shader.SetFloat("r_sample", Model.GetRSample());
-            Shader.SetInts("indicatorCount", 0, 0, 0);
-            var maskHandle = Shader.FindKernel("getIndicatorMask");
-            _inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            var maskBuffer = new ComputeBuffer(Coordinates.Length, sizeof(uint)*2);
+            shader.SetFloat("r_cell", model.GetRCell());
+            shader.SetFloat("r_sample", model.GetRSample());
+            shader.SetInts("indicatorCount", 0, 0, 0);
+            var maskHandle = shader.FindKernel("getIndicatorMask");
+            _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
-            _inputBuffer.SetData(Coordinates);
+            _inputBuffer.SetData(coordinates);
             maskBuffer.SetData(_diffractionMask);
             
-            Shader.SetBuffer(maskHandle, "segment", _inputBuffer);
-            Shader.SetBuffer(maskHandle, "indicatorMask", maskBuffer);
+            shader.SetBuffer(maskHandle, "segment", _inputBuffer);
+            shader.SetBuffer(maskHandle, "indicatorMask", maskBuffer);
 
             logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader dispatch.");
-            Shader.Dispatch(maskHandle, ThreadGroupsX, 1, 1);
+            shader.Dispatch(maskHandle, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader return.");
             maskBuffer.GetData(_diffractionMask);
@@ -130,42 +130,42 @@ namespace controller
 
             // initialize parameters in shader.
             // necessary here already?
-            Shader.SetFloats("mu", Model.GetMuCell(), Model.GetMuSample());
-            Shader.SetFloat("r_cell", Model.GetRCell());
-            Shader.SetFloat("r_sample", Model.GetRSample());
-            Shader.SetFloat("r_cell_sq", Model.GetRCellSq());
-            Shader.SetFloat("r_sample_sq", Model.GetRSampleSq());
+            shader.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
+            shader.SetFloat("r_cell", model.GetRCell());
+            shader.SetFloat("r_sample", model.GetRSample());
+            shader.SetFloat("r_cell_sq", model.GetRCellSq());
+            shader.SetFloat("r_sample_sq", model.GetRSampleSq());
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
             // get kernel handles.
-            var g1Handle = Shader.FindKernel("g1_dists");
-            var absorptionsHandle = Shader.FindKernel("Absorptions");
+            var g1Handle = shader.FindKernel("g1_dists");
+            var absorptionsHandle = shader.FindKernel("Absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
 
  
             // make buffers.
             //var _inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             //maskBuffer = new ComputeBuffer(Coordinates.Length, sizeof(uint)*3);
-            var outputBufferOuter = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            var outputBufferInner = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            var absorptionsBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*3);
+            var outputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
             logger.Log(Logger.EventType.Data, "Created buffers.");
             
-            _inputBuffer.SetData(Coordinates);
+            _inputBuffer.SetData(coordinates);
             
             // TODO: handle case threadGroupsX > 1024.
 
             // set buffers for g1 kernel.
-            Shader.SetBuffer(g1Handle, "segment", _inputBuffer);
-            Shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
-            Shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
+            shader.SetBuffer(g1Handle, "segment", _inputBuffer);
+            shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
+            shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
             logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
 
             
             // compute g1 distances.
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
-            Shader.Dispatch(g1Handle, ThreadGroupsX, 1, 1);
+            shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
                      
@@ -174,7 +174,7 @@ namespace controller
             var absorptions = new Vector3[_nrSegments];
             Array.Clear(absorptions, 0, absorptions.Length);
             
-            Shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
+            shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
 
             // for each angle:
             for (int j = 0; j < _nrAnglesTheta; j++) {
@@ -182,13 +182,13 @@ namespace controller
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                Shader.SetFloat("cos", (float) Math.Cos((180 - Model.GetAngles()[j]) * Math.PI / 180));
-                Shader.SetFloat("sin", (float) Math.Sin((180 - Model.GetAngles()[j]) * Math.PI / 180));
-                Shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
-                Shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
-                Shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
+                shader.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles()[j]) * Math.PI / 180));
+                shader.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles()[j]) * Math.PI / 180));
+                shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
+                shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
+                shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
                 
-                Shader.Dispatch(absorptionsHandle, ThreadGroupsX, 1, 1);
+                shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                 
 
                 absorptionsBuffer.GetData(absorptions);
@@ -231,14 +231,14 @@ namespace controller
 
         protected override void Write()
         {
-            if (WriteFactorsFlag) WriteAbsorptionFactors();
+            if (writeFactorsFlag) WriteAbsorptionFactors();
         }
 
         public void WriteAbsorptionFactors()
         {
-            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt");
+            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = Model.GetAngles()
+            var headCol = model.GetAngles()
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -257,7 +257,7 @@ namespace controller
         {
             logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): started.");
 
-            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={SegmentResolution}.txt")))
+            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt")))
             using (BufferedStream buffered = new BufferedStream(fileStream))
             using (StreamWriter writer = new StreamWriter(buffered))
             {
@@ -265,7 +265,7 @@ namespace controller
                 for (int i = 0; i < _nrAnglesTheta; i++)
                 {
                     writer.WriteLine(string.Join("\t", 
-                        Model.GetAngles()[i].ToString("G", CultureInfo.InvariantCulture),
+                        model.GetAngles()[i].ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));

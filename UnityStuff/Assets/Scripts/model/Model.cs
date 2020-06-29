@@ -55,32 +55,31 @@ namespace model
             switch (settings.mode)
             {
                 case Mode.Point:
-                    _angles = Parser.ImportAngles(Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt"));
+                    _angles = Parser.ImportAngles(
+                        Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt"));
                     break;
 
                 case Mode.Area:
-                    _angles = Enumerable.Range(0, (int) detector.resolution.x)
+                    _angles = Enumerable.Range(0, detector.resolution.x)
                         .Select(j => detector.GetRatioFromOffset(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
-                    _cos3D = Enumerable.Range(0, (int) detector.resolution.y)
+                    _cos3D = Enumerable.Range(0, detector.resolution.y)
                         .Select(j => (float) detector.GetRatioFromOffset(j, true))
                         .ToArray();
                     break;
 
                 case Mode.Integrated:
-                    _angles = MathTools.LinSpace1D(
-                        detector.angleStart,
-                        detector.angleEnd,
-                        detector.angleAmount);
+                    _angles = Parser.ImportAngles(
+                        Path.Combine(Application.dataPath, "Input", detector.pathToAngleFile + ".txt"));
                     break;
                 
                 case Mode.Testing:
-                    _angles = Enumerable.Range(0, (int) detector.resolution.x)
+                    _angles = Enumerable.Range(0, detector.resolution.x)
                         .Select(j => detector.GetRatioFromOffset(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
-                    _cos3D = Enumerable.Range(0, (int) detector.resolution.y)
+                    _cos3D = Enumerable.Range(0, detector.resolution.y)
                         .Select(j => (float) detector.GetRatioFromOffset(j, true))
                         .ToArray();
                     break;
