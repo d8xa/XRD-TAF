@@ -117,18 +117,131 @@ namespace controller
             shader.SetFloat("r_sample_sq", model.GetRSampleSq());
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
+            
             // get kernel handles.
             var g1Handle = shader.FindKernel("g1_dists");
             var g2Handle = shader.FindKernel("g2_dists");
             var absorptionsHandle = shader.FindKernel("Absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
+            
+            // make buffers.
+            //var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
+            var g1OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var g1OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var g2OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var g2OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
+            logger.Log(Logger.EventType.Data, "Created buffers.");
+            
+            
+            // set buffers for g1 kernel.
+            shader.SetBuffer(g1Handle, "segment", _inputBuffer);
+            shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferInner);
+            shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferOuter);
+            logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
+            
+            _inputBuffer.SetData(coordinates);
+            
+            // compute g1 distances.
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
+            shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
+            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
+            
+            //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
+            
+            // set buffers for g2 kernel.
+            shader.SetBuffer(g2Handle, "segment", _inputBuffer);
+            shader.SetBuffer(g2Handle, "g2DistancesInner", g2OutputBufferInner);
+            shader.SetBuffer(g2Handle, "g2DistancesOuter", g2OutputBufferOuter);
+
+            // set shared buffers for absorption factor kernel.
+            shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
+            shader.SetBuffer(absorptionsHandle, "g1DistancesInner", g1OutputBufferInner);
+            shader.SetBuffer(absorptionsHandle, "g1DistancesOuter", g1OutputBufferOuter);
+            shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
+            shader.SetBuffer(absorptionsHandle, "indicatorMask", _maskBuffer);
+
+            var absorptionsTemp = new Vector3[coordinates.Length];
+            Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
+            absorptionsBuffer.SetData(absorptionsTemp);
+
+
+            for (int j = 0; j < _nrAnglesTheta; j++)
+            {
+                var ringValues = new Vector3[_nrAnglesPerRing];
+                    
+                for (int i = 0; i < _nrAnglesPerRing; i++)
+                {
+                    // theta at x-coordinate of rotated point.
+                    var currentTheta = _rotations[i].GetCos() * model.GetAngles()[j];
+                    // set vertical offset ratio between base point and rotated point. 
+                    var currentVCos = _rotations[i].GetSin() * model.GetAngles()[j];
+
+                    // set rotation parameters.
+                    shader.SetFloat("cos", (float) Math.Cos((180 - currentTheta) * Math.PI / 180));
+                    shader.SetFloat("sin", (float) Math.Sin((180 - currentTheta) * Math.PI / 180));
+                
+                    // compute g2 distances.
+                    logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
+                    shader.Dispatch(g2Handle, threadGroupsX, 1, 1);
+                    logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
+
+                    // set iterative buffers for absorption factors kernel.
+                    shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
+                    shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
+                    
+                    shader.SetFloat("vCos", (float) currentVCos);
+                    shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
+                    shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
+                    absorptionsBuffer.GetData(absorptionsTemp);
+
+                    ringValues[i] = GetAbsorptionFactor(absorptionsTemp);
+                }
+
+                _absorptionFactors[j] = GetRingAverage(ringValues);
+            }
+            
+            logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+
+            
+            // release buffers.
+            _inputBuffer.Release();
+            _maskBuffer.Release();
+            g1OutputBufferOuter.Release();
+            g1OutputBufferInner.Release();
+            g2OutputBufferOuter.Release();
+            g2OutputBufferInner.Release();
+            absorptionsBuffer.Release();
+            logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+            
+            logger.Log(Logger.EventType.Method, "Compute(): done.");
+            
             throw new NotImplementedException();
         }
+        
 
         protected override void Write()
         {
             throw new NotImplementedException();
+        }
+        
+        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+        {
+            return new Vector3(
+                _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].y).Average(),
+                _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
+            );
+        }
+        
+        private Vector3 GetRingAverage(Vector3[] ringValues)
+        {
+            return new Vector3(
+                ringValues.AsParallel().Select(v => v.x).Average(),
+                ringValues.AsParallel().Select(v => v.y).Average(),
+                ringValues.AsParallel().Select(v => v.z).Average()
+            );
         }
     }
 }

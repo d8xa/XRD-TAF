@@ -14,6 +14,9 @@ namespace model
             _sin = sin;
         }
 
+        public double GetCos() => _cos;
+        public double GetSin() => _sin;
+
         public Vector2 Apply(Vector2 point, Vector2 pivot)
         {
             var translated = point - pivot;
