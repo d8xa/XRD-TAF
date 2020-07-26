@@ -35,7 +35,7 @@ public class DataHandler : MonoBehaviour{
         _savePath = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
-    public void fillInBlanks()
+    private void fillInBlanks()
     {
         UpdatePath();
         if (File.Exists(Path.Combine(_savePath, "Default_set.txt"))) {
