@@ -892,6 +892,9 @@ MonoBehaviour:
     angleStart: 0
     angleEnd: 0
     angleAmount: 0
+  inputGroupDetector: {fileID: 2066406839}
+  inputGroupAngle: {fileID: 893365369}
+  inputGroupIntegrated: {fileID: 791630182}
 --- !u!1 &140981487
 GameObject:
   m_ObjectHideFlags: 0
@@ -1919,7 +1922,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &372421541
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2423,7 +2426,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &535057679
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3099,7 +3102,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &718850184
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3454,7 +3457,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &791630183
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4858,7 +4861,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1018821492
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7386,7 +7389,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1794136986
 RectTransform:
   m_ObjectHideFlags: 0
@@ -9161,7 +9164,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &2105749417
 RectTransform:
   m_ObjectHideFlags: 0

@@ -35,8 +35,24 @@ public class SettingsFields : MonoBehaviour {
    public SampleSettings sampleSettings;
    public DetektorSettings detektorSettings;
    public RaySettings raySettings;
-   
-   
+
+   // for component-wise / group-wise selection of input fields.
+   public GameObject inputGroupDetector;
+   public GameObject inputGroupAngle;
+   public GameObject inputGroupIntegrated;
+
+   public void Awake()
+   {
+      SetAllInputGroups(false);
+   }
+
+   private void SetAllInputGroups(bool value)
+   {
+      inputGroupAngle.gameObject.SetActive(value);
+      inputGroupDetector.gameObject.SetActive(value);
+      inputGroupIntegrated.gameObject.SetActive(value);
+   }
+
    public Model MakeModel()
    {
       return new Model(settings, detektorSettings, sampleSettings);
@@ -99,49 +115,24 @@ public class SettingsFields : MonoBehaviour {
    /// <exception cref="InvalidOperationException"></exception>
       private void DropdownValueChanged()
    {
+      SetAllInputGroups(false);
+      
       switch (settings.mode)
       {
          case Model.Mode.Point:
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            
-            fieldPathAngleFile.gameObject.SetActive(true);
+            inputGroupAngle.gameObject.SetActive(true);
             break;
          
          case Model.Mode.Area:
-            fieldPathAngleFile.gameObject.SetActive(false);
-            
-            fieldPixelSize.gameObject.SetActive(true);
-            fieldOffsetX.gameObject.SetActive(true);
-            fieldOffsetY.gameObject.SetActive(true);
-            fieldResolutionX.gameObject.SetActive(true);
-            fieldResolutionY.gameObject.SetActive(true);
-            fieldDstToSample.gameObject.SetActive(true);
+            inputGroupDetector.gameObject.SetActive(true);
             break;
          
          case Model.Mode.Integrated:
-            fieldPixelSize.gameObject.SetActive(false);
-            fieldOffsetX.gameObject.SetActive(false);
-            fieldOffsetY.gameObject.SetActive(false);
-            fieldResolutionX.gameObject.SetActive(false);
-            fieldResolutionY.gameObject.SetActive(false);
-            fieldDstToSample.gameObject.SetActive(false);
-            fieldPathAngleFile.gameObject.SetActive(false);
+            SetAllInputGroups(true);
             break;
          
          case Model.Mode.Testing:
-            fieldPathAngleFile.gameObject.SetActive(false);
-            
-            fieldPixelSize.gameObject.SetActive(true);
-            fieldOffsetX.gameObject.SetActive(true);
-            fieldOffsetY.gameObject.SetActive(true);
-            fieldResolutionX.gameObject.SetActive(true);
-            fieldResolutionY.gameObject.SetActive(true);
-            fieldDstToSample.gameObject.SetActive(true);
+            SetAllInputGroups(true);
             break;
          
          default:
