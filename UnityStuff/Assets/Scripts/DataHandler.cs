@@ -1,4 +1,4 @@
-﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using controller;
 using model;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
+using Logger = util.Logger;
 
 public class DataHandler : MonoBehaviour{
 
@@ -107,12 +108,15 @@ public class DataHandler : MonoBehaviour{
         */
 
         ///*
+        var logger = new Logger()
+            .SetPrintLevel(Logger.LogLevel.Custom)
+            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect});
         shaderAdapter = ShaderAdapterBuilder.New()
             .SetMode(settingsFields.settings.mode)
             .SetModel(settingsFields.MakeModel())
             .AddShader(Model.Mode.Point, pointModeShader)
             .AddShader(Model.Mode.Area, planeModeShader)
-            //.AddShader(Model.Mode.Integrated, integratedModeShader)
+            .AddShader(Model.Mode.Integrated, integratedModeShader)
             .SetSegmentMargin(0.2f)
             .AutoSetShader()
             //.WriteFactors()

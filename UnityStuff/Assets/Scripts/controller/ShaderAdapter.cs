@@ -1,5 +1,4 @@
 ﻿using System;
-using FoPra.model;
 using model;
 using UnityEngine;
 using util;
@@ -21,23 +20,25 @@ namespace controller
 
         private protected bool writeFactorsFlag;
 
-        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeFactorsFlag)
+        protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeFactorsFlag, Logger logger = null)
         {
             this.shader = shader;
             this.model = model;
             _margin = margin;
             this.writeFactorsFlag = writeFactorsFlag;
+            if (logger != null) SetLogger(logger);
             
             InitSharedFields();
         }
 
-        protected ShaderAdapter(ComputeShader shader, Model model)
+        protected ShaderAdapter(ComputeShader shader, Model model, Logger logger = null)
         {
             this.shader = shader;
             this.model = model;
             _margin = 0.2f;
             writeFactorsFlag = false;
-            
+            if (logger != null) SetLogger(logger);
+
             InitSharedFields();
         }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using JetBrains.Annotations;
 using model;
 using UnityEngine;
+using Logger = util.Logger;
 
 namespace controller
 {
@@ -14,6 +15,7 @@ namespace controller
         [CanBeNull] private ComputeShader _shader;
         private Model.Mode _mode = Model.Mode.Undefined;
         private static Dictionary<Model.Mode, ComputeShader> _shaderMapping;
+        private Logger _logger;
 
         //private static readonly string ShaderDir = Path.Combine("Assets", "Scripts", "controller");
 
@@ -27,6 +29,12 @@ namespace controller
         public ShaderAdapterBuilder SetMode(Model.Mode mode)
         {
             _mode = mode;
+            return this;
+        }
+
+        public ShaderAdapterBuilder SetLogger(Logger logger)
+        {
+            _logger = logger;
             return this;
         }
 
@@ -98,7 +106,8 @@ namespace controller
                         adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
                         break;
                     case Model.Mode.Integrated:
-                        throw new NotImplementedException();
+                        adapter = new IntegratedModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors, _logger);
+                        break;
                     case Model.Mode.Testing:
                         adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
                         break;

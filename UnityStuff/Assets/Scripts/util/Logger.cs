@@ -25,8 +25,9 @@ namespace util
 
         public enum EventType : uint
         {
-            Error = 9, 
-            Warning = 19, 
+            Error = 9,
+            Warning = 19,
+            Inspect = 21,
             Method = 29,                 // method start- or end. 
             Class = 39,                  // constructor.
             InitializerMethod = 49,      // every event inside initializer methods of class, unless events are declared as lower.

@@ -27,17 +27,18 @@ namespace controller
             ComputeShader shader, 
             Model model, 
             float margin, 
-            bool writeFactorsFlag
-            ) : base(shader, model, margin, writeFactorsFlag)
+            bool writeFactorsFlag,
+            Logger customLogger
+            ) : base(shader, model, margin, writeFactorsFlag, customLogger)
         {
-            SetLogger(new Logger());
+            if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
 
-        public IntegratedModeAdapter(ComputeShader shader, Model model) : base(shader, model)
+        public IntegratedModeAdapter(ComputeShader shader, Model model, Logger customLogger) : base(shader, model, customLogger)
         {
-            SetLogger(new Logger());
+            if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
