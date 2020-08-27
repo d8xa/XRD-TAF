@@ -866,15 +866,14 @@ MonoBehaviour:
   fieldDstToSample: {fileID: 1018821493}
   fieldOffsetX: {fileID: 2105749418}
   fieldOffsetY: {fileID: 535057680}
-  detektor: {fileID: 2066406839}
   fieldPathAngleFile: {fileID: 426531357}
   fieldDiameter: {fileID: 2096054104}
   fieldCellThickness: {fileID: 1769428080}
   fieldMuCell: {fileID: 2141482393}
   fieldMuSample: {fileID: 53053509}
-  fieldAnglesStart: {fileID: 0}
-  fieldAnglesEnd: {fileID: 0}
-  fieldAngleAmount: {fileID: 0}
+  fieldAngleStart: {fileID: 180451210}
+  fieldAngleEnd: {fileID: 1181728261}
+  fieldAngleSteps: {fileID: 1697359462}
   settings:
     aufbauBezeichnung: 
     mode: 0
@@ -895,7 +894,7 @@ MonoBehaviour:
     pathToAngleFile: 
     angleStart: 0
     angleEnd: 0
-    angleAmount: 0
+    angleStepSize: 0
   inputGroupDetector: {fileID: 2066406839}
   inputGroupAngle: {fileID: 893365369}
   inputGroupIntegrated: {fileID: 791630182}
@@ -7191,7 +7190,7 @@ GameObject:
   - component: {fileID: 1697359463}
   - component: {fileID: 1697359462}
   m_Layer: 5
-  m_Name: InputFieldAnglesStepamount
+  m_Name: InputFieldAnglesStepcount
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

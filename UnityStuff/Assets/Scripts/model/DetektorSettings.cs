@@ -10,10 +10,10 @@ public class DetektorSettings {
     public Vector2 offSetFromDownRightEdge;
     [FormerlySerializedAs("dstToSample")] public float distToSample;
     //Pfad zu .txt
-    public string pathToAngleFile="";
+    public string pathToAngleFile = "";
     public float angleStart;
     public float angleEnd;
-    public int angleAmount;
+    [FormerlySerializedAs("angleAmount")] public int angleCount;
 
     public double GetRatioFromOffset(int pixelIndex, bool vertical)
     {

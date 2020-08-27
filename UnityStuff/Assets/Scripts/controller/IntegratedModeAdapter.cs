@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using model;
 using UnityEngine;
@@ -49,14 +49,14 @@ namespace controller
             // initialize dimensions.
             _nrSegments = segmentResolution * segmentResolution;
             _nrAnglesTheta = model.GetAngles().Length;
-            _nrAnglesPerRing = model.detector.angleAmount;
+            _nrAnglesPerRing = model.detector.angleCount;
             
             // initialize arrays.
             _absorptionFactors = new Vector3[_nrAnglesTheta];
             _rotations = MathTools.LinSpace1D(
                     model.detector.angleStart, 
                     model.detector.angleEnd, 
-                    model.detector.angleAmount
+                    model.detector.angleCount
                 )
                 .Select(Rotation.FromAngle)
                 .ToArray();

@@ -30,6 +30,10 @@ public class SettingsFields : MonoBehaviour {
    public InputField fieldMuCell;
    public InputField fieldMuSample;
 
+   public InputField fieldAngleStart;
+   public InputField fieldAngleEnd;
+   public InputField fieldAngleSteps;
+
    
    public Settings settings;
    public SampleSettings sampleSettings;
@@ -173,47 +177,62 @@ public class SettingsFields : MonoBehaviour {
    public void InputChanged()
    {
       var cultureInfo = CultureInfo.InvariantCulture;
+
+      // metadata
+      ParseField(fieldDescriptor, ref settings.aufbauBezeichnung);
+      ParseField(fieldAccuracy, ref settings.computingAccuracy, cultureInfo);
       
-      if (!fieldDescriptor.text.Equals("")) 
-         settings.aufbauBezeichnung = fieldDescriptor.text;
-
-      if (!fieldAccuracy.text.Equals("")) 
-         settings.computingAccuracy = float.Parse(fieldAccuracy.text, cultureInfo);
-
+      // Detector parameters
+      ParseField(fieldPixelSize, ref detektorSettings.pixelsize, cultureInfo);
+      ParseField(fieldDstToSample, ref detektorSettings.distToSample, cultureInfo);
+      
       if (!fieldOffsetX.text.Equals("") && !fieldOffsetY.text.Equals(""))
       {
          detektorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text, cultureInfo);
          detektorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text, cultureInfo);
       }
-
-      if (!fieldPixelSize.text.Equals("")) 
-         detektorSettings.pixelsize = float.Parse(fieldPixelSize.text, cultureInfo);
-
+      
       if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals(""))
       {
          detektorSettings.resolution.x = int.Parse(fieldResolutionX.text);
          detektorSettings.resolution.y = int.Parse(fieldResolutionY.text);
       }
-
-      if (!fieldDstToSample.text.Equals("")) 
-         detektorSettings.distToSample = float.Parse(fieldDstToSample.text, cultureInfo);
-
-      if (!fieldPathAngleFile.text.Equals("")) 
-         detektorSettings.pathToAngleFile = fieldPathAngleFile.text;
-
-      if (!fieldDiameter.text.Equals("")) 
-         sampleSettings.totalDiameter = float.Parse(fieldDiameter.text, cultureInfo);
-
-      if (!fieldCellThickness.text.Equals("")) 
-         sampleSettings.cellThickness = float.Parse(fieldCellThickness.text, cultureInfo);
-
-      if (!fieldMuCell.text.Equals("")) 
-         sampleSettings.muCell = float.Parse(fieldMuCell.text, cultureInfo);
-
-      if (!fieldMuSample.text.Equals("")) 
-         sampleSettings.muSample = float.Parse(fieldMuSample.text, cultureInfo);
+      
+      // Sample parameters
+      ParseField(fieldDiameter, ref sampleSettings.totalDiameter, cultureInfo);
+      ParseField(fieldCellThickness, ref sampleSettings.cellThickness, cultureInfo);
+      ParseField(fieldMuCell, ref sampleSettings.muCell, cultureInfo);
+      ParseField(fieldMuSample, ref sampleSettings.muSample, cultureInfo);
+      
+      // Angles
+      ParseField(fieldPathAngleFile, ref detektorSettings.pathToAngleFile);
+      ParseField(fieldAngleStart, ref detektorSettings.angleStart, cultureInfo);
+      ParseField(fieldAngleEnd, ref detektorSettings.angleEnd, cultureInfo);
+      ParseField(fieldAngleSteps, ref detektorSettings.angleCount, cultureInfo);
    }
 
+   private void ParseField(InputField input, ref string target)
+   {
+      if (!input.text.Equals(""))
+         target = input.text;
+   }
+   
+   private void ParseField(InputField input, ref float target, CultureInfo cultureInfo = null)
+   {
+      if (cultureInfo == null) 
+         cultureInfo = CultureInfo.InvariantCulture;
+      if (!input.text.Equals("")) 
+         target = float.Parse(input.text, cultureInfo);
+   }
+
+   private void ParseField(InputField input, ref int target, CultureInfo cultureInfo = null)
+   {
+      if (cultureInfo == null) 
+         cultureInfo = CultureInfo.InvariantCulture;
+      if (!input.text.Equals(""))
+         target = int.Parse(input.text, cultureInfo);
+   }
+   
    /// <summary>
    /// Updates all input fields in the UI with the changed data from the model.
    /// </summary>
