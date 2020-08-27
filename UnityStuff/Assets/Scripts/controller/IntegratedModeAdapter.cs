@@ -58,6 +58,7 @@ namespace controller
                     model.detector.angleEnd, 
                     model.detector.angleCount
                 )
+                .Select(deg => (float) (deg*Math.PI/180))
                 .Select(Rotation.FromAngle)
                 .ToArray();
             
