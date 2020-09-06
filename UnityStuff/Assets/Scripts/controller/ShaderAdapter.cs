@@ -8,6 +8,8 @@ namespace controller
 {
     public abstract class ShaderAdapter
     {
+        #region Fields
+
         protected Logger logger;
         
         private protected readonly ComputeShader shader;
@@ -19,6 +21,10 @@ namespace controller
         private readonly float _margin;
 
         private protected bool writeFactorsFlag;
+
+        #endregion
+
+        #region Constructors
 
         protected ShaderAdapter(ComputeShader shader, Model model, float margin, bool writeFactorsFlag, Logger logger = null)
         {
@@ -41,6 +47,10 @@ namespace controller
 
             InitSharedFields();
         }
+
+        #endregion
+
+        #region Methods
 
         private void InitSharedFields()
         {
@@ -68,5 +78,7 @@ namespace controller
         }
 
         protected virtual void Cleanup() {}
+
+        #endregion
     }
 }

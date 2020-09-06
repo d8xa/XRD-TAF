@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using model;
 using UnityEngine;
 using util;
-using Debug = UnityEngine.Debug;
 using Logger = util.Logger;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
@@ -17,6 +15,7 @@ namespace controller
 {
     public class PlaneModeAdapter : ShaderAdapter
     {
+        #region Fields
 
         private Vector3[,] _absorptionFactors;
         private float[] _cosAlpha;
@@ -32,13 +31,17 @@ namespace controller
 
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
-        
+
+        #endregion
+
+        #region Constructors
+
         public PlaneModeAdapter(
             ComputeShader shader, 
             Model model, 
             float margin, 
             bool writeFactorsFlag
-            ) : base(shader, model, margin, writeFactorsFlag)
+        ) : base(shader, model, margin, writeFactorsFlag)
         {
             SetLogger(new Logger());
             logger.SetPrintFilter(new List<Logger.EventType>() 
@@ -58,7 +61,11 @@ namespace controller
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
-        
+
+        #endregion
+
+        #region Methods
+
         private void InitializeOtherFields()
         {
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
@@ -180,8 +187,8 @@ namespace controller
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
             absorptionsBuffer.SetData(absorptionsTemp);
 
-            var total_outer_loop = sw.Elapsed;
-            var avg_inner_loop = sw.Elapsed;
+            var totalOuterLoop = sw.Elapsed;
+            var avgInnerLoop = sw.Elapsed;
             
             
             for (int j = 0; j < _nrAnglesTheta; j++)
@@ -201,7 +208,7 @@ namespace controller
 
                 for (int i = 0; i < _nrAnglesAlpha; i++)
                 {
-                    var start_inner_loop = sw.Elapsed;
+                    var startInnerLoop = sw.Elapsed;
                     
                     shader.SetFloat("vCos", model.GetCos3D()[i]);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
@@ -210,17 +217,17 @@ namespace controller
 
                     _absorptionFactors[i, j] = GetAbsorptionFactor(absorptionsTemp);
                     
-                    avg_inner_loop += sw.Elapsed - start_inner_loop;
+                    avgInnerLoop += sw.Elapsed - startInnerLoop;
                 }
             }
 
-            avg_inner_loop = TimeSpan.FromTicks(avg_inner_loop.Ticks/_nrSegments);
-            total_outer_loop = sw.Elapsed - total_outer_loop;
+            avgInnerLoop = TimeSpan.FromTicks(avgInnerLoop.Ticks/_nrSegments);
+            totalOuterLoop = sw.Elapsed - totalOuterLoop;
 
             logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
             logger.Log(Logger.EventType.Performance, 
-                $"Absorption factor calculation took {total_outer_loop}"
-                + $", {avg_inner_loop} on avg. for each inner loop (Column)"
+                $"Absorption factor calculation took {totalOuterLoop}"
+                + $", {avgInnerLoop} on avg. for each inner loop (Column)"
                 + ".");
             
             // release buffers.
@@ -236,7 +243,7 @@ namespace controller
             sw.Stop();
             logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
-
+        
         protected override void Write()
         {
             var saveDir = Path.Combine("Logs", "Absorptions3D");
@@ -251,6 +258,10 @@ namespace controller
             _maskBuffer.Release();
         }
 
+        #endregion
+
+        #region Helper methods
+
         private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
@@ -259,5 +270,7 @@ namespace controller
                 _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
             );
         }
+
+        #endregion
     }
 }

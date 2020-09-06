@@ -15,6 +15,8 @@ namespace controller
 {
     public class PointModeAdapter : ShaderAdapter
     {
+        #region Fields
+        
         private Vector3[] _absorptionFactors;
         private int _nrSegments;
         private int _nrAnglesTheta;
@@ -27,6 +29,10 @@ namespace controller
         
         private ComputeBuffer _inputBuffer;
         
+        #endregion
+
+        #region Constructors
+
         public PointModeAdapter(
             ComputeShader shader,
             Model model,
@@ -48,12 +54,16 @@ namespace controller
         public PointModeAdapter(
             ComputeShader shader, 
             Model model
-            ) : base(shader, model)
+        ) : base(shader, model)
         {
             SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
+
+        #endregion
+
+        #region Methods
 
         private void InitializeOtherFields()
         {
@@ -219,8 +229,17 @@ namespace controller
             sw.Stop();
             logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
+        
+        protected override void Write()
+        {
+            if (writeFactorsFlag) WriteAbsorptionFactors();
+        }
 
-        Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+        #endregion
+
+        #region Helper methods
+
+        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
                 _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),
@@ -229,12 +248,7 @@ namespace controller
             );
         }
 
-        protected override void Write()
-        {
-            if (writeFactorsFlag) WriteAbsorptionFactors();
-        }
-
-        public void WriteAbsorptionFactors()
+        private void WriteAbsorptionFactors()
         {
             var path = Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
@@ -274,5 +288,7 @@ namespace controller
             
             logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): done.");
         }
+
+        #endregion
     }
 }

@@ -9,6 +9,8 @@ namespace controller
 {
     public class ShaderAdapterBuilder
     {
+        #region Fields
+
         private bool _writeFactors;
         private float? _margin;
         [CanBeNull] private Model _model;
@@ -19,79 +21,17 @@ namespace controller
 
         //private static readonly string ShaderDir = Path.Combine("Assets", "Scripts", "controller");
 
+        #endregion
+        
+        #region Builder
+
         private ShaderAdapterBuilder() {}
 
         public static ShaderAdapterBuilder New()
         {
             return new ShaderAdapterBuilder();
         }
-
-        public ShaderAdapterBuilder SetMode(Model.Mode mode)
-        {
-            _mode = mode;
-            return this;
-        }
-
-        public ShaderAdapterBuilder SetLogger(Logger logger)
-        {
-            _logger = logger;
-            return this;
-        }
-
-        public ShaderAdapterBuilder AutoSetShader()
-        {
-            if (_mode == Model.Mode.Undefined)
-                throw new InvalidOperationException("Mode must be set.");
-            if (_shaderMapping == null)
-                throw new InvalidOperationException("Shader must be set.");
-
-            if (!_shaderMapping.ContainsKey(_mode)) 
-                throw new KeyNotFoundException("Shader not found.");
-            
-            _shader = _shaderMapping[_mode];
-            return this;
-        }
-
-        public ShaderAdapterBuilder SelectShader(Model.Mode mode)
-        {
-            if (!_shaderMapping.ContainsKey(mode))
-                throw new KeyNotFoundException();
-            if (mode == Model.Mode.Undefined)
-                throw new InvalidOperationException("Mode must be set.");
-            
-            _shader = _shaderMapping[mode];
-            return this;
-        }
-
-        public ShaderAdapterBuilder AddShader(Model.Mode mode, ComputeShader shader)
-        {
-            if (_shaderMapping == null) 
-                _shaderMapping = new Dictionary<Model.Mode, ComputeShader>();
-            if (!_shaderMapping.ContainsKey(mode)) 
-                _shaderMapping.Add(mode, shader);
-            return this;
-        }
-
-        public ShaderAdapterBuilder SetModel(Model model)
-        {
-            _model = model;
-            return this;
-        }
-
-        public ShaderAdapterBuilder SetSegmentMargin(float margin)
-        {
-            _margin = margin;
-            return this;
-        }
-
-        public ShaderAdapterBuilder WriteFactors()
-        {
-            _writeFactors = true;
-            return this;
-        }
-
-        private float GetDefaultMargin() => 0.2f;
-
+        
         public ShaderAdapter Build()
         {
             ShaderAdapter adapter = null;
@@ -136,5 +76,78 @@ namespace controller
                 return false;
             }
         }
+
+        #endregion
+        
+        #region Setter methods
+
+        public ShaderAdapterBuilder SetMode(Model.Mode mode)
+        {
+            _mode = mode;
+            return this;
+        }
+
+        public ShaderAdapterBuilder SetLogger(Logger logger)
+        {
+            _logger = logger;
+            return this;
+        }
+        
+        public ShaderAdapterBuilder SetModel(Model model)
+        {
+            _model = model;
+            return this;
+        }
+
+        public ShaderAdapterBuilder SetSegmentMargin(float margin)
+        {
+            _margin = margin;
+            return this;
+        }
+
+        public ShaderAdapterBuilder WriteFactors()
+        {
+            _writeFactors = true;
+            return this;
+        }
+
+        #endregion
+        
+        public ShaderAdapterBuilder AutoSetShader()
+        {
+            if (_mode == Model.Mode.Undefined)
+                throw new InvalidOperationException("Mode must be set.");
+            if (_shaderMapping == null)
+                throw new InvalidOperationException("Shader must be set.");
+
+            if (!_shaderMapping.ContainsKey(_mode)) 
+                throw new KeyNotFoundException("Shader not found.");
+            
+            _shader = _shaderMapping[_mode];
+            return this;
+        }
+
+        public ShaderAdapterBuilder SelectShader(Model.Mode mode)
+        {
+            if (!_shaderMapping.ContainsKey(mode))
+                throw new KeyNotFoundException();
+            if (mode == Model.Mode.Undefined)
+                throw new InvalidOperationException("Mode must be set.");
+            
+            _shader = _shaderMapping[mode];
+            return this;
+        }
+
+        public ShaderAdapterBuilder AddShader(Model.Mode mode, ComputeShader shader)
+        {
+            if (_shaderMapping == null) 
+                _shaderMapping = new Dictionary<Model.Mode, ComputeShader>();
+            if (!_shaderMapping.ContainsKey(mode)) 
+                _shaderMapping.Add(mode, shader);
+            return this;
+        }
+        
+
+        private float GetDefaultMargin() => 0.2f;
     }
 }
