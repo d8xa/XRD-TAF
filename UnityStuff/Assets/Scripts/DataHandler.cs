@@ -1,7 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-using System.Linq;
 using controller;
 using model;
 using UnityEngine.Serialization;
@@ -25,9 +24,18 @@ public class DataHandler : MonoBehaviour{
     [FormerlySerializedAs("logicHandler")] 
     public ShaderAdapter shaderAdapter;
 
+    private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
+
     private void Awake() {
         //QualitySettings.vSyncCount = 0;
         //Application.targetFrameRate = 30;
+        
+        _builder
+            .AddShader(Model.Mode.Point, pointModeShader)
+            .AddShader(Model.Mode.Area, planeModeShader)
+            .AddShader(Model.Mode.Integrated, integratedModeShader)
+            .SetSegmentMargin(0.2f);
+        
         UpdatePath();
     }
 
@@ -108,16 +116,15 @@ public class DataHandler : MonoBehaviour{
         */
 
         ///*
+
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect});
-        shaderAdapter = ShaderAdapterBuilder.New()
+        
+        shaderAdapter = _builder
+            .SetLogger(logger)
             .SetMode(settingsFields.settings.mode)
             .SetModel(settingsFields.MakeModel())
-            .AddShader(Model.Mode.Point, pointModeShader)
-            .AddShader(Model.Mode.Area, planeModeShader)
-            .AddShader(Model.Mode.Integrated, integratedModeShader)
-            .SetSegmentMargin(0.2f)
             .AutoSetShader()
             //.WriteFactors()
             .Build();

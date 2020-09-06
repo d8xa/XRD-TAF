@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Vector2 = UnityEngine.Vector2;
 
@@ -28,6 +29,26 @@ namespace util
                     ).ToArray())
                 .SelectMany(arr => arr)
                 .ToArray();
+        }
+
+        public static float AsDegree(float angle)
+        {
+            return (float) (angle * 180 / Math.PI);
+        }
+
+        public static double AsDegree(double angle)
+        {
+            return angle * 180 / Math.PI;
+        }
+        
+        public static float AsRadian(float angle)
+        {
+            return (float) (angle * Math.PI / 180);
+        }
+
+        public static double AsRadian(double angle)
+        {
+            return (angle * Math.PI / 180);
         }
     }
 }
