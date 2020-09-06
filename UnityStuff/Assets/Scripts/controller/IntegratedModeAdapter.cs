@@ -10,6 +10,8 @@ namespace controller
 {
     public class IntegratedModeAdapter : ShaderAdapter
     {
+        #region Fields
+        
         private Rotation[] _rotations;
         private Vector3[] _absorptionFactors;
         private int _nrSegments;
@@ -22,6 +24,10 @@ namespace controller
 
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
+        
+        #endregion
+
+        #region Constructors
 
         public IntegratedModeAdapter(
             ComputeShader shader, 
@@ -42,6 +48,10 @@ namespace controller
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
+
+        #endregion
+
+        #region Methods
 
         private void InitializeOtherFields()
         {
@@ -111,7 +121,6 @@ namespace controller
             logger.Log(Logger.EventType.Method, "Compute(): started.");
             
             // initialize parameters in shader.
-            // necessary here already?
             shader.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
             shader.SetFloat("r_cell", model.GetRCell());
             shader.SetFloat("r_sample", model.GetRSample());
@@ -119,23 +128,19 @@ namespace controller
             shader.SetFloat("r_sample_sq", model.GetRSampleSq());
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
-            
             // get kernel handles.
             var g1Handle = shader.FindKernel("g1_dists");
             var g2Handle = shader.FindKernel("g2_dists");
             var absorptionsHandle = shader.FindKernel("Absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
-            
             // make buffers.
-            //var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g1OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var g1OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var g2OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var g2OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
             logger.Log(Logger.EventType.Data, "Created buffers.");
-            
             
             // set buffers for g1 kernel.
             shader.SetBuffer(g1Handle, "segment", _inputBuffer);
@@ -149,8 +154,6 @@ namespace controller
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
             shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
-            
-            //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
             
             // set buffers for g2 kernel.
             shader.SetBuffer(g2Handle, "segment", _inputBuffer);
@@ -167,18 +170,18 @@ namespace controller
             var absorptionsTemp = new Vector3[coordinates.Length];
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
             absorptionsBuffer.SetData(absorptionsTemp);
-
-
+            
+            // iterative computation of average absorption values for each ring of radius theta:
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 var ringAbsorptionValues = new Vector3[_nrAnglesPerRing];
                 
-                // ring geometry values dependent on theta:
-                var thetaHypotLength = 
-                    Math.Abs(model.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
-                var thetaRadius =
+                // ring geometry values for current theta:
+                var thetaHypotLength = Math.Abs(model.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
+                var thetaRadius = 
                     Math.Sqrt(Math.Pow(thetaHypotLength, 2) - Math.Pow(model.detector.distToSample, 2));    // r (blue)
                 
+                // iterative computation of absorption values for each point on the current ring:
                 for (int i = 0; i < _nrAnglesPerRing; i++)
                 {
                     #region ringGeometry
@@ -220,8 +223,6 @@ namespace controller
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
                     
-                    #endregion
-                    
                     ringAbsorptionValues[i] = GetAbsorptionFactor(absorptionsTemp);
                     
                     if (IsUnrepresentable(ringAbsorptionValues[i]))
@@ -252,9 +253,16 @@ namespace controller
             logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
             
             logger.Log(Logger.EventType.Method, "Compute(): done.");
-            
-            //throw new NotImplementedException();
         }
+
+        protected override void Write()
+        {
+            throw new NotImplementedException();
+        }
+        
+        #endregion
+
+        #region Helper methods
 
         private void LogRingGeometry(int i, int j, double thetaHypotLength, double thetaRadius, double tau,
             double tauVerticalDiff, double tauHypotLength, double vCos, double hypotLength)
@@ -288,10 +296,6 @@ namespace controller
         }
         
 
-        protected override void Write()
-        {
-            throw new NotImplementedException();
-        }
         
         private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
@@ -310,5 +314,7 @@ namespace controller
                 ringValues.AsParallel().Select(v => v.z).Average()
             );
         }
+
+        #endregion
     }
 }
