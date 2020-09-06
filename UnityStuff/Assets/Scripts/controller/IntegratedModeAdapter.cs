@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using model;
 using UnityEngine;
@@ -184,27 +184,11 @@ namespace controller
                 // iterative computation of absorption values for each point on the current ring:
                 for (int i = 0; i < _nrAnglesPerRing; i++)
                 {
-                    #region ringGeometry
+                    // tau: theta angle at x-coordinate of rotated point.
+                    var tau = _rotations[i].GetCos() * GetThetaAt(j);
                     
-                    // new theta angle at x-coordinate of rotated point.
-                    var tau = _rotations[i].GetCos() * GetThetaAt(j);    // purple
+                    var vCos = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
                     
-                    // vertical offset of rotated point to base point. 
-                    var tauVerticalOffset = _rotations[i].GetSin() * thetaRadius;    // a (orange)
-                    
-                    var tauHypotLength = model.detector.distToSample / Math.Cos(tau);    // b (pink)
-                    var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
-
-                    // ratio of distance to 2D projection of ray from sample center to rotated point.
-                    var vCos = tauHypotLength / hypotLength;
-                    if (Math.Abs(tauVerticalOffset) < 1E-5) vCos = 1;    // experimental
-                    
-                    LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
-                    
-                    #endregion
-
-                    #region shaderInteraction
-
                     // set rotation parameters.
                     shader.SetFloat("cos", (float) Math.Cos(Math.PI - tau));
                     shader.SetFloat("sin", (float) Math.Sin(Math.PI - tau));
@@ -226,9 +210,7 @@ namespace controller
                     ringAbsorptionValues[i] = GetAbsorptionFactor(absorptionsTemp);
                     
                     if (IsUnrepresentable(ringAbsorptionValues[i]))
-                        LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
-
-                    
+                        logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}): NaN or Infinity detected.");
                 }
 
                 //if (AnyIrregular(ringValues)) 
@@ -313,6 +295,27 @@ namespace controller
                 ringValues.AsParallel().Select(v => v.y).Average(),
                 ringValues.AsParallel().Select(v => v.z).Average()
             );
+        }
+
+        /// <summary>
+        /// Calculates the cosine of the (vertical) angle between the diffraction ray and its projection on the XY-plane.
+        /// </summary>
+        /// <returns></returns>
+        private double GetVFactor(int i, int j, double tau, double thetaRadius, double thetaHypotLength)
+        {
+            // vertical offset of rotated point to base point. 
+            var tauVerticalOffset = _rotations[i].GetSin() * thetaRadius;    // a (orange)
+                        
+            var tauHypotLength = model.detector.distToSample / Math.Cos(tau);    // b (pink)
+            var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
+    
+            // ratio of distance to 2D projection of ray from sample center to rotated point.
+            var vCos = tauHypotLength / hypotLength;
+                if (Math.Abs(tauVerticalOffset) < 1E-5) vCos = 1;    // experimental
+    
+            LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
+
+            return vCos;
         }
 
         #endregion
