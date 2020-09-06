@@ -94,6 +94,8 @@ namespace model
             GatherMetaData();
         }
 
+        public float GetAngleAt(int index) => _angles[index];
+
         public int GetSegmentResolution() => _segmentResolution;
     
         public float GetRSample() => _rSample;

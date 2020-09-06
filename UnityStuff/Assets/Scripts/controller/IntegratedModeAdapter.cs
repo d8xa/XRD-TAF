@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using model;
 using UnityEngine;
-using util;
+using static util.MathTools;
 using Logger = util.Logger;
 using Vector3 = UnityEngine.Vector3;
 
@@ -54,12 +54,12 @@ namespace controller
             
             // initialize arrays.
             _absorptionFactors = new Vector3[_nrAnglesTheta];
-            _rotations = MathTools.LinSpace1D(
+            _rotations = LinSpace1D(
                     model.detector.angleStart, 
                     model.detector.angleEnd, 
                     model.detector.angleCount
                 )
-                .Select(deg => (float) (deg*Math.PI/180))
+                .Select(AsRadian)
                 .Select(Rotation.FromAngle)
                 .ToArray();
             
@@ -171,18 +171,40 @@ namespace controller
 
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
-                var ringValues = new Vector3[_nrAnglesPerRing];
-                    
+                var ringAbsorptionValues = new Vector3[_nrAnglesPerRing];
+                
+                // ring geometry values dependent on theta:
+                var thetaHypotLength = 
+                    Math.Abs(model.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
+                var thetaRadius =
+                    Math.Sqrt(Math.Pow(thetaHypotLength, 2) - Math.Pow(model.detector.distToSample, 2));    // r (blue)
+                
                 for (int i = 0; i < _nrAnglesPerRing; i++)
                 {
-                    // theta at x-coordinate of rotated point.
-                    var currentTheta = _rotations[i].GetCos() * model.GetAngles()[j];
-                    // set vertical offset ratio between base point and rotated point. 
-                    var currentVCos = _rotations[i].GetSin() * model.GetAngles()[j];
+                    #region ringGeometry
+                    
+                    // new theta angle at x-coordinate of rotated point.
+                    var tau = _rotations[i].GetCos() * GetThetaAt(j);    // purple
+                    
+                    // vertical offset of rotated point to base point. 
+                    var tauVerticalOffset = _rotations[i].GetSin() * thetaRadius;    // a (orange)
+                    
+                    var tauHypotLength = model.detector.distToSample / Math.Cos(tau);    // b (pink)
+                    var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
+
+                    // ratio of distance to 2D projection of ray from sample center to rotated point.
+                    var vCos = tauHypotLength / hypotLength;
+                    if (Math.Abs(tauVerticalOffset) < 1E-5) vCos = 1;    // experimental
+                    
+                    LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
+                    
+                    #endregion
+
+                    #region shaderInteraction
 
                     // set rotation parameters.
-                    shader.SetFloat("cos", (float) Math.Cos((180 - currentTheta) * Math.PI / 180));
-                    shader.SetFloat("sin", (float) Math.Sin((180 - currentTheta) * Math.PI / 180));
+                    shader.SetFloat("cos", (float) Math.Cos(Math.PI - tau));
+                    shader.SetFloat("sin", (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
                     logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -193,20 +215,32 @@ namespace controller
                     shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
                     shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
                     
-                    shader.SetFloat("vCos", (float) currentVCos);
+                    shader.SetFloat("vCos", (float) vCos);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
+                    
+                    #endregion
+                    
+                    ringAbsorptionValues[i] = GetAbsorptionFactor(absorptionsTemp);
+                    
+                    if (IsUnrepresentable(ringAbsorptionValues[i]))
+                        LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
 
-                    ringValues[i] = GetAbsorptionFactor(absorptionsTemp);
+                    
                 }
 
-                _absorptionFactors[j] = GetRingAverage(ringValues);
+                //if (AnyIrregular(ringValues)) 
+                    logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
+                _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
             logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
 
-            
+            var results = string.Join(", ", 
+                _absorptionFactors.Select(v => v.ToString("F5")).ToArray());
+            logger.Log(Logger.EventType.Inspect, $"Absorptions factors: {results}");
+
             // release buffers.
             _inputBuffer.Release();
             _maskBuffer.Release();
@@ -219,7 +253,38 @@ namespace controller
             
             logger.Log(Logger.EventType.Method, "Compute(): done.");
             
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
+        }
+
+        private void LogRingGeometry(int i, int j, double thetaHypotLength, double thetaRadius, double tau,
+            double tauVerticalDiff, double tauHypotLength, double vCos, double hypotLength)
+        {
+            logger.Log(Logger.EventType.Inspect,
+                $"(i={i}, j={j})"
+                + $"\ntheta: {GetThetaAt(j)} (deg)"
+                + $", thetaHypotLength: {thetaHypotLength:G}"
+                + $", thetaRadius: {thetaRadius:G}"
+                + $"\ntau: {AsDegree(tau):G} (deg)"
+                + $", tauVerticalDiff: {tauVerticalDiff:G}"
+                + $", tauHypotLength: {tauHypotLength:G}"
+                + "\nrho: "
+                + $"{Math.Acos(_rotations[i].GetCos())} (rad)"
+                + $", {AsDegree(Math.Acos(_rotations[i].GetCos()))} (deg)"
+                + $"\nalpha: {AsDegree(Math.Acos(vCos))} (deg)"
+                + $", vCos: {vCos:G}"
+                + $"\nhypotLength: {hypotLength:G}"
+            );
+        }
+
+        private double GetThetaAt(int index)
+        {
+            return AsRadian((double) model.GetAngleAt(index));
+        }
+
+        private bool IsUnrepresentable(Vector3 value)
+        {
+            return float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z) 
+                   || float.IsInfinity(value.x) || float.IsInfinity(value.y) || float.IsInfinity(value.z);
         }
         
 
