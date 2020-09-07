@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using FoPra.model;
 using UnityEngine;
 using util;
 
@@ -26,7 +25,7 @@ namespace model
         }
 
         public readonly Settings settings;
-        public readonly DetektorSettings detector;
+        public readonly DetectorSettings detector;
         private readonly SampleSettings _sample;
         public RaySettings ray;
 
@@ -86,7 +85,9 @@ namespace model
             }
         }
 
-        public Model(Settings settings, DetektorSettings detector, SampleSettings sample/*, RaySettings ray*/) {
+        public Model(Settings settings, DetectorSettings detector, SampleSettings sample
+            //, RaySettings ray
+            ) {
             this.settings = settings;
             this.detector = detector;
             this._sample = sample;

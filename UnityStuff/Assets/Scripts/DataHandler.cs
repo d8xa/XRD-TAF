@@ -44,7 +44,7 @@ public class DataHandler : MonoBehaviour{
         _savePath = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
-    private void fillInBlanks()
+    private void FillInBlanks()
     {
         UpdatePath();
         if (File.Exists(Path.Combine(_savePath, "Default_set.txt"))) {
@@ -53,7 +53,7 @@ public class DataHandler : MonoBehaviour{
         }
         if (File.Exists(Path.Combine(_savePath, "Default_det.txt"))) {
             settingsFields.FillInDefaults(
-                JsonUtility.FromJson<DetektorSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_det.txt"))));
+                JsonUtility.FromJson<DetectorSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_det.txt"))));
         }
         if (File.Exists(Path.Combine(_savePath, "Default_sam.txt"))) {
             settingsFields.FillInDefaults(
@@ -61,9 +61,9 @@ public class DataHandler : MonoBehaviour{
         }
     }
 
-    public void submitToComputing()
+    public void SubmitToComputing()
     {
-        fillInBlanks();
+        FillInBlanks();
         
         /*
         var alphaRatios = Enumerable.Range(0, settingsFields.detektorSettings.resolution.y)
@@ -137,7 +137,7 @@ public class DataHandler : MonoBehaviour{
         string saveDataSet = JsonUtility.ToJson(settingsFields.settings);
         File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.aufbauBezeichnung + "_set.txt"), saveDataSet);
         
-        string saveDataDet = JsonUtility.ToJson(settingsFields.detektorSettings);
+        string saveDataDet = JsonUtility.ToJson(settingsFields.detectorSettings);
         File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.aufbauBezeichnung + "_det.txt"), saveDataDet);
         
         string saveDataSam = JsonUtility.ToJson(settingsFields.sampleSettings);
@@ -154,7 +154,7 @@ public class DataHandler : MonoBehaviour{
         
         if (File.Exists(Path.Combine(_savePath, loadFileName.text + "_det.txt"))) {
             string loadedDataDet = File.ReadAllText(Path.Combine(_savePath, loadFileName.text + "_det.txt"));
-            settingsFields.detektorSettings = JsonUtility.FromJson<DetektorSettings>(loadedDataDet);
+            settingsFields.detectorSettings = JsonUtility.FromJson<DetectorSettings>(loadedDataDet);
             settingsFields.DataChanged();
         }
 

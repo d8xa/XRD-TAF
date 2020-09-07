@@ -2,19 +2,17 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using FoPra.model;
 using model;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class SettingsFields : MonoBehaviour {
    public static int namelessNumber;
    public InputField fieldDescriptor;
-   //public InputField fielLoadName;
    public Dropdown dropdownMode;
 
    public Dropdown absType;
-   //public Dropdown dropDownAbsType;
    public InputField fieldAccuracy;
    
    public InputField fieldPixelSize;
@@ -37,7 +35,7 @@ public class SettingsFields : MonoBehaviour {
    
    public Settings settings;
    public SampleSettings sampleSettings;
-   public DetektorSettings detektorSettings;
+   [FormerlySerializedAs("detektorSettings")] public DetectorSettings detectorSettings;
    public RaySettings raySettings;
 
    // for component-wise / group-wise selection of input fields.
@@ -59,7 +57,7 @@ public class SettingsFields : MonoBehaviour {
 
    public Model MakeModel()
    {
-      return new Model(settings, detektorSettings, sampleSettings);
+      return new Model(settings, detectorSettings, sampleSettings);
    }
 
    public void FillInDefaults(Settings defaultSettings) {
@@ -75,23 +73,23 @@ public class SettingsFields : MonoBehaviour {
       DataChanged();
    }
    
-   public void FillInDefaults(DetektorSettings defaultSettings) {
+   public void FillInDefaults(DetectorSettings defaultSettings) {
       if (fieldOffsetX.text.Equals("") && fieldOffsetY.text.Equals("")) {
-         detektorSettings.offSetFromDownRightEdge = defaultSettings.offSetFromDownRightEdge;
+         detectorSettings.offSetFromDownRightEdge = defaultSettings.offSetFromDownRightEdge;
       }
       if (fieldPixelSize.text.Equals("")) {
-         detektorSettings.pixelsize = defaultSettings.pixelsize;
+         detectorSettings.pixelSize = defaultSettings.pixelSize;
       }
       if (fieldResolutionX.text.Equals("") && fieldResolutionY.text.Equals("")) {
-         detektorSettings.resolution = defaultSettings.resolution;
+         detectorSettings.resolution = defaultSettings.resolution;
       }
 
       if (fieldDstToSample.text.Equals("")) {
-         detektorSettings.distToSample = defaultSettings.distToSample;
+         detectorSettings.distToSample = defaultSettings.distToSample;
       }
 
       if (fieldPathAngleFile.text.Equals("")) {
-         detektorSettings.pathToAngleFile = defaultSettings.pathToAngleFile;
+         detectorSettings.pathToAngleFile = defaultSettings.pathToAngleFile;
       }
       DataChanged();
    }
@@ -183,19 +181,19 @@ public class SettingsFields : MonoBehaviour {
       ParseField(fieldAccuracy, ref settings.computingAccuracy, cultureInfo);
       
       // Detector parameters
-      ParseField(fieldPixelSize, ref detektorSettings.pixelsize, cultureInfo);
-      ParseField(fieldDstToSample, ref detektorSettings.distToSample, cultureInfo);
+      ParseField(fieldPixelSize, ref detectorSettings.pixelSize, cultureInfo);
+      ParseField(fieldDstToSample, ref detectorSettings.distToSample, cultureInfo);
       
       if (!fieldOffsetX.text.Equals("") && !fieldOffsetY.text.Equals(""))
       {
-         detektorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text, cultureInfo);
-         detektorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text, cultureInfo);
+         detectorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text, cultureInfo);
+         detectorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text, cultureInfo);
       }
       
       if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals(""))
       {
-         detektorSettings.resolution.x = int.Parse(fieldResolutionX.text);
-         detektorSettings.resolution.y = int.Parse(fieldResolutionY.text);
+         detectorSettings.resolution.x = int.Parse(fieldResolutionX.text);
+         detectorSettings.resolution.y = int.Parse(fieldResolutionY.text);
       }
       
       // Sample parameters
@@ -205,10 +203,10 @@ public class SettingsFields : MonoBehaviour {
       ParseField(fieldMuSample, ref sampleSettings.muSample, cultureInfo);
       
       // Angles
-      ParseField(fieldPathAngleFile, ref detektorSettings.pathToAngleFile);
-      ParseField(fieldAngleStart, ref detektorSettings.angleStart, cultureInfo);
-      ParseField(fieldAngleEnd, ref detektorSettings.angleEnd, cultureInfo);
-      ParseField(fieldAngleSteps, ref detektorSettings.angleCount, cultureInfo);
+      ParseField(fieldPathAngleFile, ref detectorSettings.pathToAngleFile);
+      ParseField(fieldAngleStart, ref detectorSettings.angleStart, cultureInfo);
+      ParseField(fieldAngleEnd, ref detectorSettings.angleEnd, cultureInfo);
+      ParseField(fieldAngleSteps, ref detectorSettings.angleCount, cultureInfo);
    }
 
    private void ParseField(InputField input, ref string target)
@@ -243,13 +241,13 @@ public class SettingsFields : MonoBehaviour {
       fieldDescriptor.text = settings.aufbauBezeichnung;
       fieldAccuracy.text = settings.computingAccuracy.ToString(cultureInfo);
          
-      fieldPixelSize.text = detektorSettings.pixelsize.ToString(cultureInfo);
-      fieldOffsetX.text = detektorSettings.offSetFromDownRightEdge.x.ToString(cultureInfo);
-      fieldOffsetY.text = detektorSettings.offSetFromDownRightEdge.y.ToString(cultureInfo);
-      fieldDstToSample.text = detektorSettings.distToSample.ToString(cultureInfo);
-      fieldResolutionX.text = detektorSettings.resolution.x.ToString(cultureInfo);
-      fieldResolutionY.text = detektorSettings.resolution.y.ToString(cultureInfo);
-      fieldPathAngleFile.text = detektorSettings.pathToAngleFile;
+      fieldPixelSize.text = detectorSettings.pixelSize.ToString(cultureInfo);
+      fieldOffsetX.text = detectorSettings.offSetFromDownRightEdge.x.ToString(cultureInfo);
+      fieldOffsetY.text = detectorSettings.offSetFromDownRightEdge.y.ToString(cultureInfo);
+      fieldDstToSample.text = detectorSettings.distToSample.ToString(cultureInfo);
+      fieldResolutionX.text = detectorSettings.resolution.x.ToString(cultureInfo);
+      fieldResolutionY.text = detectorSettings.resolution.y.ToString(cultureInfo);
+      fieldPathAngleFile.text = detectorSettings.pathToAngleFile;
          
       fieldDiameter.text = sampleSettings.totalDiameter.ToString(cultureInfo);
       fieldCellThickness.text = sampleSettings.cellThickness.ToString(cultureInfo);

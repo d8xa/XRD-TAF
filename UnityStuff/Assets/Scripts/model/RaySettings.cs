@@ -1,7 +1,6 @@
-using model;
 using UnityEngine;
 
-namespace FoPra.model
+namespace model
 {
     public class RaySettings {
         public Model.RayProfile profile;

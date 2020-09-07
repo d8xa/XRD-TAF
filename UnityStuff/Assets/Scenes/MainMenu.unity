@@ -886,15 +886,15 @@ MonoBehaviour:
     cellThickness: 0
     muSample: 0
     muCell: 0
-  detektorSettings:
-    pixelsize: 0
+  detectorSettings:
+    pixelSize: 0
     resolution: {x: 0, y: 0}
     offSetFromDownRightEdge: {x: 0, y: 0}
     distToSample: 0
     pathToAngleFile: 
     angleStart: 0
     angleEnd: 0
-    angleStepSize: 0
+    angleCount: 0
   inputGroupDetector: {fileID: 2066406839}
   inputGroupAngle: {fileID: 893365369}
   inputGroupIntegrated: {fileID: 791630182}
@@ -3474,7 +3474,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 654995071}
-        m_MethodName: submitToComputing
+        m_MethodName: SubmitToComputing
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
