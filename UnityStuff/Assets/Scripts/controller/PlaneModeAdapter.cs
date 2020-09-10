@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -40,24 +40,18 @@ namespace controller
             ComputeShader shader, 
             Model model, 
             float margin, 
-            bool writeFactorsFlag
-        ) : base(shader, model, margin, writeFactorsFlag)
+            bool writeFactorsFlag,
+            Logger customLogger
+        ) : base(shader, model, margin, writeFactorsFlag, customLogger)
         {
-            SetLogger(new Logger());
-            logger.SetPrintFilter(new List<Logger.EventType>() 
-                {
-                    Logger.EventType.Performance, 
-                    //Logger.EventType.Class, 
-                    //Logger.EventType.InitializerMethod
-                }
-            );
+            if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
 
-        public PlaneModeAdapter(ComputeShader shader, Model model) : base(shader, model)
+        public PlaneModeAdapter(ComputeShader shader, Model model, Logger customLogger) : base(shader, model, customLogger)
         {
-            SetLogger(new Logger());
+            if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
@@ -269,6 +263,11 @@ namespace controller
                 _outerIndices.AsParallel().Select(i => absorptions[i].y).Average(),
                 _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
             );
+        }
+
+        private double GetThetaAt(int index)
+        {
+            return model.GetAngleAt(index);
         }
 
         #endregion

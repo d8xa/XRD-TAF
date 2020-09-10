@@ -43,13 +43,13 @@ namespace controller
                         adapter = new PointModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
                         break;
                     case Model.Mode.Area:
-                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
+                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors, _logger);
                         break;
                     case Model.Mode.Integrated:
                         adapter = new IntegratedModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors, _logger);
                         break;
                     case Model.Mode.Testing:
-                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors);
+                        adapter = new PlaneModeAdapter(_shader, _model, _margin ?? GetDefaultMargin(), _writeFactors, _logger);
                         break;
                 }
             }
