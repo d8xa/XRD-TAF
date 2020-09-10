@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using model;
 using UnityEngine;
@@ -239,7 +239,24 @@ namespace controller
 
         protected override void Write()
         {
-            throw new NotImplementedException();
+            var saveDir = Path.Combine("Logs", "AbsorptionsIntegrated");
+            Directory.CreateDirectory(saveDir);
+            var saveName = $"Output res={segmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesPerRing}.txt";
+
+            var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
+            var headCol = model.GetAngles()
+                .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
+                .ToArray();
+            var data = new float[_nrAnglesTheta, 3];
+            for (int i = 0; i < _nrAnglesTheta; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    data[i, j] = _absorptionFactors[i][j];
+                }
+            }
+            
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), headCol, headRow, data);
         }
         
         #endregion
