@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using UnityEngine.Serialization;
+using util;
 
 namespace model
 {
@@ -25,7 +26,7 @@ namespace model
 
         public float GetAngleFromRatio(double ratio)
         {
-            return (float) (Math.Acos(1 / ratio) * 180.0 / Math.PI);
+            return (float) MathTools.AsDegree(Math.Acos(1 / ratio));
         }
     }
 }

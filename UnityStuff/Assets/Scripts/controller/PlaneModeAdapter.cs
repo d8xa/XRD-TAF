@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -184,12 +184,11 @@ namespace controller
             var totalOuterLoop = sw.Elapsed;
             var avgInnerLoop = sw.Elapsed;
             
-            
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
-                shader.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles()[j]) * Math.PI / 180));
-                shader.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles()[j]) * Math.PI / 180));
+                shader.SetFloat("cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 
                 // compute g2 distances.
                 logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -267,7 +266,7 @@ namespace controller
 
         private double GetThetaAt(int index)
         {
-            return model.GetAngleAt(index);
+            return MathTools.AsRadian(model.GetAngleAt(index));
         }
 
         #endregion
