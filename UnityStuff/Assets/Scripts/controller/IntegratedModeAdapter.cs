@@ -144,8 +144,8 @@ namespace controller
             
             // set buffers for g1 kernel.
             shader.SetBuffer(g1Handle, "segment", _inputBuffer);
-            shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferInner);
-            shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferOuter);
+            shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferInner);
+            shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferOuter);
             logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
             
             _inputBuffer.SetData(coordinates);
