@@ -1,21 +1,18 @@
-﻿namespace model
+﻿using UnityEngine.Serialization;
+
+namespace model
 {
-    // TODO: cleanup
-    
     [System.Serializable]
     public class Settings {
-        //Kommentarfunktion
+        //TODO: add field for comments maybe
 
-        public string aufbauBezeichnung;
+        [FormerlySerializedAs("aufbauBezeichnung")] 
+        public string saveName;
         public Model.Mode mode;
         public Model.AbsorptionType absType;
-        //muss eh alles gemacht werden
-        //public Model.AbsorbtionType absorbtionType;
-        //public DetektorSettings detektorSettings;
-        //public SampleSettings sampleSettings;
-        //public RaySettings raySettings;
         public string loadName;
         public string pathToInputData;
-        public float computingAccuracy;
+        [FormerlySerializedAs("computingAccuracy")] 
+        public float gridResolution;
     }
 }

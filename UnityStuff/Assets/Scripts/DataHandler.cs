@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using controller;
 using model;
+using ui;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Logger = util.Logger;
@@ -135,13 +136,13 @@ public class DataHandler : MonoBehaviour{
 
     public void SaveSettings() {
         string saveDataSet = JsonUtility.ToJson(settingsFields.settings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.aufbauBezeichnung + "_set.txt"), saveDataSet);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_set.txt"), saveDataSet);
         
         string saveDataDet = JsonUtility.ToJson(settingsFields.detectorSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.aufbauBezeichnung + "_det.txt"), saveDataDet);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_det.txt"), saveDataDet);
         
         string saveDataSam = JsonUtility.ToJson(settingsFields.sampleSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.aufbauBezeichnung + "_sam.txt"), saveDataSam);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_sam.txt"), saveDataSam);
     }
 
     public void LoadSettings() {
