@@ -1,4 +1,6 @@
-﻿namespace model
+﻿using UnityEngine;
+
+namespace model
 {
     [System.Serializable]
     public class SampleSettings {
@@ -10,5 +12,10 @@
         private float probeDiameterNormalized;
         private float cellThicknessNormalized;
         private float totalDiameterNormalized;
+
+        public override string ToString()
+        {
+            return JsonUtility.ToJson(this);
+        }
     }
 }

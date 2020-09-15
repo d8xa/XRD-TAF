@@ -11,10 +11,17 @@ namespace model
         public Vector2Int resolution;
         public Vector2 offSetFromDownRightEdge;
         [FormerlySerializedAs("dstToSample")] public float distToSample;
+        
+        // TODO: create new settings class for these parameters.
         public string pathToAngleFile = "";
         public float angleStart;
         public float angleEnd;
         [FormerlySerializedAs("angleAmount")] public int angleCount;
+        
+        public override string ToString()
+        {
+            return JsonUtility.ToJson(this);
+        }
 
         public double GetRatioFromOffset(int pixelIndex, bool vertical)
         {

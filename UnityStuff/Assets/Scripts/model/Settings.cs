@@ -1,4 +1,5 @@
-﻿using UnityEngine.Serialization;
+﻿using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace model
 {
@@ -6,7 +7,7 @@ namespace model
     public class Settings {
         //TODO: add field for comments maybe
 
-        [FormerlySerializedAs("aufbauBezeichnung")] 
+        [FormerlySerializedAs("aufbauBezeichnung"), FormerlySerializedAs("loadName")] 
         public string saveName;
         public Model.Mode mode;
         public Model.AbsorptionType absType;
@@ -14,5 +15,11 @@ namespace model
         public string pathToInputData;
         [FormerlySerializedAs("computingAccuracy")] 
         public float gridResolution;
+
+
+        public override string ToString()
+        {
+            return JsonUtility.ToJson(this);
+        }
     }
 }

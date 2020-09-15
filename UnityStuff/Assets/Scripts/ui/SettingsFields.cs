@@ -14,11 +14,12 @@ namespace ui
       #region Fields
 
       private static int _namelessNumber;
-      public InputField fieldDescriptor;
+      public Text currentPresetName;
+      [FormerlySerializedAs("fieldDescriptor")] public InputField fieldPresetName;
       public Dropdown dropdownMode;
 
       public Dropdown absType;
-      public InputField fieldAccuracy;
+      [FormerlySerializedAs("fieldAccuracy")] public InputField fieldGridResolution;
    
       public InputField fieldPixelSize;
       public InputField fieldResolutionX;
@@ -56,11 +57,49 @@ namespace ui
          {3, Model.Mode.Testing},
       };
 
+      private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
+
       #endregion
       
       public void Awake()
       {
          SetAllInputGroups(false);
+         SetListeners();
+      }
+
+      private void SetListeners()
+      {
+         // metadata
+         fieldPresetName.onEndEdit.AddListener(text => ParseField(text, ref settings.saveName));
+         
+         // Detector parameters
+         fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pixelSize));
+         fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.distToSample));
+         
+         // TODO: check if ref of Vector component works. 
+         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.x));
+         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.y));
+
+         void SetComponent(string text, ref Vector2Int variable, int position)
+         {
+            if (IsValid(text)) variable[position] = int.Parse(text, _cultureInfo);
+         }
+
+         fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 0));
+         fieldResolutionY.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 1));
+
+         // Sample parameters
+         fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref settings.gridResolution));
+         fieldDiameter.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.totalDiameter));
+         fieldCellThickness.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.cellThickness));
+         fieldMuCell.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.muCell));
+         fieldMuSample.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.muSample));
+
+         // Angle parameters
+         fieldPathAngleFile.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pathToAngleFile));
+         fieldAngleStart.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleStart));
+         fieldAngleEnd.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleEnd));
+         fieldAngleSteps.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleCount));
       }
 
       private void SetAllInputGroups(bool value)
@@ -75,62 +114,67 @@ namespace ui
          return new Model(settings, detectorSettings, sampleSettings);
       }
 
-      public void FillInDefaults(Settings defaultSettings) {
-         if (fieldDescriptor.text.Equals("")) {
-            settings.saveName = "Default_" + _namelessNumber;
-            _namelessNumber++;
-         }
-
-
-         if (fieldAccuracy.text.Equals("")) {
-            settings.gridResolution = defaultSettings.gridResolution;
-         }
-         DataChanged();
+      public void FillFromPreset(Settings preset)
+      {
+         if (!IsValid(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
+         if (IsValid(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
+         
+         UpdateGeneralSettingsUI();
       }
    
-      public void FillInDefaults(DetectorSettings defaultSettings) {
-         if (fieldOffsetX.text.Equals("") && fieldOffsetY.text.Equals("")) {
-            detectorSettings.offSetFromDownRightEdge = defaultSettings.offSetFromDownRightEdge;
-         }
-         if (fieldPixelSize.text.Equals("")) {
-            detectorSettings.pixelSize = defaultSettings.pixelSize;
-         }
-         if (fieldResolutionX.text.Equals("") && fieldResolutionY.text.Equals("")) {
-            detectorSettings.resolution = defaultSettings.resolution;
-         }
+      public void FillFromPreset(DetectorSettings preset)
+      {
+         if (!IsValid(fieldOffsetX.text)) 
+            detectorSettings.offSetFromDownRightEdge.x = preset.offSetFromDownRightEdge.x;
+         if (!IsValid(fieldOffsetY.text)) 
+            detectorSettings.offSetFromDownRightEdge.y = preset.offSetFromDownRightEdge.y;
+         if (!IsValid(fieldPixelSize.text)) detectorSettings.pixelSize = preset.pixelSize;
+         if (!IsValid(fieldResolutionX.text)) detectorSettings.resolution.x = preset.resolution.x;
+         if (!IsValid(fieldResolutionY.text)) detectorSettings.resolution = preset.resolution;
+         if (!IsValid(fieldDistToSample.text)) detectorSettings.distToSample = preset.distToSample;
+         if (!IsValid(fieldAngleStart.text)) detectorSettings.angleStart = preset.angleStart;
+         if (!IsValid(fieldAngleEnd.text)) detectorSettings.angleEnd = preset.angleEnd;
+         if (!IsValid(fieldAngleSteps.text)) detectorSettings.angleCount = preset.angleCount;
 
-         if (fieldDistToSample.text.Equals("")) {
-            detectorSettings.distToSample = defaultSettings.distToSample;
-         }
-
-         if (fieldPathAngleFile.text.Equals("")) {
-            detectorSettings.pathToAngleFile = defaultSettings.pathToAngleFile;
-         }
-         DataChanged();
+         UpdateDetectorSettingsUI();
       }
    
-      public void FillInDefaults(SampleSettings defaultSettings) {
-         if (fieldDiameter.text.Equals("")) {
-            sampleSettings.totalDiameter = defaultSettings.totalDiameter;
-         }
-         if (fieldCellThickness.text.Equals("")) {
-            sampleSettings.cellThickness = defaultSettings.cellThickness;
-         }
-         if (fieldMuCell.text.Equals("")) {
-            sampleSettings.muCell = defaultSettings.muCell;
-         }
-         if (fieldMuSample.text.Equals("")) {
-            sampleSettings.muSample = defaultSettings.muSample;
-         }
-         DataChanged();
+      public void FillFromPreset(SampleSettings preset)
+      {
+         if (!IsValid(fieldDiameter.text)) sampleSettings.totalDiameter = preset.totalDiameter;
+         if (!IsValid(fieldCellThickness.text)) sampleSettings.cellThickness = preset.cellThickness;
+         if (!IsValid(fieldMuCell.text)) sampleSettings.muCell = preset.muCell;
+         if (!IsValid(fieldMuSample.text)) sampleSettings.muSample = preset.muSample;
+         
+         UpdateSampleSettingsUI();
       }
+
+      /// <summary>Sets the internal dropdown value according to the supplied mode.</summary>
+      private void SetDropdownTo(Model.Mode mode)
+      {
+         if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
+         dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
+      }
+
+      #region Data update methods
+
+      public void UpdateModeData()
+      {
+         if (!_dropdownMap.ContainsKey(dropdownMode.value)) throw new InvalidOperationException();
+         settings.mode = _dropdownMap[dropdownMode.value];
+         ShowRelevantInputFields();
+      }
+
+      #endregion
+
+      #region UI update methods
 
       /// <summary>
       /// Updates main menu upon change of computation mode.
-      /// Mode-relevant fields are set to visible, all other to invisible.
+      /// Mode-relevant fields are set to visible, all others to invisible.
       /// </summary>
       /// <exception cref="InvalidOperationException"></exception>
-      private void DropdownValueChanged()
+      private void ShowRelevantInputFields()
       {
          SetAllInputGroups(false);
       
@@ -157,109 +201,76 @@ namespace ui
          }
       }
 
-   
-      public void ModeChanged() {
+      public void UpdateModeUI() {
          SetDropdownTo(settings.mode);
-         DropdownValueChanged();
+         ShowRelevantInputFields();
       }
 
-      public void DropdownChanged()
+      public void UpdateGeneralSettingsUI()
       {
-         if (!_dropdownMap.ContainsKey(dropdownMode.value)) throw new InvalidOperationException();
-         settings.mode = _dropdownMap[dropdownMode.value];
-         DropdownValueChanged();
+         fieldPresetName.text = settings.saveName;
+         fieldGridResolution.text = settings.gridResolution.ToString(_cultureInfo);
       }
 
-      /// <summary>Sets the internal dropdown value according to the supplied mode.</summary>
-      private void SetDropdownTo(Model.Mode mode)
+      public void UpdateIntegrationSettingsUI()
       {
-         if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
-         dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
-      }
-   
-      /// <summary>Updates each data field in the model with parsed input from UI input fields.</summary>
-      public void InputChanged()
-      {
-         var cultureInfo = CultureInfo.InvariantCulture;
-
-         // metadata
-         ParseField(fieldDescriptor, ref settings.saveName);
-         ParseField(fieldAccuracy, ref settings.gridResolution, cultureInfo);
-      
-         // Detector parameters
-         ParseField(fieldPixelSize, ref detectorSettings.pixelSize, cultureInfo);
-         ParseField(fieldDistToSample, ref detectorSettings.distToSample, cultureInfo);
-      
-         if (!fieldOffsetX.text.Equals("") && !fieldOffsetY.text.Equals(""))
-         {
-            detectorSettings.offSetFromDownRightEdge.x = float.Parse(fieldOffsetX.text, cultureInfo);
-            detectorSettings.offSetFromDownRightEdge.y = float.Parse(fieldOffsetY.text, cultureInfo);
-         }
-      
-         if (!fieldResolutionX.text.Equals("") && !fieldResolutionY.text.Equals(""))
-         {
-            detectorSettings.resolution.x = int.Parse(fieldResolutionX.text);
-            detectorSettings.resolution.y = int.Parse(fieldResolutionY.text);
-         }
-      
-         // Sample parameters
-         ParseField(fieldDiameter, ref sampleSettings.totalDiameter, cultureInfo);
-         ParseField(fieldCellThickness, ref sampleSettings.cellThickness, cultureInfo);
-         ParseField(fieldMuCell, ref sampleSettings.muCell, cultureInfo);
-         ParseField(fieldMuSample, ref sampleSettings.muSample, cultureInfo);
-      
-         // Angles
-         ParseField(fieldPathAngleFile, ref detectorSettings.pathToAngleFile);
-         ParseField(fieldAngleStart, ref detectorSettings.angleStart, cultureInfo);
-         ParseField(fieldAngleEnd, ref detectorSettings.angleEnd, cultureInfo);
-         ParseField(fieldAngleSteps, ref detectorSettings.angleCount, cultureInfo);
+         // TODO
       }
 
-      private void ParseField(InputField input, ref string target)
+      public void UpdateDetectorSettingsUI()
       {
-         if (!input.text.Equals(""))
-            target = input.text;
-      }
-   
-      private void ParseField(InputField input, ref float target, CultureInfo cultureInfo = null)
-      {
-         if (cultureInfo == null) 
-            cultureInfo = CultureInfo.InvariantCulture;
-         if (!input.text.Equals("")) 
-            target = float.Parse(input.text, cultureInfo);
-      }
-
-      private void ParseField(InputField input, ref int target, CultureInfo cultureInfo = null)
-      {
-         if (cultureInfo == null) 
-            cultureInfo = CultureInfo.InvariantCulture;
-         if (!input.text.Equals(""))
-            target = int.Parse(input.text, cultureInfo);
-      }
-   
-      /// <summary>
-      /// Updates all input fields in the UI with the changed data from the model.
-      /// </summary>
-      public void DataChanged()
-      {
-         var cultureInfo = CultureInfo.InvariantCulture;
-      
-         fieldDescriptor.text = settings.saveName;
-         fieldAccuracy.text = settings.gridResolution.ToString(cultureInfo);
+         fieldPixelSize.text = detectorSettings.pixelSize.ToString(_cultureInfo);
+         fieldOffsetX.text = detectorSettings.offSetFromDownRightEdge.x.ToString(_cultureInfo);
+         fieldOffsetY.text = detectorSettings.offSetFromDownRightEdge.y.ToString(_cultureInfo);
+         fieldDistToSample.text = detectorSettings.distToSample.ToString(_cultureInfo);
+         fieldResolutionX.text = detectorSettings.resolution.x.ToString(_cultureInfo);
+         fieldResolutionY.text = detectorSettings.resolution.y.ToString(_cultureInfo);
          
-         fieldPixelSize.text = detectorSettings.pixelSize.ToString(cultureInfo);
-         fieldOffsetX.text = detectorSettings.offSetFromDownRightEdge.x.ToString(cultureInfo);
-         fieldOffsetY.text = detectorSettings.offSetFromDownRightEdge.y.ToString(cultureInfo);
-         fieldDistToSample.text = detectorSettings.distToSample.ToString(cultureInfo);
-         fieldResolutionX.text = detectorSettings.resolution.x.ToString(cultureInfo);
-         fieldResolutionY.text = detectorSettings.resolution.y.ToString(cultureInfo);
          fieldPathAngleFile.text = detectorSettings.pathToAngleFile;
-         
-         fieldDiameter.text = sampleSettings.totalDiameter.ToString(cultureInfo);
-         fieldCellThickness.text = sampleSettings.cellThickness.ToString(cultureInfo);
-         fieldMuCell.text = sampleSettings.muCell.ToString(cultureInfo);
-         fieldMuSample.text = sampleSettings.muSample.ToString(cultureInfo);
+         fieldAngleStart.text = detectorSettings.angleStart.ToString(_cultureInfo);
+         fieldAngleEnd.text = detectorSettings.angleEnd.ToString(_cultureInfo);
+         fieldAngleSteps.text = detectorSettings.angleCount.ToString(_cultureInfo);
       }
+
+      public void UpdateSampleSettingsUI()
+      {
+         fieldDiameter.text = sampleSettings.totalDiameter.ToString(_cultureInfo);
+         fieldCellThickness.text = sampleSettings.cellThickness.ToString(_cultureInfo);
+         fieldMuCell.text = sampleSettings.muCell.ToString(_cultureInfo);
+         fieldMuSample.text = sampleSettings.muSample.ToString(_cultureInfo);
+      }
+
+      #endregion
+      
+      #region Parsing
+
+      /// <summary>
+      /// Not null, empty or whitespace.
+      /// </summary>
+      private bool IsValid(string text)
+      {
+         return !(string.IsNullOrEmpty(text) || string.IsNullOrWhiteSpace(text));
+      }
+      
+      private void ParseField(string input, ref string target)
+      {
+         if (IsValid(input))
+            target = input;
+      }
+      
+      private void ParseField(string input, ref float target)
+      {
+         if (IsValid(input)) 
+            target = float.Parse(input, _cultureInfo);
+      }
+
+      private void ParseField(string input, ref int target)
+      {
+         if (IsValid(input)) 
+            target = int.Parse(input, _cultureInfo);
+      }
+
+      #endregion
    }
 }
 

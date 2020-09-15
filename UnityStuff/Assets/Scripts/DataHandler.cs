@@ -9,15 +9,17 @@ using UnityEngine.UI;
 using Logger = util.Logger;
 
 public class DataHandler : MonoBehaviour{
-
-    //public Settings settings;
-
+    
     public SettingsFields settingsFields;
     private static string _savePath;
     public InputField loadFileName;
+    public Text status;
+    
     public Button loadButton;
     public Button saveButton;
     public Button submitButton;
+    public Button stopButton;
+    
     public ComputeShader pointModeShader;
     public ComputeShader planeModeShader;
     public ComputeShader integratedModeShader;
@@ -38,6 +40,35 @@ public class DataHandler : MonoBehaviour{
             .SetSegmentMargin(0.2f);
         
         UpdatePath();
+        Setup();
+        
+    }
+    
+    private void Setup()
+    {
+        // only enable buttons when filename is not empty.
+        // TODO: add further logic to only allow saving if input fields are non-empty and some value has changed.
+        saveButton.interactable = false;
+        loadButton.interactable = false;
+        loadFileName.onValueChanged.AddListener(str =>
+        {
+            var value = !string.IsNullOrEmpty(str);
+            saveButton.interactable = value;
+            loadButton.interactable = value;
+        });
+
+
+        stopButton.gameObject.SetActive(false);
+        // TODO: listener and multithreading.
+
+        // TODO: hide "Submit" button until all required settings for the selected mode are set.
+        // TODO: Add "default values" button to decouple default values from "Submit" button. 
+        
+        submitButton.onClick.AddListener(() =>
+        {
+            stopButton.gameObject.SetActive(true);
+            status.gameObject.SetActive(true);
+        });
     }
 
     private void UpdatePath()
@@ -49,15 +80,15 @@ public class DataHandler : MonoBehaviour{
     {
         UpdatePath();
         if (File.Exists(Path.Combine(_savePath, "Default_set.txt"))) {
-            settingsFields.FillInDefaults(
+            settingsFields.FillFromPreset(
                 JsonUtility.FromJson<Settings>(File.ReadAllText(Path.Combine(_savePath, "Default_set.txt"))));
         }
         if (File.Exists(Path.Combine(_savePath, "Default_det.txt"))) {
-            settingsFields.FillInDefaults(
+            settingsFields.FillFromPreset(
                 JsonUtility.FromJson<DetectorSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_det.txt"))));
         }
         if (File.Exists(Path.Combine(_savePath, "Default_sam.txt"))) {
-            settingsFields.FillInDefaults(
+            settingsFields.FillFromPreset(
                 JsonUtility.FromJson<SampleSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_sam.txt"))));
         }
     }
@@ -135,39 +166,51 @@ public class DataHandler : MonoBehaviour{
     }
 
     public void SaveSettings() {
-        string saveDataSet = JsonUtility.ToJson(settingsFields.settings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_set.txt"), saveDataSet);
+        string settingsJson = JsonUtility.ToJson(settingsFields.settings);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_set.txt"), settingsJson);
         
-        string saveDataDet = JsonUtility.ToJson(settingsFields.detectorSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_det.txt"), saveDataDet);
+        string detectorJson = JsonUtility.ToJson(settingsFields.detectorSettings);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_det.txt"), detectorJson);
         
-        string saveDataSam = JsonUtility.ToJson(settingsFields.sampleSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_sam.txt"), saveDataSam);
+        string sampleJson = JsonUtility.ToJson(settingsFields.sampleSettings);
+        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_sam.txt"), sampleJson);
     }
 
-    public void LoadSettings() {
-        if (File.Exists(Path.Combine(_savePath, loadFileName.text + "_set.txt"))) {
-            string loadedDataSet = File.ReadAllText(Path.Combine(_savePath, loadFileName.text + "_set.txt"));
-            settingsFields.settings = JsonUtility.FromJson<Settings>(loadedDataSet);
-            settingsFields.ModeChanged();
-            settingsFields.DataChanged();
-        }
+    public void LoadSettings()
+    {
+        var loadFileNamePrefix = loadFileName.text;
         
-        if (File.Exists(Path.Combine(_savePath, loadFileName.text + "_det.txt"))) {
-            string loadedDataDet = File.ReadAllText(Path.Combine(_savePath, loadFileName.text + "_det.txt"));
-            settingsFields.detectorSettings = JsonUtility.FromJson<DetectorSettings>(loadedDataDet);
-            settingsFields.DataChanged();
+        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_set.txt"))) {
+            string settingsJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_set.txt"));
+            settingsFields.settings = JsonUtility.FromJson<Settings>(settingsJson);
+            settingsFields.UpdateModeUI();
+            settingsFields.UpdateGeneralSettingsUI();
+            SetCurrentPresetName(loadFileName.text);
         }
 
-        if (File.Exists(Path.Combine(_savePath, loadFileName.text + "_sam.txt"))) {
-            string loadedDataSam = File.ReadAllText(Path.Combine(_savePath, loadFileName.text + "_sam.txt"));
-            settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(loadedDataSam);
-            settingsFields.DataChanged();
+        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_det.txt"))) {
+            string detectorJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_det.txt"));
+            settingsFields.detectorSettings = JsonUtility.FromJson<DetectorSettings>(detectorJson);
+            settingsFields.UpdateDetectorSettingsUI();
+            SetCurrentPresetName(loadFileName.text);
+        }
+
+        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_sam.txt"))) {
+            string sampleJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_sam.txt"));
+            settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(sampleJson);
+            settingsFields.UpdateSampleSettingsUI();
+            SetCurrentPresetName(loadFileName.text);
         }
     }
-    
-    //Daten bei Neustart handlen
-    
+
+    private void SetCurrentPresetName(string presetName)
+    {
+        //settingsFields.currentPresetName.gameObject.SetActive(true);
+        settingsFields.currentPresetName.text = presetName;
+        settingsFields.currentPresetName.fontStyle = FontStyle.Normal;
+        settingsFields.currentPresetName.color = new Color(50f/255f, 50f/255f, 50f/255f, 1);
+        settingsFields.fieldPresetName.text = presetName;
+    }
 }
 
 
