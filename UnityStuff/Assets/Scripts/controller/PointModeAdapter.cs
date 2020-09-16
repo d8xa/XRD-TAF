@@ -164,8 +164,6 @@ namespace controller
             
             _inputBuffer.SetData(coordinates);
             
-            // TODO: handle case threadGroupsX > 1024.
-
             // set buffers for g1 kernel.
             shader.SetBuffer(g1Handle, "segment", _inputBuffer);
             shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
@@ -188,7 +186,6 @@ namespace controller
 
             // for each angle:
             for (int j = 0; j < _nrAnglesTheta; j++) {
-                // TODO: check if g2 kernel can access filled distances buffer of g1 kernel.
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?

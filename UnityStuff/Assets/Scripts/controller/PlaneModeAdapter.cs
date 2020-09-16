@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -74,7 +73,7 @@ namespace controller
             //_diffractionMask = new Vector3Int[Coordinates.Length];
             ComputeIndicatorMask();
             
-            // TODO: fix count
+            // TODO: validate count
             // count diffracting points in each case.
             var mask = new Vector2Int[_nrSegments];
             _maskBuffer.GetData(mask);

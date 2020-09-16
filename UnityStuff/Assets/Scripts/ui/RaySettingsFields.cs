@@ -4,6 +4,6 @@ namespace ui
 {
     public class RaySettingsFields : MonoBehaviour
     {
-        //TODO
+        // TODO
     }
 }

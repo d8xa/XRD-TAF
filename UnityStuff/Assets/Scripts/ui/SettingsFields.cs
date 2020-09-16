@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using model;
 using UnityEngine;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 namespace ui
@@ -15,16 +14,16 @@ namespace ui
 
       private static int _namelessNumber;
       public Text currentPresetName;
-      [FormerlySerializedAs("fieldDescriptor")] public InputField fieldPresetName;
+      public InputField fieldPresetName;
       public Dropdown dropdownMode;
 
       public Dropdown absType;
-      [FormerlySerializedAs("fieldAccuracy")] public InputField fieldGridResolution;
+      public InputField fieldGridResolution;
    
       public InputField fieldPixelSize;
       public InputField fieldResolutionX;
       public InputField fieldResolutionY;
-      [FormerlySerializedAs("fieldDstToSample")] public InputField fieldDistToSample;
+      public InputField fieldDistToSample;
       public InputField fieldOffsetX;
       public InputField fieldOffsetY;
       public InputField fieldPathAngleFile;
@@ -41,7 +40,7 @@ namespace ui
    
       public Settings settings;
       public SampleSettings sampleSettings;
-      [FormerlySerializedAs("detektorSettings")] public DetectorSettings detectorSettings;
+      public DetectorSettings detectorSettings;
       public RaySettings raySettings;
 
       // for component-wise / group-wise selection of input fields.
@@ -76,13 +75,12 @@ namespace ui
          fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pixelSize));
          fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.distToSample));
          
-         // TODO: check if ref of Vector component works. 
          fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.x));
          fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.y));
 
          void SetComponent(string text, ref Vector2Int variable, int position)
          {
-            if (IsValid(text)) variable[position] = int.Parse(text, _cultureInfo);
+            if (IsValue(text)) variable[position] = int.Parse(text, _cultureInfo);
          }
 
          fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 0));
@@ -116,35 +114,35 @@ namespace ui
 
       public void FillFromPreset(Settings preset)
       {
-         if (!IsValid(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
-         if (IsValid(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
+         if (!IsValue(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
+         if (IsValue(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
          
          UpdateGeneralSettingsUI();
       }
    
       public void FillFromPreset(DetectorSettings preset)
       {
-         if (!IsValid(fieldOffsetX.text)) 
+         if (!IsValue(fieldOffsetX.text)) 
             detectorSettings.offSetFromDownRightEdge.x = preset.offSetFromDownRightEdge.x;
-         if (!IsValid(fieldOffsetY.text)) 
+         if (!IsValue(fieldOffsetY.text)) 
             detectorSettings.offSetFromDownRightEdge.y = preset.offSetFromDownRightEdge.y;
-         if (!IsValid(fieldPixelSize.text)) detectorSettings.pixelSize = preset.pixelSize;
-         if (!IsValid(fieldResolutionX.text)) detectorSettings.resolution.x = preset.resolution.x;
-         if (!IsValid(fieldResolutionY.text)) detectorSettings.resolution = preset.resolution;
-         if (!IsValid(fieldDistToSample.text)) detectorSettings.distToSample = preset.distToSample;
-         if (!IsValid(fieldAngleStart.text)) detectorSettings.angleStart = preset.angleStart;
-         if (!IsValid(fieldAngleEnd.text)) detectorSettings.angleEnd = preset.angleEnd;
-         if (!IsValid(fieldAngleSteps.text)) detectorSettings.angleCount = preset.angleCount;
+         if (!IsValue(fieldPixelSize.text)) detectorSettings.pixelSize = preset.pixelSize;
+         if (!IsValue(fieldResolutionX.text)) detectorSettings.resolution.x = preset.resolution.x;
+         if (!IsValue(fieldResolutionY.text)) detectorSettings.resolution = preset.resolution;
+         if (!IsValue(fieldDistToSample.text)) detectorSettings.distToSample = preset.distToSample;
+         if (!IsValue(fieldAngleStart.text)) detectorSettings.angleStart = preset.angleStart;
+         if (!IsValue(fieldAngleEnd.text)) detectorSettings.angleEnd = preset.angleEnd;
+         if (!IsValue(fieldAngleSteps.text)) detectorSettings.angleCount = preset.angleCount;
 
          UpdateDetectorSettingsUI();
       }
    
       public void FillFromPreset(SampleSettings preset)
       {
-         if (!IsValid(fieldDiameter.text)) sampleSettings.totalDiameter = preset.totalDiameter;
-         if (!IsValid(fieldCellThickness.text)) sampleSettings.cellThickness = preset.cellThickness;
-         if (!IsValid(fieldMuCell.text)) sampleSettings.muCell = preset.muCell;
-         if (!IsValid(fieldMuSample.text)) sampleSettings.muSample = preset.muSample;
+         if (!IsValue(fieldDiameter.text)) sampleSettings.totalDiameter = preset.totalDiameter;
+         if (!IsValue(fieldCellThickness.text)) sampleSettings.cellThickness = preset.cellThickness;
+         if (!IsValue(fieldMuCell.text)) sampleSettings.muCell = preset.muCell;
+         if (!IsValue(fieldMuSample.text)) sampleSettings.muSample = preset.muSample;
          
          UpdateSampleSettingsUI();
       }
@@ -247,26 +245,26 @@ namespace ui
       /// <summary>
       /// Not null, empty or whitespace.
       /// </summary>
-      private bool IsValid(string text)
+      private bool IsValue(string text)
       {
          return !(string.IsNullOrEmpty(text) || string.IsNullOrWhiteSpace(text));
       }
       
       private void ParseField(string input, ref string target)
       {
-         if (IsValid(input))
+         if (IsValue(input))
             target = input;
       }
       
       private void ParseField(string input, ref float target)
       {
-         if (IsValid(input)) 
+         if (IsValue(input)) 
             target = float.Parse(input, _cultureInfo);
       }
 
       private void ParseField(string input, ref int target)
       {
-         if (IsValid(input)) 
+         if (IsValue(input)) 
             target = int.Parse(input, _cultureInfo);
       }
 

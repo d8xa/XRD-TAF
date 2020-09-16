@@ -1,10 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using controller;
 using model;
 using ui;
-using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Logger = util.Logger;
 
@@ -24,8 +23,7 @@ public class DataHandler : MonoBehaviour{
     public ComputeShader planeModeShader;
     public ComputeShader integratedModeShader;
 
-    [FormerlySerializedAs("logicHandler")] 
-    public ShaderAdapter shaderAdapter;
+    private ShaderAdapter _shaderAdapter;
 
     private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
 
@@ -153,7 +151,7 @@ public class DataHandler : MonoBehaviour{
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect});
         
-        shaderAdapter = _builder
+        _shaderAdapter = _builder
             .SetLogger(logger)
             .SetMode(settingsFields.settings.mode)
             .SetModel(settingsFields.MakeModel())
@@ -161,7 +159,7 @@ public class DataHandler : MonoBehaviour{
             //.WriteFactors()
             .Build();
             
-        shaderAdapter.Execute();
+        _shaderAdapter.Execute();
         //*/
     }
 

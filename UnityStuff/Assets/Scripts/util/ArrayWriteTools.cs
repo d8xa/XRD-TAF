@@ -11,9 +11,9 @@ namespace util
         // TODO: handle empty headCol and headRow.
         public static void Write2D(string path, string[] headCol, string headRow, float[,] data, string sep="\t")
         {
-            using (FileStream fileStream = File.Create(path))
-            using (BufferedStream buffered = new BufferedStream(fileStream))
-            using (StreamWriter writer = new StreamWriter(buffered))
+            using (var fileStream = File.Create(path))
+            using (var buffered = new BufferedStream(fileStream))
+            using (var writer = new StreamWriter(buffered))
             {
                 if (headRow != null) writer.WriteLine(headRow);
                 for (int i = 0; i < data.GetLength(0); i++)
@@ -40,9 +40,9 @@ namespace util
         
         public static void Write2D(string path, string[] headCol, string headRow, Vector3[,] data, string sep="\t")
         {
-            using (FileStream fileStream = File.Create(path))
-            using (BufferedStream buffered = new BufferedStream(fileStream))
-            using (StreamWriter writer = new StreamWriter(buffered))
+            using (var fileStream = File.Create(path))
+            using (var buffered = new BufferedStream(fileStream))
+            using (var writer = new StreamWriter(buffered))
             {
                 if (headRow != null) writer.WriteLine(headRow);
                 for (int i = 0; i < data.GetLength(0); i++)
@@ -56,7 +56,7 @@ namespace util
                                 data[i,j].x.ToString("G", CultureInfo.InvariantCulture), 
                                 data[i,j].y.ToString("G", CultureInfo.InvariantCulture), 
                                 data[i,j].z.ToString("G", CultureInfo.InvariantCulture)
-                                ))
+                            ))
                             .Append(")");
                         if (j < data.GetLength(1) - 1)
                             sb.Append(sep);
@@ -70,9 +70,9 @@ namespace util
         public static void Write2D(string path, string[] headCol, string headRow, Vector2[,] data, string sep="\t")
         {
             // TODO: create if not exists.
-            using (FileStream fileStream = File.Create(path))
-            using (BufferedStream buffered = new BufferedStream(fileStream))
-            using (StreamWriter writer = new StreamWriter(buffered))
+            using (var fileStream = File.Create(path))
+            using (var buffered = new BufferedStream(fileStream))
+            using (var writer = new StreamWriter(buffered))
             {
                 if (headRow != null) writer.WriteLine(headRow);
                 for (int i = 0; i < data.GetLength(0); i++)
@@ -82,14 +82,15 @@ namespace util
                     {
                         if (headCol != null) sb.Append(headCol[i]);
                         sb.Append("(")
-                            .Append(string.Join(", ", 
-                                data[i,j].x.ToString("G", CultureInfo.InvariantCulture), 
-                                data[i,j].y.ToString("G", CultureInfo.InvariantCulture)
-                                ))
+                            .Append(string.Join(", ",
+                                data[i, j].x.ToString("G", CultureInfo.InvariantCulture),
+                                data[i, j].y.ToString("G", CultureInfo.InvariantCulture)
+                            ))
                             .Append(")");
                         if (j < data.GetLength(1) - 1)
                             sb.Append(sep);
                     }
+
                     writer.WriteLine(sb.ToString());
                     sb.Clear();
                 }

@@ -10,8 +10,8 @@ float r_sample;     // inner radius
 float r_cell_sq;    // outer radius squared
 float r_sample_sq;  // inner radius squared
 
-float cos;          // cos(180-2*theta)
-float sin;          // sin(180-2*theta)
+float rotCos;          // cos(180-2*theta)
+float rotSin;          // sin(180-2*theta)
 float2 mu;          // absorption factors in cell, sample.
 float vCos;         // vertical cosine.
 
