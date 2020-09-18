@@ -115,7 +115,7 @@ namespace ui
       public void FillFromPreset(Settings preset)
       {
          if (!IsValue(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
-         if (IsValue(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
+         if (!IsValue(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
          
          UpdateGeneralSettingsUI();
       }
@@ -271,4 +271,3 @@ namespace ui
       #endregion
    }
 }
-

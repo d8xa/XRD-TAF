@@ -193,8 +193,8 @@ namespace controller
                     var vCos = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
                     
                     // set rotation parameters.
-                    shader.SetFloat("cos", (float) Math.Cos(Math.PI - tau));
-                    shader.SetFloat("sin", (float) Math.Sin(Math.PI - tau));
+                    shader.SetFloat("rotCos", (float) Math.Cos(Math.PI - tau));
+                    shader.SetFloat("rotSin", (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
                     logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -330,7 +330,7 @@ namespace controller
             var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
     
             // ratio of distance to 2D projection of ray from sample center to rotated point.
-            var vCos = tauHypotLength / hypotLength;
+            var vCos = hypotLength / tauHypotLength;
                 if (Math.Abs(tauVerticalOffset) < 1E-5) vCos = 1;    // experimental
     
             LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
