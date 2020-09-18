@@ -241,7 +241,7 @@ namespace controller
             var saveDir = Path.Combine("Logs", "Absorptions3D");
             Directory.CreateDirectory(saveDir);
             var saveName = $"Output res={segmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors);
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors, reverse: true);
         }
 
         protected override void Cleanup()
