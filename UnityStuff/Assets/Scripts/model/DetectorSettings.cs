@@ -1,22 +1,21 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 using util;
 
 namespace model
 {
     [Serializable]
     public class DetectorSettings {
-        [FormerlySerializedAs("pixelsize")] public float pixelSize;
+        public float pixelSize;
         public Vector2Int resolution;
         public Vector2 offSetFromDownRightEdge;
-        [FormerlySerializedAs("dstToSample")] public float distToSample;
+        public float distToSample;
         
         // TODO: create new settings class for these parameters.
         public string pathToAngleFile = "";
         public float angleStart;
         public float angleEnd;
-        [FormerlySerializedAs("angleAmount")] public int angleCount;
+        public int angleCount;
         
         public override string ToString()
         {
