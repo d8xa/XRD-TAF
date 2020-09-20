@@ -8,6 +8,7 @@ namespace model
         public float cellThickness;
         public float muSample;
         public float muCell;
+        public float gridResolution;
 
         private float probeDiameterNormalized;
         private float cellThicknessNormalized;

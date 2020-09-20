@@ -87,7 +87,7 @@ namespace ui
          fieldResolutionY.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 1));
 
          // Sample parameters
-         fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref settings.gridResolution));
+         fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.gridResolution));
          fieldDiameter.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.totalDiameter));
          fieldCellThickness.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.cellThickness));
          fieldMuCell.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.muCell));
@@ -115,7 +115,6 @@ namespace ui
       public void FillFromPreset(Settings preset)
       {
          if (!IsValue(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
-         if (!IsValue(fieldGridResolution.text)) settings.gridResolution = preset.gridResolution;
          
          UpdateGeneralSettingsUI();
       }
@@ -139,6 +138,7 @@ namespace ui
    
       public void FillFromPreset(SampleSettings preset)
       {
+         if (!IsValue(fieldGridResolution.text)) sampleSettings.gridResolution = preset.gridResolution;
          if (!IsValue(fieldDiameter.text)) sampleSettings.totalDiameter = preset.totalDiameter;
          if (!IsValue(fieldCellThickness.text)) sampleSettings.cellThickness = preset.cellThickness;
          if (!IsValue(fieldMuCell.text)) sampleSettings.muCell = preset.muCell;
@@ -207,7 +207,6 @@ namespace ui
       public void UpdateGeneralSettingsUI()
       {
          fieldPresetName.text = settings.saveName;
-         fieldGridResolution.text = settings.gridResolution.ToString(_cultureInfo);
       }
 
       public void UpdateIntegrationSettingsUI()
@@ -232,6 +231,7 @@ namespace ui
 
       public void UpdateSampleSettingsUI()
       {
+         fieldGridResolution.text = sampleSettings.gridResolution.ToString(_cultureInfo);
          fieldDiameter.text = sampleSettings.totalDiameter.ToString(_cultureInfo);
          fieldCellThickness.text = sampleSettings.cellThickness.ToString(_cultureInfo);
          fieldMuCell.text = sampleSettings.muCell.ToString(_cultureInfo);

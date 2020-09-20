@@ -42,7 +42,7 @@ namespace model
         private void GatherMetaData()
         {
             // set case-shared variables:
-            _segmentResolution = (int) settings.gridResolution;
+            _segmentResolution = (int) _sample.gridResolution;
             _rSample = _sample.totalDiameter / 2 - _sample.cellThickness;
             _rSampleSq = (float) Math.Pow(_rSample, 2);
             _rCell = _sample.totalDiameter / 2;

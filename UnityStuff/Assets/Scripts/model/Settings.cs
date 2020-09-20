@@ -10,7 +10,6 @@ namespace model
         public Model.Mode mode;
         public Model.AbsorptionType absType;
         public string pathToInputData;
-        public float gridResolution;
 
         public override string ToString()
         {
