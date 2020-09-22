@@ -11,7 +11,7 @@ using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Logger = util.Logger;
 
-namespace controller
+namespace adapter
 {
     public class PointModeAdapter : ShaderAdapter
     {
@@ -20,6 +20,8 @@ namespace controller
         private Vector3[] _absorptionFactors;
         private int _nrSegments;
         private int _nrAnglesTheta;
+
+        private float[] angles;
         
         // Mask of diffraction points
         private Vector2Int[] _diffractionMask;
@@ -33,30 +35,16 @@ namespace controller
 
         #region Constructors
 
-        public PointModeAdapter(
-            ComputeShader shader,
-            Model model,
-            float margin,
-            bool writeFactorsFlag
-        ) : base(shader, model, margin, writeFactorsFlag)
+        public PointModeAdapter(ComputeShader shader, Properties properties, bool writeFactors, Logger customLogger) 
+            : base(shader, properties, writeFactors, customLogger)
         {
-            SetLogger(new NullLogger());
+            SetLogger(customLogger);
             logger.SetPrintFilter(new List<Logger.EventType>()
             {
                 Logger.EventType.Performance,
                 Logger.EventType.Class,
                 Logger.EventType.InitializerMethod
             });
-            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
-            InitializeOtherFields();
-        }
-
-        public PointModeAdapter(
-            ComputeShader shader, 
-            Model model
-        ) : base(shader, model)
-        {
-            SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
@@ -69,8 +57,12 @@ namespace controller
         {
             logger.SetPrintLevel(Logger.LogLevel.All);
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = model.GetAngles().Length;
-            _nrSegments = segmentResolution * segmentResolution;
+            
+            angles = Parser.ImportAngles(
+                Path.Combine(Application.dataPath, "Input", properties.angle.pathToAngleFile + ".txt"));
+
+            _nrAnglesTheta = angles.Length;
+            _nrSegments = sampleResolution * sampleResolution;
             
             // initialize absorption array. dim n: (#thetas).
             _absorptionFactors = new Vector3[_nrAnglesTheta];
@@ -99,8 +91,8 @@ namespace controller
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
             shader.SetInts("indicatorCount", 0, 0, 0);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
@@ -140,11 +132,11 @@ namespace controller
 
             // initialize parameters in shader.
             // necessary here already?
-            shader.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
-            shader.SetFloat("r_cell_sq", model.GetRCellSq());
-            shader.SetFloat("r_sample_sq", model.GetRSampleSq());
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
@@ -189,8 +181,8 @@ namespace controller
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                shader.SetFloat("cos", (float) Math.Cos((180 - model.GetAngles()[j]) * Math.PI / 180));
-                shader.SetFloat("sin", (float) Math.Sin((180 - model.GetAngles()[j]) * Math.PI / 180));
+                shader.SetFloat("cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
@@ -229,7 +221,7 @@ namespace controller
         
         protected override void Write()
         {
-            if (writeFactorsFlag) WriteAbsorptionFactors();
+            if (writeFactors) WriteAbsorptionFactors();
         }
 
         #endregion
@@ -247,9 +239,9 @@ namespace controller
 
         private void WriteAbsorptionFactors()
         {
-            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt");
+            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={sampleResolution}.txt");
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = model.GetAngles()
+            var headCol = angles
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -268,7 +260,7 @@ namespace controller
         {
             logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): started.");
 
-            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={segmentResolution}.txt")))
+            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={sampleResolution}.txt")))
             using (BufferedStream buffered = new BufferedStream(fileStream))
             using (StreamWriter writer = new StreamWriter(buffered))
             {
@@ -276,7 +268,7 @@ namespace controller
                 for (int i = 0; i < _nrAnglesTheta; i++)
                 {
                     writer.WriteLine(string.Join("\t", 
-                        model.GetAngles()[i].ToString("G", CultureInfo.InvariantCulture),
+                        GetThetaAt(i).ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
                         _absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));
@@ -284,6 +276,11 @@ namespace controller
             }
             
             logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): done.");
+        }
+        
+        private double GetThetaAt(int index)
+        {
+            return MathTools.AsRadian(Math.Abs(angles[index]));
         }
 
         #endregion

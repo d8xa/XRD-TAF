@@ -13,25 +13,30 @@ namespace util
         #region Base methods
 
         // TODO: handle empty headCol and headRow.
-        public static void Write2D(string path, string[] headCol, string headRow, float[,] data, string sep="\t")
+        public static void Write2D(string path, string[] headCol, string headRow, float[,] data, 
+            string sep="\t", bool reverse = false)
         {
+            bool StrictCompare(int a, int b) => reverse ? a >= b : a < b;
+            var iBounds = reverse ? new Vector2Int(data.GetLength(0) - 1, 0) : new Vector2Int(0, data.GetLength(0));
+            var jBounds = reverse ? new Vector2Int(data.GetLength(1) - 1, 0) : new Vector2Int(0, data.GetLength(1));
+            var increment = reverse ? -1 : 1;
+
             using (var fileStream = File.Create(path))
             using (var buffered = new BufferedStream(fileStream))
             using (var writer = new StreamWriter(buffered))
             {
                 if (headRow != null) writer.WriteLine(headRow);
-                for (int i = 0; i < data.GetLength(0); i++)
+                for (var i = iBounds.x; StrictCompare(i,iBounds.y); i += increment)
                 {
                     var sb = new StringBuilder();
-                    if (headCol != null) sb.Append(headCol[i]).Append(sep);
-                    for (var j = 0; j < data.GetLength(1); j++)
+                    for (var j = jBounds.x; StrictCompare(j, jBounds.y); j += increment)
                     {
-                        sb.Append(data[i,j].ToString("G", CultureInfo.InvariantCulture));
-                        if (j < data.GetLength(1) - 1)
+                        if (headCol != null) sb.Append(headCol[i]);
+                        sb.Append(data[i, j].ToString("G", CultureInfo.InvariantCulture));
+                        if (StrictCompare(j, jBounds.y - increment))
                             sb.Append(sep);
                     }
                     writer.WriteLine(sb.ToString());
-                    //sb.Clear();
                 }
             }
         }
@@ -48,7 +53,6 @@ namespace util
             using (var buffered = new BufferedStream(fileStream))
             using (var writer = new StreamWriter(buffered))
             {
-
                 if (headRow != null) writer.WriteLine(headRow);
                 for (var i = iBounds.x; StrictCompare(i,iBounds.y); i += increment)
                 {
@@ -66,9 +70,7 @@ namespace util
                         if (StrictCompare(j, jBounds.y - increment))
                             sb.Append(sep);
                     }
-
                     writer.WriteLine(sb.ToString());
-                    //sb.Clear();
                 }
             }
         }
@@ -104,7 +106,6 @@ namespace util
                     }
 
                     writer.WriteLine(sb.ToString());
-                    //sb.Clear();
                 }
             }
         }
@@ -113,9 +114,9 @@ namespace util
 
         #region Caller methods
 
-        public static void Write2D(string path, float[,] data, string sep="\t")
+        public static void Write2D(string path, float[,] data, string sep="\t", bool reverse = false)
         {
-            Write2D(path, null, null, data, sep);
+            Write2D(path, null, null, data, sep, reverse);
         }
         
         public static void Write2D(string path, Vector3[,] data, string sep = "\t", bool reverse = false)

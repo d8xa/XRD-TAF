@@ -1,8 +1,9 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-using controller;
+using adapter;
 using model;
+using model.properties;
 using ui;
 using UnityEngine.UI;
 using Logger = util.Logger;
@@ -10,7 +11,7 @@ using Logger = util.Logger;
 public class DataHandler : MonoBehaviour{
     
     public SettingsFields settingsFields;
-    private static string _savePath;
+    private static string _saveDir;
     public InputField loadFileName;
     public Text status;
     
@@ -28,18 +29,15 @@ public class DataHandler : MonoBehaviour{
     private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
 
     private void Awake() {
-        //QualitySettings.vSyncCount = 0;
-        //Application.targetFrameRate = 30;
-        
         _builder
-            .AddShader(Model.Mode.Point, pointModeShader)
-            .AddShader(Model.Mode.Area, planeModeShader)
-            .AddShader(Model.Mode.Integrated, integratedModeShader)
-            .SetSegmentMargin(0.2f);
+            .AddShader(AbsorptionProperties.Mode.Point, pointModeShader)
+            .AddShader(AbsorptionProperties.Mode.Area, planeModeShader)
+            .AddShader(AbsorptionProperties.Mode.Integrated, integratedModeShader)
+            .SetSegmentMargin(Settings.defaults.sampleAreaMarginDefault);
+            // TODO: calculate best/minimum margin for segment resolution later. 
         
-        UpdatePath();
+        UpdateSaveDir();
         Setup();
-        
     }
     
     private void Setup()
@@ -64,152 +62,79 @@ public class DataHandler : MonoBehaviour{
         
         submitButton.onClick.AddListener(() =>
         {
-            stopButton.gameObject.SetActive(true);
-            status.gameObject.SetActive(true);
+            //stopButton.gameObject.SetActive(true);
+            //status.gameObject.SetActive(true);
         });
     }
 
-    private void UpdatePath()
+    private void UpdateSaveDir()
     {
-        _savePath = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
+        _saveDir = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
     private void FillInBlanks()
     {
-        UpdatePath();
-        if (File.Exists(Path.Combine(_savePath, "Default_set.txt"))) {
-            settingsFields.FillFromPreset(
-                JsonUtility.FromJson<Settings>(File.ReadAllText(Path.Combine(_savePath, "Default_set.txt"))));
-        }
-        if (File.Exists(Path.Combine(_savePath, "Default_det.txt"))) {
-            settingsFields.FillFromPreset(
-                JsonUtility.FromJson<DetectorSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_det.txt"))));
-        }
-        if (File.Exists(Path.Combine(_savePath, "Default_sam.txt"))) {
-            settingsFields.FillFromPreset(
-                JsonUtility.FromJson<SampleSettings>(File.ReadAllText(Path.Combine(_savePath, "Default_sam.txt"))));
+        UpdateSaveDir();
+        var filePath = Path.Combine(_saveDir, "Default.json");
+        if (File.Exists(filePath))
+        {
+            var presetJson = File.ReadAllText(filePath);
+            var preset = JsonUtility.FromJson<Preset>(presetJson);
+            settingsFields.FillFromPreset(preset);
         }
     }
 
     public void SubmitToComputing()
     {
         FillInBlanks();
-        
-        /*
-        var alphaRatios = Enumerable.Range(0, settingsFields.detektorSettings.resolution.y)
-            .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, true))
-            .Select(v => v.ToString("G"))
-            .ToArray();
-        var thetaAngles = Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
-            .Reverse()
-            .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
-            .Select(v => Math.Acos(1.0/v) * 180.0 / Math.PI)
-            .Select(v => v.ToString("G"))
-            .ToArray();
-        
-        var saveDir = Path.Combine("Logs", "Absorptions3D", "Data");
-        Directory.CreateDirectory(saveDir);
-
-        var saveName = $"Ratios m={settingsFields.detektorSettings.resolution.y}.txt";
-        File.WriteAllLines(Path.Combine(saveDir, saveName), alphaRatios);
-        
-        saveName = $"Angles n={settingsFields.detektorSettings.resolution.x}.txt";
-        File.WriteAllLines(Path.Combine(saveDir, saveName), thetaAngles);
-        
-        */
-        /*
-        Debug.Log("Alpha ratios: " + 
-                  string.Join(", ", 
-            Enumerable.Range(0, settingsFields.detektorSettings.resolution.y)
-                .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, true))
-                .Select(v => v.ToString("F5"))
-                .ToArray()
-        ));
-        
-        Debug.Log("Theta angles from ratios: " + 
-                  string.Join(", ", 
-            Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
-                .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
-                .Select(v => Math.Acos(1/v) * 180.0 / Math.PI)
-                .Select(v => v.ToString("F5"))
-                .ToArray()
-        ));
-        
-        Debug.Log("Theta angles native: " + 
-                  string.Join(", ", 
-                      Enumerable.Range(0, settingsFields.detektorSettings.resolution.x)
-                          .Select(j => settingsFields.detektorSettings.GetRatioFromOffset(j, false))
-                          .Select(ratio => settingsFields.detektorSettings.GetAngleFromRatio(ratio))
-                          .Select(v => v.ToString("F5"))
-                          .ToArray()
-                  ));
-        */
-
-        ///*
 
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
-            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect});
+            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
         
         _shaderAdapter = _builder
             .SetLogger(logger)
-            .SetMode(settingsFields.settings.mode)
-            .SetModel(settingsFields.MakeModel())
+            .SetWriteFactors(Settings.flags.writeFactors)
+            .SetProperties(settingsFields.preset)
             .AutoSetShader()
-            //.WriteFactors()
             .Build();
-            
+        
+        _shaderAdapter.SetStatus(ref status);
+
         _shaderAdapter.Execute();
-        //*/
     }
 
-    public void SaveSettings() {
-        string settingsJson = JsonUtility.ToJson(settingsFields.settings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_set.txt"), settingsJson);
-        
-        string detectorJson = JsonUtility.ToJson(settingsFields.detectorSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_det.txt"), detectorJson);
-        
-        string sampleJson = JsonUtility.ToJson(settingsFields.sampleSettings);
-        File.WriteAllText(Path.Combine(_savePath, settingsFields.settings.saveName + "_sam.txt"), sampleJson);
+    public void SavePreset()
+    {
+        var presetJson = JsonUtility.ToJson(settingsFields.preset);
+        File.WriteAllText(Path.Combine(_saveDir, settingsFields.preset.metadata.saveName + ".json"), presetJson);
     }
 
-    public void LoadSettings()
+    public void LoadPreset()
     {
         var loadFileNamePrefix = loadFileName.text;
-        
-        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_set.txt"))) {
-            string settingsJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_set.txt"));
-            settingsFields.settings = JsonUtility.FromJson<Settings>(settingsJson);
-            settingsFields.UpdateModeUI();
-            settingsFields.UpdateGeneralSettingsUI();
-            SetCurrentPresetName(loadFileName.text);
-        }
+        var loadFilePath = Path.Combine(_saveDir, loadFileNamePrefix + ".json");
 
-        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_det.txt"))) {
-            string detectorJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_det.txt"));
-            settingsFields.detectorSettings = JsonUtility.FromJson<DetectorSettings>(detectorJson);
-            settingsFields.UpdateDetectorSettingsUI();
-            SetCurrentPresetName(loadFileName.text);
-        }
-
-        if (File.Exists(Path.Combine(_savePath, loadFileNamePrefix + "_sam.txt"))) {
-            string sampleJson = File.ReadAllText(Path.Combine(_savePath, loadFileNamePrefix + "_sam.txt"));
-            settingsFields.sampleSettings = JsonUtility.FromJson<SampleSettings>(sampleJson);
-            settingsFields.UpdateSampleSettingsUI();
-            SetCurrentPresetName(loadFileName.text);
+        if (File.Exists(loadFilePath))
+        {
+            var presetJson = File.ReadAllText(loadFilePath);
+            settingsFields.preset = JsonUtility.FromJson<Preset>(presetJson);
+            settingsFields.selectedPreset = settingsFields.preset;
+            settingsFields.UpdateAllUI();
+            SetCurrentPresetName(loadFileNamePrefix);
         }
     }
 
     private void SetCurrentPresetName(string presetName)
     {
-        //settingsFields.currentPresetName.gameObject.SetActive(true);
         settingsFields.currentPresetName.text = presetName;
         settingsFields.currentPresetName.fontStyle = FontStyle.Normal;
         settingsFields.currentPresetName.color = new Color(50f/255f, 50f/255f, 50f/255f, 1);
         settingsFields.fieldPresetName.text = presetName;
     }
+    
+    public void SetStatusMessage(string message)
+    {
+        status.text = message;
+    }
 }
-
-
-

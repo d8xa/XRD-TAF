@@ -2,20 +2,14 @@
 using UnityEngine;
 using util;
 
-namespace model
+namespace model.properties
 {
     [Serializable]
-    public class DetectorSettings {
+    public class DetectorProperties {
         public float pixelSize;
         public Vector2Int resolution;
-        public Vector2 offSetFromDownRightEdge;
+        public Vector2 offSetFromBottomRight;
         public float distToSample;
-        
-        // TODO: create new settings class for these parameters.
-        public string pathToAngleFile = "";
-        public float angleStart;
-        public float angleEnd;
-        public int angleCount;
         
         public override string ToString()
         {
@@ -25,7 +19,7 @@ namespace model
         public double GetRatioFromOffset(int pixelIndex, bool vertical)
         {
             return Math.Sqrt(
-                Math.Pow(pixelIndex*pixelSize-offSetFromDownRightEdge[vertical ? 1 : 0], 2) + 
+                Math.Pow(pixelIndex*pixelSize-offSetFromBottomRight[vertical ? 1 : 0], 2) + 
                 Math.Pow(distToSample, 2)
             ) / distToSample;
         }

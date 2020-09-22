@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace model
+namespace model.structs
 {
     public readonly struct Rotation
     {
@@ -14,8 +14,8 @@ namespace model
             _sin = sin;
         }
 
-        public double GetCos() => _cos;
-        public double GetSin() => _sin;
+        public double cos => _cos;
+        public double sin => _sin;
 
         public Vector2 Apply(Vector2 point, Vector2 pivot)
         {

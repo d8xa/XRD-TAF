@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using model;
+using model.properties;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -37,24 +38,23 @@ namespace ui
       public InputField fieldAngleEnd;
       public InputField fieldAngleSteps;
 
-   
-      public Settings settings;
-      public SampleSettings sampleSettings;
-      public DetectorSettings detectorSettings;
-      public RaySettings raySettings;
+      public Preset selectedPreset;    // use if a saved preset was selected (incl. default).
+      internal Preset preset;     // use for current state of properties.
+      private bool presetHasChanged;
 
-      // for component-wise / group-wise selection of input fields.
+      // for component-wise / group-wise selection of case-specific input fields.
       public GameObject inputGroupDetector;
       public GameObject inputGroupAngle;
       public GameObject inputGroupIntegrated;
-      
-      private readonly Dictionary<int, Model.Mode> _dropdownMap = new Dictionary<int, Model.Mode>
-      {
-         {0, Model.Mode.Point},
-         {1, Model.Mode.Area},
-         {2, Model.Mode.Integrated},
-         {3, Model.Mode.Testing},
-      };
+
+      private readonly Dictionary<int, AbsorptionProperties.Mode> _dropdownMap =
+         new Dictionary<int, AbsorptionProperties.Mode>
+         {
+            {0, AbsorptionProperties.Mode.Point},
+            {1, AbsorptionProperties.Mode.Area},
+            {2, AbsorptionProperties.Mode.Integrated},
+            {3, AbsorptionProperties.Mode.Testing}
+         };
 
       private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
 
@@ -69,35 +69,35 @@ namespace ui
       private void SetListeners()
       {
          // metadata
-         fieldPresetName.onEndEdit.AddListener(text => ParseField(text, ref settings.saveName));
+         fieldPresetName.onEndEdit.AddListener(text => ParseField(text, ref preset.metadata.saveName));
          
          // Detector parameters
-         fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pixelSize));
-         fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.distToSample));
-         
-         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.x));
-         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.y));
+         fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.pixelSize));
+         fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.distToSample));
+
+         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offSetFromBottomRight.x));
+         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offSetFromBottomRight.y));
 
          void SetComponent(string text, ref Vector2Int variable, int position)
          {
             if (IsValue(text)) variable[position] = int.Parse(text, _cultureInfo);
          }
 
-         fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 0));
-         fieldResolutionY.onEndEdit.AddListener(text => SetComponent(text, ref detectorSettings.resolution, 1));
+         fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.resolution, 0));
+         fieldResolutionY.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.resolution, 1));
 
          // Sample parameters
-         fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.gridResolution));
-         fieldDiameter.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.totalDiameter));
-         fieldCellThickness.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.cellThickness));
-         fieldMuCell.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.muCell));
-         fieldMuSample.onEndEdit.AddListener(text => ParseField(text, ref sampleSettings.muSample));
+         fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.gridResolution));
+         fieldDiameter.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.totalDiameter));
+         fieldCellThickness.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.cellThickness));
+         fieldMuCell.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.muCell));
+         fieldMuSample.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.muSample));
 
          // Angle parameters
-         fieldPathAngleFile.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pathToAngleFile));
-         fieldAngleStart.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleStart));
-         fieldAngleEnd.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleEnd));
-         fieldAngleSteps.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.angleCount));
+         fieldPathAngleFile.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.pathToAngleFile));
+         fieldAngleStart.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleStart));
+         fieldAngleEnd.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleEnd));
+         fieldAngleSteps.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleCount));
       }
 
       private void SetAllInputGroups(bool value)
@@ -106,60 +106,81 @@ namespace ui
          inputGroupDetector.gameObject.SetActive(value);
          inputGroupIntegrated.gameObject.SetActive(value);
       }
+      
 
-      public Model MakeModel()
+      #region Load methods
+
+      public void FillFromPreset(Preset source)
       {
-         return new Model(settings, detectorSettings, sampleSettings);
+         FillFromPreset(source.metadata);
+         FillFromPreset(source.properties.absorption);
+         FillFromPreset(source.properties.angle);
+         FillFromPreset(source.properties.detector);
+         FillFromPreset(source.properties.ray);
+         FillFromPreset(source.properties.sample);
       }
 
-      public void FillFromPreset(Settings preset)
+      private void FillFromPreset(Metadata source)
       {
-         if (!IsValue(fieldPresetName.text)) settings.saveName = "Default_" + _namelessNumber++;
+         if (!IsValue(fieldPresetName.text)) preset.metadata.saveName = "Default_" + _namelessNumber++;
          
-         UpdateGeneralSettingsUI();
+         RefreshMetadataUI();
       }
-   
-      public void FillFromPreset(DetectorSettings preset)
+
+      private void FillFromPreset(AbsorptionProperties source)
+      {
+         throw new NotImplementedException();
+         RefreshAbsorptionPropertiesUI();
+      }
+
+      private void FillFromPreset(AngleProperties source)
+      {
+         if (!IsValue(fieldAngleStart.text)) preset.properties.angle.angleStart = source.angleStart;
+         if (!IsValue(fieldAngleEnd.text)) preset.properties.angle.angleEnd = source.angleEnd;
+         if (!IsValue(fieldAngleSteps.text)) preset.properties.angle.angleCount = source.angleCount;
+      }
+
+      private void FillFromPreset(RayProperties source)
+      {
+         throw new NotImplementedException();
+         RefreshRayPropertiesUI();
+      }
+
+      private void FillFromPreset(DetectorProperties source)
       {
          if (!IsValue(fieldOffsetX.text)) 
-            detectorSettings.offSetFromDownRightEdge.x = preset.offSetFromDownRightEdge.x;
+            preset.properties.detector.offSetFromBottomRight.x = source.offSetFromBottomRight.x;
          if (!IsValue(fieldOffsetY.text)) 
-            detectorSettings.offSetFromDownRightEdge.y = preset.offSetFromDownRightEdge.y;
-         if (!IsValue(fieldPixelSize.text)) detectorSettings.pixelSize = preset.pixelSize;
-         if (!IsValue(fieldResolutionX.text)) detectorSettings.resolution.x = preset.resolution.x;
-         if (!IsValue(fieldResolutionY.text)) detectorSettings.resolution = preset.resolution;
-         if (!IsValue(fieldDistToSample.text)) detectorSettings.distToSample = preset.distToSample;
-         if (!IsValue(fieldAngleStart.text)) detectorSettings.angleStart = preset.angleStart;
-         if (!IsValue(fieldAngleEnd.text)) detectorSettings.angleEnd = preset.angleEnd;
-         if (!IsValue(fieldAngleSteps.text)) detectorSettings.angleCount = preset.angleCount;
+            preset.properties.detector.offSetFromBottomRight.y = source.offSetFromBottomRight.y;
+         if (!IsValue(fieldPixelSize.text)) preset.properties.detector.pixelSize = source.pixelSize;
+         if (!IsValue(fieldResolutionX.text)) preset.properties.detector.resolution.x = source.resolution.x;
+         if (!IsValue(fieldResolutionY.text)) preset.properties.detector.resolution = source.resolution;
+         if (!IsValue(fieldDistToSample.text)) preset.properties.detector.distToSample = source.distToSample;
 
-         UpdateDetectorSettingsUI();
+         RefreshDetectorPropertiesUI();
       }
-   
-      public void FillFromPreset(SampleSettings preset)
+
+      private void FillFromPreset(SampleProperties source)
       {
-         if (!IsValue(fieldGridResolution.text)) sampleSettings.gridResolution = preset.gridResolution;
-         if (!IsValue(fieldDiameter.text)) sampleSettings.totalDiameter = preset.totalDiameter;
-         if (!IsValue(fieldCellThickness.text)) sampleSettings.cellThickness = preset.cellThickness;
-         if (!IsValue(fieldMuCell.text)) sampleSettings.muCell = preset.muCell;
-         if (!IsValue(fieldMuSample.text)) sampleSettings.muSample = preset.muSample;
+         if (!IsValue(fieldGridResolution.text))  preset.properties.sample.gridResolution = source.gridResolution;
+         if (!IsValue(fieldDiameter.text))  preset.properties.sample.totalDiameter = source.totalDiameter;
+         if (!IsValue(fieldCellThickness.text))  preset.properties.sample.cellThickness = source.cellThickness;
+         if (!IsValue(fieldMuCell.text))  preset.properties.sample.muCell = source.muCell;
+         if (!IsValue(fieldMuSample.text))  preset.properties.sample.muSample = source.muSample;
          
-         UpdateSampleSettingsUI();
+         RefreshSamplePropertiesUI();
       }
 
-      /// <summary>Sets the internal dropdown value according to the supplied mode.</summary>
-      private void SetDropdownTo(Model.Mode mode)
-      {
-         if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
-         dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
-      }
+      #endregion
 
+      
+      
       #region Data update methods
 
       public void UpdateModeData()
       {
          if (!_dropdownMap.ContainsKey(dropdownMode.value)) throw new InvalidOperationException();
-         settings.mode = _dropdownMap[dropdownMode.value];
+         preset.properties.absorption.mode = _dropdownMap[dropdownMode.value];
          ShowRelevantInputFields();
       }
 
@@ -176,21 +197,21 @@ namespace ui
       {
          SetAllInputGroups(false);
       
-         switch (settings.mode)
+         switch (preset.properties.absorption.mode)
          {
-            case Model.Mode.Point:
+            case AbsorptionProperties.Mode.Point:
                inputGroupAngle.gameObject.SetActive(true);
                break;
          
-            case Model.Mode.Area:
+            case AbsorptionProperties.Mode.Area:
                inputGroupDetector.gameObject.SetActive(true);
                break;
          
-            case Model.Mode.Integrated:
+            case AbsorptionProperties.Mode.Integrated:
                SetAllInputGroups(true);
                break;
          
-            case Model.Mode.Testing:
+            case AbsorptionProperties.Mode.Testing:
                SetAllInputGroups(true);
                break;
          
@@ -198,44 +219,70 @@ namespace ui
                throw new InvalidOperationException();
          }
       }
+      
+      /// <summary>Sets the dropdown value in the UI according to the supplied mode.</summary>
+      private void SetDropdownTo(AbsorptionProperties.Mode mode)
+      {
+         if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
+         dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
+      }
 
-      public void UpdateModeUI() {
-         SetDropdownTo(settings.mode);
+      public void UpdateAllUI()
+      {
+         RefreshModeUI();
+         RefreshMetadataUI();
+         RefreshAbsorptionPropertiesUI();
+         RefreshSamplePropertiesUI();
+         RefreshRayPropertiesUI();
+         RefreshDetectorPropertiesUI();
+         RefreshAnglePropertiesUI();
+      }
+
+      public void RefreshModeUI() {
+         SetDropdownTo(preset.properties.absorption.mode);
          ShowRelevantInputFields();
       }
 
-      public void UpdateGeneralSettingsUI()
+      public void RefreshMetadataUI()
       {
-         fieldPresetName.text = settings.saveName;
+         fieldPresetName.text = preset.metadata.saveName;
       }
 
-      public void UpdateIntegrationSettingsUI()
+      public void RefreshAbsorptionPropertiesUI()
       {
-         // TODO
+         SetDropdownTo(preset.properties.absorption.mode);
+      }
+      
+      public void RefreshSamplePropertiesUI()
+      {
+         fieldGridResolution.text = preset.properties.sample.gridResolution.ToString(_cultureInfo);
+         fieldDiameter.text = preset.properties.sample.totalDiameter.ToString(_cultureInfo);
+         fieldCellThickness.text = preset.properties.sample.cellThickness.ToString(_cultureInfo);
+         fieldMuCell.text = preset.properties.sample.muCell.ToString(_cultureInfo);
+         fieldMuSample.text = preset.properties.sample.muSample.ToString(_cultureInfo);
+      }
+      
+      public void RefreshRayPropertiesUI()
+      {
+         // TODO: implement as soon as ray properties are available.
       }
 
-      public void UpdateDetectorSettingsUI()
+      public void RefreshDetectorPropertiesUI()
       {
-         fieldPixelSize.text = detectorSettings.pixelSize.ToString(_cultureInfo);
-         fieldOffsetX.text = detectorSettings.offSetFromDownRightEdge.x.ToString(_cultureInfo);
-         fieldOffsetY.text = detectorSettings.offSetFromDownRightEdge.y.ToString(_cultureInfo);
-         fieldDistToSample.text = detectorSettings.distToSample.ToString(_cultureInfo);
-         fieldResolutionX.text = detectorSettings.resolution.x.ToString(_cultureInfo);
-         fieldResolutionY.text = detectorSettings.resolution.y.ToString(_cultureInfo);
-         
-         fieldPathAngleFile.text = detectorSettings.pathToAngleFile;
-         fieldAngleStart.text = detectorSettings.angleStart.ToString(_cultureInfo);
-         fieldAngleEnd.text = detectorSettings.angleEnd.ToString(_cultureInfo);
-         fieldAngleSteps.text = detectorSettings.angleCount.ToString(_cultureInfo);
+         fieldPixelSize.text = preset.properties.detector.pixelSize.ToString(_cultureInfo);
+         fieldOffsetX.text = preset.properties.detector.offSetFromBottomRight.x.ToString(_cultureInfo);
+         fieldOffsetY.text = preset.properties.detector.offSetFromBottomRight.y.ToString(_cultureInfo);
+         fieldDistToSample.text = preset.properties.detector.distToSample.ToString(_cultureInfo);
+         fieldResolutionX.text = preset.properties.detector.resolution.x.ToString(_cultureInfo);
+         fieldResolutionY.text = preset.properties.detector.resolution.y.ToString(_cultureInfo);
       }
-
-      public void UpdateSampleSettingsUI()
+      
+      public void RefreshAnglePropertiesUI()
       {
-         fieldGridResolution.text = sampleSettings.gridResolution.ToString(_cultureInfo);
-         fieldDiameter.text = sampleSettings.totalDiameter.ToString(_cultureInfo);
-         fieldCellThickness.text = sampleSettings.cellThickness.ToString(_cultureInfo);
-         fieldMuCell.text = sampleSettings.muCell.ToString(_cultureInfo);
-         fieldMuSample.text = sampleSettings.muSample.ToString(_cultureInfo);
+         fieldPathAngleFile.text = preset.properties.angle.pathToAngleFile;
+         fieldAngleStart.text = preset.properties.angle.angleStart.ToString(_cultureInfo);
+         fieldAngleEnd.text = preset.properties.angle.angleEnd.ToString(_cultureInfo);
+         fieldAngleSteps.text = preset.properties.angle.angleCount.ToString(_cultureInfo);
       }
 
       #endregion

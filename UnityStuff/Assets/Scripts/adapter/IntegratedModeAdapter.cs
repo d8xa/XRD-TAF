@@ -3,13 +3,14 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using model;
+using model.structs;
 using UnityEngine;
 using util;
 using static util.MathTools;
 using Logger = util.Logger;
 using Vector3 = UnityEngine.Vector3;
 
-namespace controller
+namespace adapter
 {
     public class IntegratedModeAdapter : ShaderAdapter
     {
@@ -20,6 +21,8 @@ namespace controller
         private int _nrSegments;
         private int _nrAnglesPerRing;
         private int _nrAnglesTheta;
+
+        private float[] angles;
         
         private Vector2 _nrDiffractionPoints;
         private int[] _innerIndices;
@@ -32,22 +35,10 @@ namespace controller
 
         #region Constructors
 
-        public IntegratedModeAdapter(
-            ComputeShader shader, 
-            Model model, 
-            float margin, 
-            bool writeFactorsFlag,
-            Logger customLogger
-            ) : base(shader, model, margin, writeFactorsFlag, customLogger)
+        public IntegratedModeAdapter(ComputeShader shader, Properties properties, bool writeFactors, Logger customLogger
+        ) : base(shader, properties, writeFactors, customLogger)
         {
-            if (logger == null) SetLogger(new Logger());
-            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
-            InitializeOtherFields();
-        }
-
-        public IntegratedModeAdapter(ComputeShader shader, Model model, Logger customLogger) : base(shader, model, customLogger)
-        {
-            if (logger == null) SetLogger(new Logger());
+            if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
@@ -60,17 +51,21 @@ namespace controller
         {
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             
+            angles = Parser.ImportAngles(
+                Path.Combine(Application.dataPath, "Input", properties.angle.pathToAngleFile + ".txt"));
+            // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
+
             // initialize dimensions.
-            _nrSegments = segmentResolution * segmentResolution;
-            _nrAnglesTheta = model.GetAngles().Length;
-            _nrAnglesPerRing = model.detector.angleCount;
+            _nrSegments = sampleResolution * sampleResolution;
+            _nrAnglesTheta = angles.Length;
+            _nrAnglesPerRing = properties.angle.angleCount;
             
             // initialize arrays.
             _absorptionFactors = new Vector3[_nrAnglesTheta];
             _rotations = LinSpace1D(
-                    model.detector.angleStart, 
-                    model.detector.angleEnd, 
-                    model.detector.angleCount
+                    properties.angle.angleStart, 
+                    properties.angle.angleEnd, 
+                    properties.angle.angleCount
                 )
                 .Select(AsRadian)
                 .Select(Rotation.FromAngle)
@@ -99,8 +94,8 @@ namespace controller
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -124,11 +119,11 @@ namespace controller
             logger.Log(Logger.EventType.Method, "Compute(): started.");
             
             // initialize parameters in shader.
-            shader.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
-            shader.SetFloat("r_cell_sq", model.GetRCellSq());
-            shader.SetFloat("r_sample_sq", model.GetRSampleSq());
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             // get kernel handles.
@@ -180,15 +175,15 @@ namespace controller
                 var ringAbsorptionValues = new Vector3[_nrAnglesPerRing];
                 
                 // ring geometry values for current theta:
-                var thetaHypotLength = Math.Abs(model.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
+                var thetaHypotLength = Math.Abs(properties.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
                 var thetaRadius = 
-                    Math.Sqrt(Math.Pow(thetaHypotLength, 2) - Math.Pow(model.detector.distToSample, 2));    // r (blue)
+                    Math.Sqrt(Math.Pow(thetaHypotLength, 2) - Math.Pow(properties.detector.distToSample, 2));    // r (blue)
                 
                 // iterative computation of absorption values for each point on the current ring:
                 for (int i = 0; i < _nrAnglesPerRing; i++)
                 {
                     // tau: theta angle at x-coordinate of rotated point.
-                    var tau = _rotations[i].GetCos() * GetThetaAt(j);
+                    var tau = _rotations[i].cos * GetThetaAt(j);
                     
                     var vCos = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
                     
@@ -217,7 +212,7 @@ namespace controller
                 }
 
                 //if (AnyIrregular(ringValues)) 
-                    logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
+                logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
@@ -244,10 +239,10 @@ namespace controller
         {
             var saveDir = Path.Combine("Logs", "AbsorptionsIntegrated");
             Directory.CreateDirectory(saveDir);
-            var saveName = $"Output res={segmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesPerRing}.txt";
+            var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesPerRing}.txt";
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = model.GetAngles()
+            var headCol = angles
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -278,8 +273,8 @@ namespace controller
                 + $", tauVerticalDiff: {tauVerticalDiff:G}"
                 + $", tauHypotLength: {tauHypotLength:G}"
                 + "\nrho: "
-                + $"{Math.Acos(_rotations[i].GetCos())} (rad)"
-                + $", {AsDegree(Math.Acos(_rotations[i].GetCos()))} (deg)"
+                + $"{Math.Acos(_rotations[i].cos)} (rad)"
+                + $", {AsDegree(Math.Acos(_rotations[i].cos))} (deg)"
                 + $"\nalpha: {AsDegree(Math.Acos(vCos))} (deg)"
                 + $", vCos: {vCos:G}"
                 + $"\nhypotLength: {hypotLength:G}"
@@ -288,7 +283,7 @@ namespace controller
 
         private double GetThetaAt(int index)
         {
-            return AsRadian((double) model.GetAngleAt(index));
+            return AsRadian(Math.Abs(angles[index]));
         }
 
         private bool IsUnrepresentable(Vector3 value)
@@ -324,9 +319,9 @@ namespace controller
         private double GetVFactor(int i, int j, double tau, double thetaRadius, double thetaHypotLength)
         {
             // vertical offset of rotated point to base point. 
-            var tauVerticalOffset = _rotations[i].GetSin() * thetaRadius;    // a (orange)
+            var tauVerticalOffset = _rotations[i].sin * thetaRadius;    // a (orange)
                         
-            var tauHypotLength = model.detector.distToSample / Math.Cos(tau);    // b (pink)
+            var tauHypotLength = properties.detector.distToSample / Math.Cos(tau);    // b (pink)
             var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
     
             // ratio of distance to 2D projection of ray from sample center to rotated point.

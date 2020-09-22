@@ -10,17 +10,19 @@ using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
 
-namespace controller
+namespace adapter
 {
     public class PlaneModeAdapter : ShaderAdapter
     {
         #region Fields
 
         private Vector3[,] _absorptionFactors;
-        private float[] _cosAlpha;
         private int _nrSegments;
         private int _nrAnglesTheta;
         private int _nrAnglesAlpha;
+
+        private float[] angles;
+        private float[] vCosines;
         
         // Mask of diffraction points
         //private Vector3Int[] _diffractionMask;
@@ -37,18 +39,10 @@ namespace controller
 
         public PlaneModeAdapter(
             ComputeShader shader, 
-            Model model, 
-            float margin, 
-            bool writeFactorsFlag,
+            Properties properties,
+            bool writeFactors,
             Logger customLogger
-        ) : base(shader, model, margin, writeFactorsFlag, customLogger)
-        {
-            if (logger == null) SetLogger(new Logger());
-            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
-            InitializeOtherFields();
-        }
-
-        public PlaneModeAdapter(ComputeShader shader, Model model, Logger customLogger) : base(shader, model, customLogger)
+        ) : base(shader, properties, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -62,9 +56,19 @@ namespace controller
         private void InitializeOtherFields()
         {
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
-            _nrAnglesTheta = model.detector.resolution.x;
-            _nrAnglesAlpha = model.detector.resolution.y;
-            _nrSegments = segmentResolution * segmentResolution;
+            SetStatusMessage($"Step 1/{(writeFactors ? 4 : 3)}: Initializing...");
+            
+            _nrAnglesTheta = properties.detector.resolution.x;
+            _nrAnglesAlpha = properties.detector.resolution.y;
+            _nrSegments = sampleResolution * sampleResolution;
+            
+            angles = Enumerable.Range(0, properties.detector.resolution.x)
+                .Select(j => properties.detector.GetRatioFromOffset(j, false))
+                .Select(v => properties.detector.GetAngleFromRatio(v))
+                .ToArray();
+            vCosines = Enumerable.Range(0, properties.detector.resolution.y)
+                .Select(j => (float) properties.detector.GetRatioFromOffset(j, true))
+                .ToArray();
             
             // initialize absorption array. dim n: (#thetas).
             _absorptionFactors = new Vector3[_nrAnglesAlpha, _nrAnglesTheta];
@@ -73,7 +77,6 @@ namespace controller
             //_diffractionMask = new Vector3Int[Coordinates.Length];
             ComputeIndicatorMask();
             
-            // TODO: validate count
             // count diffracting points in each case.
             var mask = new Vector2Int[_nrSegments];
             _maskBuffer.GetData(mask);
@@ -93,10 +96,11 @@ namespace controller
         private void ComputeIndicatorMask()
         {
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
+            SetStatusMessage($"Step 2/{(writeFactors ? 4 : 3)}: Computing indicator mask...");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -118,17 +122,18 @@ namespace controller
         protected override void Compute()
         {
             logger.Log(Logger.EventType.Method, "Compute(): started.");
+            SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Computing absorption factors...");
 
             var sw = new Stopwatch();
             sw.Start();
 
             // initialize parameters in shader.
             // necessary here already?
-            shader.SetFloats("mu", model.GetMuCell(), model.GetMuSample());
-            shader.SetFloat("r_cell", model.GetRCell());
-            shader.SetFloat("r_sample", model.GetRSample());
-            shader.SetFloat("r_cell_sq", model.GetRCellSq());
-            shader.SetFloat("r_sample_sq", model.GetRSampleSq());
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             
@@ -202,7 +207,7 @@ namespace controller
                 {
                     var startInnerLoop = sw.Elapsed;
                     
-                    shader.SetFloat("vCos", model.GetCos3D()[i]);
+                    shader.SetFloat("vCos", vCosines[i]);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
@@ -238,16 +243,33 @@ namespace controller
         
         protected override void Write()
         {
+            SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
+
             var saveDir = Path.Combine("Logs", "Absorptions3D");
             Directory.CreateDirectory(saveDir);
-            var saveName = $"Output res={segmentResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors, reverse: true);
+            var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
+
+            if (Settings.flags.planeModeWriteSeparateFiles)
+            {
+                float[,] current = new float[_nrAnglesAlpha, _nrAnglesTheta];
+                for (int k = 0; k < 3; k++)
+                for (int j = 0; j < _nrAnglesTheta; j++)
+                for (int i = 0; i < _nrAnglesAlpha; i++)
+                    current[i, j] = _absorptionFactors[i, j][k];
+                ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), current, reverse: true);
+
+
+            }
+            else
+                ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors, reverse: true);
         }
 
         protected override void Cleanup()
         {
             _inputBuffer.Release();
             _maskBuffer.Release();
+            
+            SetStatusMessage("Done.");
         }
 
         #endregion
@@ -265,7 +287,7 @@ namespace controller
 
         private double GetThetaAt(int index)
         {
-            return MathTools.AsRadian(model.GetAngleAt(index));
+            return MathTools.AsRadian(Math.Abs(angles[index]));
         }
 
         #endregion
