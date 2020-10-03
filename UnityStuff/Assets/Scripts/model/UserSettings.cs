@@ -1,11 +1,14 @@
-﻿namespace model
+﻿using System.Runtime.Serialization;
+
+namespace model
 {
+    [DataContract]
     public class Settings
     {
         private static Settings _instance;
-        
-        private Flags _flags;
-        private DefaultValues defaultValues;
+
+        [DataMember(Name = "flags")] private Flags _flags;
+        [DataMember] private DefaultValues defaultValues;
 
         private Settings()
         {
@@ -19,37 +22,42 @@
             return _instance;
         }
 
-        public static Settings current => _instance;
+        public static Settings current => GetInstance();
 
+        
+        [DataContract]
         public class DefaultValues
         {
             /// <summary>
             /// The default margin by which each side of the simulated sample cross-section area will be extended.
             /// </summary>
-            public float sampleAreaMarginDefault = 0.04f;
+            [DataMember] public float sampleAreaMarginDefault = 0.04f;
         }
 
+        [DataContract]
         public class Flags
         {
             /// <summary>
             /// If enabled, one file is written per selected absorption target.
             /// If disabled, vector datatype will be used to write all absorption values in one file.
             /// </summary>
-            public bool planeModeWriteSeparateFiles;    
+            [DataMember] public bool planeModeWriteSeparateFiles; 
 
             /// <summary>
             /// If enabled, any empty fields in the preset will be filled with values from the default preset.
             /// </summary>
-            public bool fillEmptyWithDefault = true;
+            [DataMember] public bool fillEmptyWithDefault = true;
+            
+            /// <summary>
+            /// Use radian angles for input and output.
+            /// </summary>
+            [DataMember] public bool useRadian;
             
             // only for debugging use.
             public bool writeFactors = true;
         }
 
-        public static Flags flags => GetInstance()._flags;
-        public static DefaultValues defaults => GetInstance().defaultValues;
-
+        public static Flags flags => current._flags;
+        public static DefaultValues defaults => current.defaultValues;
     }
-
-    
 }
