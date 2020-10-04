@@ -6,16 +6,47 @@ using model;
 using model.properties;
 using ui;
 using UnityEngine.UI;
+using Button = UnityEngine.UI.Button;
 using Logger = util.Logger;
 
 public class DataHandler : MonoBehaviour{
     
-    public SettingsFields settingsFields;
+    #region Panels
+    
+    public MainPanel mainPanel;
+    public SettingsPanel settingsPanel;
+
+    private enum Panel { Main, Settings }
+    private Panel currentPanel;
+    
+    private void GoToPanel(Panel panel)
+    {
+        switch (panel)
+        {
+            case Panel.Main:
+                settingsPanel.gameObject.SetActive(false);
+                mainPanel.gameObject.SetActive(true);
+                break;
+            case Panel.Settings:
+                mainPanel.gameObject.SetActive(false);
+                settingsPanel.gameObject.SetActive(true);
+                break;
+        }
+        currentPanel = panel;
+    }
+    
+    #endregion
+    
+    
+    
+    
+    
     private static string _saveDir;
     public InputField loadFileName;
     public Text status;
     
     public Button loadButton;
+    public Button loadDefaults;
     public Button saveButton;
     public Button submitButton;
     public Button stopButton;
@@ -42,6 +73,15 @@ public class DataHandler : MonoBehaviour{
     
     private void Setup()
     {
+        // set panel and add button listener for navigation between them.
+        GoToPanel(Panel.Main);
+        mainPanel.settingsButton.onClick.AddListener(() => GoToPanel(Panel.Settings));
+        settingsPanel.closeButton.onClick.AddListener(() => GoToPanel(Panel.Main));
+        
+        
+        loadDefaults.onClick.AddListener(FillInBlanks);
+
+        
         // only enable buttons when filename is not empty.
         // TODO: add further logic to only allow saving if input fields are non-empty and some value has changed.
         saveButton.interactable = false;
@@ -80,7 +120,7 @@ public class DataHandler : MonoBehaviour{
         {
             var presetJson = File.ReadAllText(filePath);
             var preset = JsonUtility.FromJson<Preset>(presetJson);
-            settingsFields.FillFromPreset(preset);
+            mainPanel.FillFromPreset(preset);
         }
     }
 
@@ -95,7 +135,7 @@ public class DataHandler : MonoBehaviour{
         _shaderAdapter = _builder
             .SetLogger(logger)
             .SetWriteFactors(Settings.flags.writeFactors)
-            .SetProperties(settingsFields.preset)
+            .SetProperties(mainPanel.preset)
             .AutoSetShader()
             .Build();
         
@@ -106,8 +146,8 @@ public class DataHandler : MonoBehaviour{
 
     public void SavePreset()
     {
-        var presetJson = JsonUtility.ToJson(settingsFields.preset);
-        File.WriteAllText(Path.Combine(_saveDir, settingsFields.preset.metadata.saveName + ".json"), presetJson);
+        var presetJson = JsonUtility.ToJson(mainPanel.preset);
+        File.WriteAllText(Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + ".json"), presetJson);
     }
 
     public void LoadPreset()
@@ -118,19 +158,19 @@ public class DataHandler : MonoBehaviour{
         if (File.Exists(loadFilePath))
         {
             var presetJson = File.ReadAllText(loadFilePath);
-            settingsFields.preset = JsonUtility.FromJson<Preset>(presetJson);
-            settingsFields.selectedPreset = settingsFields.preset;
-            settingsFields.UpdateAllUI();
+            mainPanel.preset = JsonUtility.FromJson<Preset>(presetJson);
+            mainPanel.selectedPreset = mainPanel.preset;
+            mainPanel.UpdateAllUI();
             SetCurrentPresetName(loadFileNamePrefix);
         }
     }
 
     private void SetCurrentPresetName(string presetName)
     {
-        settingsFields.currentPresetName.text = presetName;
-        settingsFields.currentPresetName.fontStyle = FontStyle.Normal;
-        settingsFields.currentPresetName.color = new Color(50f/255f, 50f/255f, 50f/255f, 1);
-        settingsFields.fieldPresetName.text = presetName;
+        mainPanel.currentPresetName.text = presetName;
+        mainPanel.currentPresetName.fontStyle = FontStyle.Normal;
+        mainPanel.currentPresetName.color = new Color(50f/255f, 50f/255f, 50f/255f, 1);
+        mainPanel.fieldPresetName.text = presetName;
     }
     
     public void SetStatusMessage(string message)

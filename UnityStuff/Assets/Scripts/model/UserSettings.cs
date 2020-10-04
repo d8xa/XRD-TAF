@@ -1,4 +1,5 @@
-﻿using System.Runtime.Serialization;
+﻿using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace model
 {
@@ -14,6 +15,7 @@ namespace model
         {
             _flags = new Flags();
             defaultValues = new DefaultValues();
+            // TODO: try loading default. Maybe move load operation to DataHandler.
         }
         
         private static Settings GetInstance()
@@ -32,6 +34,17 @@ namespace model
             /// The default margin by which each side of the simulated sample cross-section area will be extended.
             /// </summary>
             [DataMember] public float sampleAreaMarginDefault = 0.04f;
+            public CultureInfo cultureInfo = CultureInfo.InvariantCulture;
+            
+            public DefaultValues DeepCopy()
+            {
+                var defaults = new DefaultValues()
+                {
+                    sampleAreaMarginDefault = sampleAreaMarginDefault,
+                    cultureInfo = cultureInfo
+                };
+                return defaults;
+            }
         }
 
         [DataContract]
@@ -55,9 +68,30 @@ namespace model
             
             // only for debugging use.
             public bool writeFactors = true;
+            
+            public Flags DeepCopy()
+            {
+                var flags = new Flags
+                {
+                    useRadian = useRadian,
+                    writeFactors = writeFactors,
+                    fillEmptyWithDefault = fillEmptyWithDefault,
+                    planeModeWriteSeparateFiles = planeModeWriteSeparateFiles
+                };
+                return flags;
+            }
         }
 
-        public static Flags flags => current._flags;
-        public static DefaultValues defaults => current.defaultValues;
+        public static Flags flags
+        {
+            get => current._flags;
+            set => current._flags = value;
+        }
+
+        public static DefaultValues defaults
+        {
+            get => current.defaultValues;
+            set => current.defaultValues = value;
+        }
     }
 }

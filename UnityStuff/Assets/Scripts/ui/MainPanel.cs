@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using model;
 using model.properties;
 using UnityEngine;
 using UnityEngine.UI;
+using static util.FieldParseTools;
+using Button = UnityEngine.UI.Button;
 
 namespace ui
 {
-   public class SettingsFields : MonoBehaviour {
+   public class MainPanel : MonoBehaviour {
       
       #region Fields
 
+      public Button settingsButton;
+      
       private static int _namelessNumber;
       public Text currentPresetName;
       public InputField fieldPresetName;
@@ -41,6 +44,7 @@ namespace ui
       public Preset selectedPreset;    // use if a saved preset was selected (incl. default).
       internal Preset preset;     // use for current state of properties.
       private bool presetHasChanged;
+      // TODO: remember to deep-copy the preset!
 
       // for component-wise / group-wise selection of case-specific input fields.
       public GameObject inputGroupDetector;
@@ -55,9 +59,7 @@ namespace ui
             {2, AbsorptionProperties.Mode.Integrated},
             {3, AbsorptionProperties.Mode.Testing}
          };
-
-      private readonly CultureInfo _cultureInfo = CultureInfo.InvariantCulture;
-
+      
       #endregion
       
       public void Awake()
@@ -80,7 +82,7 @@ namespace ui
 
          void SetComponent(string text, ref Vector2Int variable, int position)
          {
-            if (IsValue(text)) variable[position] = int.Parse(text, _cultureInfo);
+            if (IsValue(text)) variable[position] = int.Parse(text, Settings.defaults.cultureInfo);
          }
 
          fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.resolution, 0));
@@ -112,7 +114,7 @@ namespace ui
 
       public void FillFromPreset(Preset source)
       {
-         FillFromPreset(source.metadata);
+         FillFromPreset(source.metadata);   // not necessary for
          FillFromPreset(source.properties.absorption);
          FillFromPreset(source.properties.angle);
          FillFromPreset(source.properties.detector);
@@ -122,7 +124,7 @@ namespace ui
 
       private void FillFromPreset(Metadata source)
       {
-         if (!IsValue(fieldPresetName.text)) preset.metadata.saveName = "Default_" + _namelessNumber++;
+         if (!IsValue(fieldPresetName.text)) preset.metadata.saveName = source.saveName + _namelessNumber++;
          
          RefreshMetadataUI();
       }
@@ -130,7 +132,7 @@ namespace ui
       private void FillFromPreset(AbsorptionProperties source)
       {
          throw new NotImplementedException();
-         RefreshAbsorptionPropertiesUI();
+         //RefreshAbsorptionPropertiesUI();
       }
 
       private void FillFromPreset(AngleProperties source)
@@ -143,7 +145,7 @@ namespace ui
       private void FillFromPreset(RayProperties source)
       {
          throw new NotImplementedException();
-         RefreshRayPropertiesUI();
+         //RefreshRayPropertiesUI();
       }
 
       private void FillFromPreset(DetectorProperties source)
@@ -255,11 +257,11 @@ namespace ui
       
       public void RefreshSamplePropertiesUI()
       {
-         fieldGridResolution.text = preset.properties.sample.gridResolution.ToString(_cultureInfo);
-         fieldDiameter.text = preset.properties.sample.totalDiameter.ToString(_cultureInfo);
-         fieldCellThickness.text = preset.properties.sample.cellThickness.ToString(_cultureInfo);
-         fieldMuCell.text = preset.properties.sample.muCell.ToString(_cultureInfo);
-         fieldMuSample.text = preset.properties.sample.muSample.ToString(_cultureInfo);
+         fieldGridResolution.text = preset.properties.sample.gridResolution.ToString(Settings.defaults.cultureInfo);
+         fieldDiameter.text = preset.properties.sample.totalDiameter.ToString(Settings.defaults.cultureInfo);
+         fieldCellThickness.text = preset.properties.sample.cellThickness.ToString(Settings.defaults.cultureInfo);
+         fieldMuCell.text = preset.properties.sample.muCell.ToString(Settings.defaults.cultureInfo);
+         fieldMuSample.text = preset.properties.sample.muSample.ToString(Settings.defaults.cultureInfo);
       }
       
       public void RefreshRayPropertiesUI()
@@ -269,50 +271,20 @@ namespace ui
 
       public void RefreshDetectorPropertiesUI()
       {
-         fieldPixelSize.text = preset.properties.detector.pixelSize.ToString(_cultureInfo);
-         fieldOffsetX.text = preset.properties.detector.offSetFromBottomRight.x.ToString(_cultureInfo);
-         fieldOffsetY.text = preset.properties.detector.offSetFromBottomRight.y.ToString(_cultureInfo);
-         fieldDistToSample.text = preset.properties.detector.distToSample.ToString(_cultureInfo);
-         fieldResolutionX.text = preset.properties.detector.resolution.x.ToString(_cultureInfo);
-         fieldResolutionY.text = preset.properties.detector.resolution.y.ToString(_cultureInfo);
+         fieldPixelSize.text = preset.properties.detector.pixelSize.ToString(Settings.defaults.cultureInfo);
+         fieldOffsetX.text = preset.properties.detector.offSetFromBottomRight.x.ToString(Settings.defaults.cultureInfo);
+         fieldOffsetY.text = preset.properties.detector.offSetFromBottomRight.y.ToString(Settings.defaults.cultureInfo);
+         fieldDistToSample.text = preset.properties.detector.distToSample.ToString(Settings.defaults.cultureInfo);
+         fieldResolutionX.text = preset.properties.detector.resolution.x.ToString(Settings.defaults.cultureInfo);
+         fieldResolutionY.text = preset.properties.detector.resolution.y.ToString(Settings.defaults.cultureInfo);
       }
       
       public void RefreshAnglePropertiesUI()
       {
          fieldPathAngleFile.text = preset.properties.angle.pathToAngleFile;
-         fieldAngleStart.text = preset.properties.angle.angleStart.ToString(_cultureInfo);
-         fieldAngleEnd.text = preset.properties.angle.angleEnd.ToString(_cultureInfo);
-         fieldAngleSteps.text = preset.properties.angle.angleCount.ToString(_cultureInfo);
-      }
-
-      #endregion
-      
-      #region Parsing
-
-      /// <summary>
-      /// Not null, empty or whitespace.
-      /// </summary>
-      private bool IsValue(string text)
-      {
-         return !(string.IsNullOrEmpty(text) || string.IsNullOrWhiteSpace(text));
-      }
-      
-      private void ParseField(string input, ref string target)
-      {
-         if (IsValue(input))
-            target = input;
-      }
-      
-      private void ParseField(string input, ref float target)
-      {
-         if (IsValue(input)) 
-            target = float.Parse(input, _cultureInfo);
-      }
-
-      private void ParseField(string input, ref int target)
-      {
-         if (IsValue(input)) 
-            target = int.Parse(input, _cultureInfo);
+         fieldAngleStart.text = preset.properties.angle.angleStart.ToString(Settings.defaults.cultureInfo);
+         fieldAngleEnd.text = preset.properties.angle.angleEnd.ToString(Settings.defaults.cultureInfo);
+         fieldAngleSteps.text = preset.properties.angle.angleCount.ToString(Settings.defaults.cultureInfo);
       }
 
       #endregion
