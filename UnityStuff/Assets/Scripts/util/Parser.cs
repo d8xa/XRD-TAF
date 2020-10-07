@@ -8,13 +8,14 @@ namespace util
     {
         internal static float[] ImportAngles(string path)
         {
-            var text = "";
+            string text;
             if (File.Exists(path))
             {
                 using (var reader = new StreamReader(path))
                     text = reader.ReadToEnd();
             }
-      
+            else throw new FileNotFoundException();
+
             return text
                 .Trim(' ')
                 .Split('\n')
