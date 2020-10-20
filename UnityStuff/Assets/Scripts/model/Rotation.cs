@@ -36,5 +36,10 @@ namespace model
         }
 
         public static Rotation FromAngle(float angle) => new Rotation(Math.Cos(angle), Math.Sin(angle));
+
+        public override string ToString()
+        {
+            return $"({_cos}, {_sin})";
+        }
     }
 }

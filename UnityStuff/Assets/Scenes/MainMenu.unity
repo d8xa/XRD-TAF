@@ -885,12 +885,12 @@ MonoBehaviour:
     mode: 0
     absType: 0
     pathToInputData: 
-    gridResolution: 0
   sampleSettings:
     totalDiameter: 0
     cellThickness: 0
     muSample: 0
     muCell: 0
+    gridResolution: 0
   detectorSettings:
     pixelSize: 0
     resolution: {x: 0, y: 0}
@@ -1178,7 +1178,6 @@ GameObject:
   - component: {fileID: 180451210}
   m_Layer: 5
   m_Name: Input
-FieldAnglesStart
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

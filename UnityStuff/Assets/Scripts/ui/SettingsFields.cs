@@ -75,8 +75,8 @@ namespace ui
          fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.pixelSize));
          fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.distToSample));
          
-         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.x));
-         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offSetFromDownRightEdge.y));
+         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offset.x));
+         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref detectorSettings.offset.y));
 
          void SetComponent(string text, ref Vector2Int variable, int position)
          {
@@ -122,9 +122,9 @@ namespace ui
       public void FillFromPreset(DetectorSettings preset)
       {
          if (!IsValue(fieldOffsetX.text)) 
-            detectorSettings.offSetFromDownRightEdge.x = preset.offSetFromDownRightEdge.x;
+            detectorSettings.offset.x = preset.offset.x;
          if (!IsValue(fieldOffsetY.text)) 
-            detectorSettings.offSetFromDownRightEdge.y = preset.offSetFromDownRightEdge.y;
+            detectorSettings.offset.y = preset.offset.y;
          if (!IsValue(fieldPixelSize.text)) detectorSettings.pixelSize = preset.pixelSize;
          if (!IsValue(fieldResolutionX.text)) detectorSettings.resolution.x = preset.resolution.x;
          if (!IsValue(fieldResolutionY.text)) detectorSettings.resolution = preset.resolution;
@@ -217,8 +217,8 @@ namespace ui
       public void UpdateDetectorSettingsUI()
       {
          fieldPixelSize.text = detectorSettings.pixelSize.ToString(_cultureInfo);
-         fieldOffsetX.text = detectorSettings.offSetFromDownRightEdge.x.ToString(_cultureInfo);
-         fieldOffsetY.text = detectorSettings.offSetFromDownRightEdge.y.ToString(_cultureInfo);
+         fieldOffsetX.text = detectorSettings.offset.x.ToString(_cultureInfo);
+         fieldOffsetY.text = detectorSettings.offset.y.ToString(_cultureInfo);
          fieldDistToSample.text = detectorSettings.distToSample.ToString(_cultureInfo);
          fieldResolutionX.text = detectorSettings.resolution.x.ToString(_cultureInfo);
          fieldResolutionY.text = detectorSettings.resolution.y.ToString(_cultureInfo);

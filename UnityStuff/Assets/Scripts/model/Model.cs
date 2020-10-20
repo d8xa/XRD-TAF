@@ -60,11 +60,12 @@ namespace model
 
                 case Mode.Area:
                     _angles = Enumerable.Range(0, detector.resolution.x)
-                        .Select(j => detector.GetRatioFromOffset(j, false))
+                        .Select(j => detector.GetRatioFromIndex(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
                     _cos3D = Enumerable.Range(0, detector.resolution.y)
-                        .Select(j => (float) detector.GetRatioFromOffset(j, true))
+                        .Select(j => (float) detector.GetRatioFromIndex(j, true))
+                        .Select(v => 1/v)
                         .ToArray();
                     break;
 
@@ -75,11 +76,11 @@ namespace model
                 
                 case Mode.Testing:
                     _angles = Enumerable.Range(0, detector.resolution.x)
-                        .Select(j => detector.GetRatioFromOffset(j, false))
+                        .Select(j => detector.GetRatioFromIndex(j, false))
                         .Select(v => detector.GetAngleFromRatio(v))
                         .ToArray();
                     _cos3D = Enumerable.Range(0, detector.resolution.y)
-                        .Select(j => (float) detector.GetRatioFromOffset(j, true))
+                        .Select(j => (float) detector.GetRatioFromIndex(j, true))
                         .ToArray();
                     break;
             }
