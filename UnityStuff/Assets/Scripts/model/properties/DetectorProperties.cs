@@ -8,7 +8,7 @@ namespace model.properties
     public class DetectorProperties {
         public float pixelSize;
         public Vector2Int resolution;
-        public Vector2 offSetFromBottomRight;
+        public Vector2 offset;
         public float distToSample;
         
         public override string ToString()
@@ -16,17 +16,40 @@ namespace model.properties
             return JsonUtility.ToJson(this);
         }
 
-        public double GetRatioFromOffset(int pixelIndex, bool vertical)
+        // TODO: check results of Area Mode after inverting ratio fraction.
+        public double GetRatioFromIndex(int pixelIndex, bool vertical)
         {
-            return Math.Sqrt(
-                Math.Pow(pixelIndex*pixelSize-offSetFromBottomRight[vertical ? 1 : 0], 2) + 
+            return distToSample / Math.Sqrt(
+                Math.Pow(pixelIndex*pixelSize-offset[vertical ? 1 : 0], 2) + 
                 Math.Pow(distToSample, 2)
-            ) / distToSample;
+            );
+        }
+        
+        /// <summary>
+        /// Calculates the angle between offset point, sample center and current point on the detector,
+        /// based on the distance between offset point and current position on detector.
+        /// </summary>
+        /// <param name="pixelIndex">The index of the current point on the detector..</param>
+        /// <param name="vertical">Toggle between horizontal and vertical angle.</param>
+        public double GetAngleFromIndex(int pixelIndex, bool vertical)
+        {
+            return Math.Atan((pixelIndex*pixelSize-offset[vertical ? 1 : 0])/distToSample);
+        }
+
+        /// <summary>
+        /// Calculates the angle between offset point, sample center and current point on the detector,
+        /// based on the distance between offset point and current position on detector.
+        /// </summary>
+        /// <param name="length">The length of the opposite side of the angle, i.e. the length on the detector.</param>
+        /// <param name="vertical">Toggle between horizontal and vertical angle.</param>
+        public double GetAngleFromLength(double length, bool vertical)
+        {
+            return Math.Atan((length-offset[vertical ? 1 : 0])/distToSample);
         }
 
         public float GetAngleFromRatio(double ratio)
         {
-            return (float) MathTools.AsDegree(Math.Acos(1 / ratio));
+            return (float) MathTools.AsDegree(Math.Acos(ratio));
         }
     }
 }

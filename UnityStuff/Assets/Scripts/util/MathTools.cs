@@ -6,10 +6,18 @@ namespace util
 {
     public static class MathTools
     {
-        public static float[] LinSpace1D(float a, float b, int count)
+        public static float[] LinSpace1D(float a, float b, int count, bool centered)
         {
+            var stepSize = (b - a) / (count - 1);
+            var left = a;
+            var right = b;
+            if (centered)
+            {
+                stepSize = (b - a) / count;
+                left = a + 0.5f * stepSize;
+            }
             return Enumerable.Range(0, count)
-                .Select(i => a + i*(b-a)/(count-1))
+                .Select(i => left + i*stepSize)
                 .ToArray();
         }
 

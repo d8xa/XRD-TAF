@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -21,7 +22,9 @@ namespace adapter
         private int _nrSegments;
         private int _nrAnglesPerRing;
         private int _nrAnglesTheta;
-
+        private double _thetaLowerBound, _thetaUpperBound;
+        private double _alphaLowerBound, _alphaUpperBound;
+        
         private float[] angles;
         
         private Vector2 _nrDiffractionPoints;
@@ -60,16 +63,29 @@ namespace adapter
             _nrAnglesTheta = angles.Length;
             _nrAnglesPerRing = properties.angle.angleCount;
             
+            
+            // TODO: support negative lower bounds. Find out why one bound is negative and one isn't.
+            _thetaLowerBound = properties.detector.GetAngleFromIndex(0, false);
+            _alphaLowerBound = properties.detector.GetAngleFromIndex(0, true);
+            
+            _thetaUpperBound = properties.detector.GetAngleFromIndex(properties.detector.resolution.x, false);
+            _alphaUpperBound = properties.detector.GetAngleFromIndex(properties.detector.resolution.y, true);
+            logger.Log(Logger.EventType.Inspect, $"Bounds: alpha = ({_alphaLowerBound}, {_alphaUpperBound})" +
+                                                 $", theta = ({_thetaLowerBound}, {_thetaUpperBound})");
+
             // initialize arrays.
             _absorptionFactors = new Vector3[_nrAnglesTheta];
             _rotations = LinSpace1D(
                     properties.angle.angleStart, 
                     properties.angle.angleEnd, 
-                    properties.angle.angleCount
+                    properties.angle.angleCount,
+                    true
                 )
                 .Select(AsRadian)
                 .Select(Rotation.FromAngle)
                 .ToArray();
+            logger.Log(Logger.EventType.Inspect, 
+                $"{string.Join(",", _rotations.Select(v => v.ToString()))}");
             
             ComputeIndicatorMask();
             
@@ -172,7 +188,7 @@ namespace adapter
             // iterative computation of average absorption values for each ring of radius theta:
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
-                var ringAbsorptionValues = new Vector3[_nrAnglesPerRing];
+                var ringAbsorptionValues = new LinkedList<Vector3>();
                 
                 // ring geometry values for current theta:
                 var thetaHypotLength = Math.Abs(properties.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
@@ -185,8 +201,14 @@ namespace adapter
                     // tau: theta angle at x-coordinate of rotated point.
                     var tau = _rotations[i].cos * GetThetaAt(j);
                     
-                    var vCos = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
+                    var vCosInv = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
                     
+                    if (IsOutside(j, i, tau, vCosInv))
+                    {
+                        logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}) outside.");
+                        continue;
+                    }
+
                     // set rotation parameters.
                     shader.SetFloat("rotCos", (float) Math.Cos(Math.PI - tau));
                     shader.SetFloat("rotSin", (float) Math.Sin(Math.PI - tau));
@@ -200,14 +222,15 @@ namespace adapter
                     shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
                     shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
                     
-                    shader.SetFloat("vCos", (float) vCos);
+                    shader.SetFloat("vCos", (float) vCosInv);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
                     
-                    ringAbsorptionValues[i] = GetAbsorptionFactor(absorptionsTemp);
+                    ringAbsorptionValues.AddLast(GetAbsorptionFactor(absorptionsTemp));
                     
-                    if (IsUnrepresentable(ringAbsorptionValues[i]))
+                    // TODO: remove after validation.
+                    if (IsUnrepresentable(ringAbsorptionValues.ElementAt(i)))
                         logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}): NaN or Infinity detected.");
                 }
 
@@ -275,7 +298,7 @@ namespace adapter
                 + "\nrho: "
                 + $"{Math.Acos(_rotations[i].cos)} (rad)"
                 + $", {AsDegree(Math.Acos(_rotations[i].cos))} (deg)"
-                + $"\nalpha: {AsDegree(Math.Acos(vCos))} (deg)"
+                + $"\nalpha: {AsDegree(Math.Acos(1/vCos))} (deg)"
                 + $", vCos: {vCos:G}"
                 + $"\nhypotLength: {hypotLength:G}"
             );
@@ -283,7 +306,16 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return AsRadian(Math.Abs(angles[index]));
+            return AsRadian(angles[index]);
+        }
+
+        private bool IsOutside(int j, int i, double tau, double vCosInv)
+        {
+            logger.Log(Logger.EventType.Inspect, 
+                $"(i={i}, j={j}): tau={tau}, vCos={1/vCosInv}, v angle={AsDegree(Math.Acos(1/vCosInv))} (deg)");
+            if (tau < _thetaLowerBound || tau > _thetaUpperBound) return true;
+            else if (Math.Acos(1/vCosInv) < _alphaLowerBound || Math.Acos(1/vCosInv) > _alphaUpperBound) return true;
+            return false;
         }
 
         private bool IsUnrepresentable(Vector3 value)
@@ -291,8 +323,6 @@ namespace adapter
             return float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z) 
                    || float.IsInfinity(value.x) || float.IsInfinity(value.y) || float.IsInfinity(value.z);
         }
-        
-
         
         private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
@@ -303,8 +333,10 @@ namespace adapter
             );
         }
         
-        private Vector3 GetRingAverage(Vector3[] ringValues)
+        private Vector3 GetRingAverage(ICollection<Vector3> ringValues)
         {
+            if (ringValues.Count == 0) 
+                return Vector3.positiveInfinity;    // untested.
             return new Vector3(
                 ringValues.AsParallel().Select(v => v.x).Average(),
                 ringValues.AsParallel().Select(v => v.y).Average(),
@@ -325,12 +357,12 @@ namespace adapter
             var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
     
             // ratio of distance to 2D projection of ray from sample center to rotated point.
-            var vCos = hypotLength / tauHypotLength;
-                if (Math.Abs(tauVerticalOffset) < 1E-5) vCos = 1;    // experimental
+            var vCosInv = hypotLength / tauHypotLength;
+                if (Math.Abs(tauVerticalOffset) < 1E-5) vCosInv = 1;    // experimental
     
-            LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCos, hypotLength);
+            LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCosInv, hypotLength);
 
-            return vCos;
+            return vCosInv;
         }
 
         #endregion
