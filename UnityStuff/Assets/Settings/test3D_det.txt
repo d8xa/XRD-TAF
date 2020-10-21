@@ -1,1 +1,0 @@
-{"pixelsize":0.4000000059604645,"resolution":{"x":1024.0,"y":1024.0},"offSetFromDownRightEdge":{"x":204.8000030517578,"y":204.8000030517578},"distToSample":240.17999267578126,"pathToAngleFile":"angles_short","angleStart":0.0,"angleEnd":0.0,"angleAmount":0}

@@ -1,1 +1,0 @@
-{"aufbauBezeichnung":"test3D","mode":1,"absType":0,"loadName":"","pathToInputData":"","computingAccuracy":128.0}

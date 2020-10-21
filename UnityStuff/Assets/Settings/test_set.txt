@@ -1,1 +1,0 @@
-{"aufbauBezeichnung":"test","mode":0,"absType":0,"loadName":"","pathToInputData":"","computingAccuracy":32.0}

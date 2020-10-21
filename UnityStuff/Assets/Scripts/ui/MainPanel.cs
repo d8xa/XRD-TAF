@@ -64,21 +64,30 @@ namespace ui
       
       public void Awake()
       {
+         preset = new Preset();
          SetAllInputGroups(false);
          SetListeners();
       }
 
       private void SetListeners()
       {
-         // metadata
-         fieldPresetName.onEndEdit.AddListener(text => ParseField(text, ref preset.metadata.saveName));
+         // metadata 
+         // TODO: reactivate once solved.
+         fieldPresetName.onEndEdit.AddListener(text =>
+         {
+            var metadataSaveName = preset.metadata.saveName;
+            ParseField(text, ref metadataSaveName);
+         });
+         
+         // Absorption parameters
+         dropdownMode.onValueChanged.AddListener(value => UpdateModeData());
          
          // Detector parameters
          fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.pixelSize));
          fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.distToSample));
 
-         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offSetFromBottomRight.x));
-         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offSetFromBottomRight.y));
+         fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offset.x));
+         fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offset.y));
 
          void SetComponent(string text, ref Vector2Int variable, int position)
          {
@@ -150,10 +159,8 @@ namespace ui
 
       private void FillFromPreset(DetectorProperties source)
       {
-         if (!IsValue(fieldOffsetX.text)) 
-            preset.properties.detector.offSetFromBottomRight.x = source.offSetFromBottomRight.x;
-         if (!IsValue(fieldOffsetY.text)) 
-            preset.properties.detector.offSetFromBottomRight.y = source.offSetFromBottomRight.y;
+         if (!IsValue(fieldOffsetX.text)) preset.properties.detector.offset.x = source.offset.x;
+         if (!IsValue(fieldOffsetY.text)) preset.properties.detector.offset.y = source.offset.y;
          if (!IsValue(fieldPixelSize.text)) preset.properties.detector.pixelSize = source.pixelSize;
          if (!IsValue(fieldResolutionX.text)) preset.properties.detector.resolution.x = source.resolution.x;
          if (!IsValue(fieldResolutionY.text)) preset.properties.detector.resolution = source.resolution;
@@ -164,11 +171,11 @@ namespace ui
 
       private void FillFromPreset(SampleProperties source)
       {
-         if (!IsValue(fieldGridResolution.text))  preset.properties.sample.gridResolution = source.gridResolution;
-         if (!IsValue(fieldDiameter.text))  preset.properties.sample.totalDiameter = source.totalDiameter;
-         if (!IsValue(fieldCellThickness.text))  preset.properties.sample.cellThickness = source.cellThickness;
-         if (!IsValue(fieldMuCell.text))  preset.properties.sample.muCell = source.muCell;
-         if (!IsValue(fieldMuSample.text))  preset.properties.sample.muSample = source.muSample;
+         if (!IsValue(fieldGridResolution.text)) preset.properties.sample.gridResolution = source.gridResolution;
+         if (!IsValue(fieldDiameter.text)) preset.properties.sample.totalDiameter = source.totalDiameter;
+         if (!IsValue(fieldCellThickness.text)) preset.properties.sample.cellThickness = source.cellThickness;
+         if (!IsValue(fieldMuCell.text)) preset.properties.sample.muCell = source.muCell;
+         if (!IsValue(fieldMuSample.text)) preset.properties.sample.muSample = source.muSample;
          
          RefreshSamplePropertiesUI();
       }
@@ -272,8 +279,8 @@ namespace ui
       public void RefreshDetectorPropertiesUI()
       {
          fieldPixelSize.text = preset.properties.detector.pixelSize.ToString(Settings.defaults.cultureInfo);
-         fieldOffsetX.text = preset.properties.detector.offSetFromBottomRight.x.ToString(Settings.defaults.cultureInfo);
-         fieldOffsetY.text = preset.properties.detector.offSetFromBottomRight.y.ToString(Settings.defaults.cultureInfo);
+         fieldOffsetX.text = preset.properties.detector.offset.x.ToString(Settings.defaults.cultureInfo);
+         fieldOffsetY.text = preset.properties.detector.offset.y.ToString(Settings.defaults.cultureInfo);
          fieldDistToSample.text = preset.properties.detector.distToSample.ToString(Settings.defaults.cultureInfo);
          fieldResolutionX.text = preset.properties.detector.resolution.x.ToString(Settings.defaults.cultureInfo);
          fieldResolutionY.text = preset.properties.detector.resolution.y.ToString(Settings.defaults.cultureInfo);

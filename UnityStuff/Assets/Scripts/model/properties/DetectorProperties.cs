@@ -1,15 +1,21 @@
 ﻿using System;
+using System.Runtime.Serialization;
 using UnityEngine;
 using util;
 
 namespace model.properties
 {
-    [Serializable]
+    [DataContract]
     public class DetectorProperties {
-        public float pixelSize;
-        public Vector2Int resolution;
-        public Vector2 offset;
-        public float distToSample;
+        [DataMember] public float pixelSize;
+        [DataMember] public Vector2Int resolution;
+        [DataMember] public Vector2 offset;
+        [DataMember] public float distToSample;
+        
+        public static DetectorProperties Initialize()
+        {
+            return new DetectorProperties();
+        }
         
         public override string ToString()
         {
