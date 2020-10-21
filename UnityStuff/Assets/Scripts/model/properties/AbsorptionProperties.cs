@@ -1,17 +1,23 @@
-﻿using UnityEngine;
+﻿using System.Runtime.Serialization;
+using UnityEngine;
 
 namespace model.properties
 {
-    [System.Serializable]
+    [DataContract]
     public class AbsorptionProperties {
-        public Mode mode;
+        [DataMember] public Mode mode;
         public AbsorptionTarget absorptionTarget;
+        
+        public static AbsorptionProperties Initialize()
+        {
+            return new AbsorptionProperties {mode = Mode.Point, absorptionTarget = AbsorptionTarget.All};
+        }
 
         public enum AbsorptionTarget {
             All, Cell, Sample, CellAndSample
         }
         
-        [System.Serializable]
+        [DataContract]
         public enum Mode {
             Point = 0, 
             Area = 1, 

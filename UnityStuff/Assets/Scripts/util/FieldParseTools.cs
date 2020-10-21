@@ -17,6 +17,12 @@ namespace util
             if (IsValue(input))
                 target = input;
         }
+        
+        public static string ParseField(string input, string target)
+        {
+            if (IsValue(input)) target = input;
+            return target;
+        }
 
         public static void ParseField(string input, ref float target)
         {

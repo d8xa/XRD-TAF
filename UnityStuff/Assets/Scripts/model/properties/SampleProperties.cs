@@ -1,18 +1,20 @@
-﻿using UnityEngine;
+﻿using System.Runtime.Serialization;
+using UnityEngine;
 
 namespace model.properties
 {
-    [System.Serializable]
+    [DataContract]
     public class SampleProperties {
-        public float totalDiameter;
-        public float cellThickness;
-        public float muSample;
-        public float muCell;
-        public int gridResolution;
+        [DataMember] public float totalDiameter;
+        [DataMember] public float cellThickness;
+        [DataMember] public float muSample;
+        [DataMember] public float muCell;
+        [DataMember] public int gridResolution;
 
-        private float probeDiameterNormalized;
-        private float cellThicknessNormalized;
-        private float totalDiameterNormalized;
+        public static SampleProperties Initialize()
+        {
+            return new SampleProperties();
+        }
 
         public override string ToString()
         {

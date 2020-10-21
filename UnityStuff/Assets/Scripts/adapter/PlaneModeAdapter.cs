@@ -63,11 +63,11 @@ namespace adapter
             _nrSegments = sampleResolution * sampleResolution;
             
             angles = Enumerable.Range(0, properties.detector.resolution.x)
-                .Select(j => properties.detector.GetRatioFromOffset(j, false))
+                .Select(j => properties.detector.GetRatioFromIndex(j, false))
                 .Select(v => properties.detector.GetAngleFromRatio(v))
                 .ToArray();
             vCosines = Enumerable.Range(0, properties.detector.resolution.y)
-                .Select(j => (float) properties.detector.GetRatioFromOffset(j, true))
+                .Select(j => (float) properties.detector.GetRatioFromIndex(j, true))
                 .ToArray();
             
             // initialize absorption array. dim n: (#thetas).

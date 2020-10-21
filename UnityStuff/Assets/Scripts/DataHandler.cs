@@ -1,10 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Net.Mime;
+using System.Runtime.Serialization.Json;
+using System.Text;
+using System.Threading;
+using System.Xml;
 using adapter;
 using model;
 using model.properties;
 using ui;
+using UnityEditor.Build.Content;
 using UnityEngine.UI;
 using Button = UnityEngine.UI.Button;
 using Logger = util.Logger;
@@ -37,10 +44,6 @@ public class DataHandler : MonoBehaviour{
     
     #endregion
     
-    
-    
-    
-    
     private static string _saveDir;
     public InputField loadFileName;
     public Text status;
@@ -58,6 +61,17 @@ public class DataHandler : MonoBehaviour{
     private ShaderAdapter _shaderAdapter;
 
     private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
+    
+    public static readonly DataContractJsonSerializerSettings SerializerSettings = 
+        new DataContractJsonSerializerSettings
+        {
+            UseSimpleDictionaryFormat = true,
+            IgnoreExtensionDataObject = true
+        };
+    private static readonly DataContractJsonSerializer PresetSerializer = 
+        new DataContractJsonSerializer(typeof(Preset), SerializerSettings);
+    private static readonly Encoding Encoding = Encoding.UTF8;
+    private static readonly string presetExtension = ".json";
 
     private void Awake() {
         _builder
@@ -68,20 +82,18 @@ public class DataHandler : MonoBehaviour{
             // TODO: calculate best/minimum margin for segment resolution later. 
         
         UpdateSaveDir();
-        Setup();
+        ButtonSetup();
     }
     
-    private void Setup()
+    private void ButtonSetup()
     {
         // set panel and add button listener for navigation between them.
         GoToPanel(Panel.Main);
         mainPanel.settingsButton.onClick.AddListener(() => GoToPanel(Panel.Settings));
         settingsPanel.closeButton.onClick.AddListener(() => GoToPanel(Panel.Main));
         
-        
-        loadDefaults.onClick.AddListener(FillInBlanks);
 
-        
+        // Loading/saving buttons: 
         // only enable buttons when filename is not empty.
         // TODO: add further logic to only allow saving if input fields are non-empty and some value has changed.
         saveButton.interactable = false;
@@ -92,19 +104,23 @@ public class DataHandler : MonoBehaviour{
             saveButton.interactable = value;
             loadButton.interactable = value;
         });
+        loadDefaults.onClick.AddListener(() =>
+        {
+            loadFileName.text = "default";
+            LoadPreset();
+        });
+        loadButton.onClick.AddListener(LoadPreset);
+        saveButton.onClick.AddListener(SavePreset);
 
-
-        stopButton.gameObject.SetActive(false);
-        // TODO: listener and multithreading.
-
-        // TODO: hide "Submit" button until all required settings for the selected mode are set.
-        // TODO: Add "default values" button to decouple default values from "Submit" button. 
         
+        // TODO: hide "Submit" button until all required settings for the selected mode are set.
+        // TODO: multithreading.
         submitButton.onClick.AddListener(() =>
         {
             //stopButton.gameObject.SetActive(true);
             //status.gameObject.SetActive(true);
         });
+        stopButton.gameObject.SetActive(false);
     }
 
     private void UpdateSaveDir()
@@ -126,7 +142,7 @@ public class DataHandler : MonoBehaviour{
 
     public void SubmitToComputing()
     {
-        FillInBlanks();
+        //FillInBlanks();
 
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
@@ -141,28 +157,42 @@ public class DataHandler : MonoBehaviour{
         
         _shaderAdapter.SetStatus(ref status);
 
-        _shaderAdapter.Execute();
+        Debug.Log($"{mainPanel.preset.properties.absorption.mode}");
+        
+        //_shaderAdapter.Execute();
     }
 
     public void SavePreset()
     {
-        var presetJson = JsonUtility.ToJson(mainPanel.preset);
-        File.WriteAllText(Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + ".json"), presetJson);
+        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + presetExtension);
+
+        using (var stream = File.Open(path, FileMode.OpenOrCreate)) 
+        using (var writer = JsonReaderWriterFactory
+            .CreateJsonWriter(stream, Encoding, true, true, "\t"))
+        {
+            PresetSerializer.WriteObject(writer, mainPanel.preset);
+            writer.Flush();
+        }
     }
 
     public void LoadPreset()
     {
         var loadFileNamePrefix = loadFileName.text;
-        var loadFilePath = Path.Combine(_saveDir, loadFileNamePrefix + ".json");
+        var loadFilePath = Path.Combine(_saveDir, loadFileNamePrefix + presetExtension);
 
         if (File.Exists(loadFilePath))
         {
-            var presetJson = File.ReadAllText(loadFilePath);
-            mainPanel.preset = JsonUtility.FromJson<Preset>(presetJson);
-            mainPanel.selectedPreset = mainPanel.preset;
+            var presetJson = File.ReadAllText(loadFilePath, Encoding);
+            using (var stream = new MemoryStream(Encoding.GetBytes(presetJson)))
+            {
+                mainPanel.preset = (Preset) PresetSerializer.ReadObject(stream);
+                mainPanel.selectedPreset = mainPanel.preset;
+            }
+            
             mainPanel.UpdateAllUI();
             SetCurrentPresetName(loadFileNamePrefix);
         }
+        // TODO: else
     }
 
     private void SetCurrentPresetName(string presetName)

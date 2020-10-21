@@ -7,7 +7,7 @@ namespace model.properties
 {
     [DataContract]
     public class DetectorProperties {
-        [DataMember] public float pixelSize;
+        [DataMember] public Vector2 pixelSize;
         [DataMember] public Vector2Int resolution;
         [DataMember] public Vector2 offset;
         [DataMember] public float distToSample;
@@ -26,7 +26,7 @@ namespace model.properties
         public double GetRatioFromIndex(int pixelIndex, bool vertical)
         {
             return distToSample / Math.Sqrt(
-                Math.Pow(pixelIndex*pixelSize-offset[vertical ? 1 : 0], 2) + 
+                Math.Pow(pixelIndex*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0], 2) + 
                 Math.Pow(distToSample, 2)
             );
         }
@@ -39,7 +39,7 @@ namespace model.properties
         /// <param name="vertical">Toggle between horizontal and vertical angle.</param>
         public double GetAngleFromIndex(int pixelIndex, bool vertical)
         {
-            return Math.Atan((pixelIndex*pixelSize-offset[vertical ? 1 : 0])/distToSample);
+            return Math.Atan((pixelIndex*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0])/distToSample);
         }
 
         /// <summary>

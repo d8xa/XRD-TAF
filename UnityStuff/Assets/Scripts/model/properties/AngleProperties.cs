@@ -1,13 +1,18 @@
-﻿using System;
+﻿using System.Runtime.Serialization;
 
 namespace model.properties
 {
-    [Serializable]
+    [DataContract]
     public class AngleProperties
     {
-        public string pathToAngleFile;
-        public float angleStart;
-        public float angleEnd;
-        public int angleCount;
+        [DataMember] public string pathToAngleFile;
+        [DataMember] public float angleStart;
+        [DataMember] public float angleEnd;
+        [DataMember] public int angleCount;
+
+        public static AngleProperties Initialize()
+        {
+            return new AngleProperties();
+        }
     }
 }

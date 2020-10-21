@@ -21,10 +21,11 @@ namespace ui
       public InputField fieldPresetName;
       public Dropdown dropdownMode;
 
-      public Dropdown absType;
+      public Dropdown dropdownTarget;
       public InputField fieldGridResolution;
    
-      public InputField fieldPixelSize;
+      public InputField fieldPixelSizeX;
+      public InputField fieldPixelSizeY;
       public InputField fieldResolutionX;
       public InputField fieldResolutionY;
       public InputField fieldDistToSample;
@@ -51,15 +52,6 @@ namespace ui
       public GameObject inputGroupAngle;
       public GameObject inputGroupIntegrated;
 
-      private readonly Dictionary<int, AbsorptionProperties.Mode> _dropdownMap =
-         new Dictionary<int, AbsorptionProperties.Mode>
-         {
-            {0, AbsorptionProperties.Mode.Point},
-            {1, AbsorptionProperties.Mode.Area},
-            {2, AbsorptionProperties.Mode.Integrated},
-            {3, AbsorptionProperties.Mode.Testing}
-         };
-      
       #endregion
       
       public void Awake()
@@ -72,30 +64,25 @@ namespace ui
       private void SetListeners()
       {
          // metadata 
-         // TODO: reactivate once solved.
          fieldPresetName.onEndEdit.AddListener(text =>
          {
-            var metadataSaveName = preset.metadata.saveName;
-            ParseField(text, ref metadataSaveName);
+            preset.metadata.saveName = ParseField(text, preset.metadata.saveName);
          });
          
          // Absorption parameters
          dropdownMode.onValueChanged.AddListener(value => UpdateModeData());
          
          // Detector parameters
-         fieldPixelSize.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.pixelSize));
          fieldDistToSample.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.distToSample));
 
          fieldOffsetX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offset.x));
          fieldOffsetY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.detector.offset.y));
-
-         void SetComponent(string text, ref Vector2Int variable, int position)
-         {
-            if (IsValue(text)) variable[position] = int.Parse(text, Settings.defaults.cultureInfo);
-         }
-
+         
          fieldResolutionX.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.resolution, 0));
          fieldResolutionY.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.resolution, 1));
+
+         fieldPixelSizeX.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.pixelSize, 0));
+         fieldPixelSizeY.onEndEdit.AddListener(text => SetComponent(text, ref preset.properties.detector.pixelSize, 1));
 
          // Sample parameters
          fieldGridResolution.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.sample.gridResolution));
@@ -118,12 +105,23 @@ namespace ui
          inputGroupIntegrated.gameObject.SetActive(value);
       }
       
+            
+      void SetComponent(string text, ref Vector2Int variable, int position)
+      {
+         if (IsValue(text)) variable[position] = int.Parse(text, Settings.defaults.cultureInfo);
+      }
+         
+      void SetComponent(string text, ref Vector2 variable, int position)
+      {
+         if (IsValue(text)) variable[position] = int.Parse(text, Settings.defaults.cultureInfo);
+      }
+      
 
       #region Load methods
 
       public void FillFromPreset(Preset source)
       {
-         FillFromPreset(source.metadata);   // not necessary for
+         FillFromPreset(source.metadata);   // not necessary for 
          FillFromPreset(source.properties.absorption);
          FillFromPreset(source.properties.angle);
          FillFromPreset(source.properties.detector);
@@ -140,8 +138,12 @@ namespace ui
 
       private void FillFromPreset(AbsorptionProperties source)
       {
-         throw new NotImplementedException();
-         //RefreshAbsorptionPropertiesUI();
+         if (!Enum.IsDefined(typeof(AbsorptionProperties.Mode), preset.properties.absorption.mode))
+            preset.properties.absorption.mode = source.mode;
+         if (!Enum.IsDefined(typeof(AbsorptionProperties.Mode), preset.properties.absorption.absorptionTarget))
+            preset.properties.absorption.absorptionTarget = source.absorptionTarget;
+
+         RefreshAbsorptionPropertiesUI();
       }
 
       private void FillFromPreset(AngleProperties source)
@@ -149,11 +151,17 @@ namespace ui
          if (!IsValue(fieldAngleStart.text)) preset.properties.angle.angleStart = source.angleStart;
          if (!IsValue(fieldAngleEnd.text)) preset.properties.angle.angleEnd = source.angleEnd;
          if (!IsValue(fieldAngleSteps.text)) preset.properties.angle.angleCount = source.angleCount;
+         
+         RefreshAnglePropertiesUI();
       }
 
       private void FillFromPreset(RayProperties source)
       {
-         throw new NotImplementedException();
+         preset.properties.ray.profile = source.profile;
+         preset.properties.ray.dimensions = source.dimensions; // TODO: add input field "ray dimensions".
+         preset.properties.ray.intensity = source.intensity;   // TODO: add input field "ray intensity".
+         preset.properties.ray.offset = source.offset;         // TODO: add input field "ray offset".
+         
          //RefreshRayPropertiesUI();
       }
 
@@ -161,7 +169,8 @@ namespace ui
       {
          if (!IsValue(fieldOffsetX.text)) preset.properties.detector.offset.x = source.offset.x;
          if (!IsValue(fieldOffsetY.text)) preset.properties.detector.offset.y = source.offset.y;
-         if (!IsValue(fieldPixelSize.text)) preset.properties.detector.pixelSize = source.pixelSize;
+         if (!IsValue(fieldPixelSizeX.text)) preset.properties.detector.pixelSize.x = source.pixelSize.x;
+         if (!IsValue(fieldPixelSizeY.text)) preset.properties.detector.pixelSize.y = source.pixelSize.y;
          if (!IsValue(fieldResolutionX.text)) preset.properties.detector.resolution.x = source.resolution.x;
          if (!IsValue(fieldResolutionY.text)) preset.properties.detector.resolution = source.resolution;
          if (!IsValue(fieldDistToSample.text)) preset.properties.detector.distToSample = source.distToSample;
@@ -181,15 +190,12 @@ namespace ui
       }
 
       #endregion
-
-      
       
       #region Data update methods
 
       public void UpdateModeData()
       {
-         if (!_dropdownMap.ContainsKey(dropdownMode.value)) throw new InvalidOperationException();
-         preset.properties.absorption.mode = _dropdownMap[dropdownMode.value];
+         preset.properties.absorption.mode = (AbsorptionProperties.Mode) dropdownMode.value;
          ShowRelevantInputFields();
       }
 
@@ -232,8 +238,15 @@ namespace ui
       /// <summary>Sets the dropdown value in the UI according to the supplied mode.</summary>
       private void SetDropdownTo(AbsorptionProperties.Mode mode)
       {
-         if (!_dropdownMap.ContainsValue(mode)) throw new InvalidOperationException();
-         dropdownMode.value = _dropdownMap.FirstOrDefault(e => e.Value==mode).Key;
+         dropdownMode.value = (int) mode;
+
+         /*if (!_dropdownModeMap.ContainsValue(mode)) throw new InvalidOperationException();
+         dropdownMode.value = _dropdownModeMap.FirstOrDefault(e => e.Value==mode).Key;*/
+      }
+      
+      private void SetDropdownTo(AbsorptionProperties.AbsorptionTarget target)
+      {
+         dropdownTarget.value = (int) target;
       }
 
       public void UpdateAllUI()
@@ -260,6 +273,7 @@ namespace ui
       public void RefreshAbsorptionPropertiesUI()
       {
          SetDropdownTo(preset.properties.absorption.mode);
+         SetDropdownTo(preset.properties.absorption.absorptionTarget);
       }
       
       public void RefreshSamplePropertiesUI()
@@ -278,7 +292,8 @@ namespace ui
 
       public void RefreshDetectorPropertiesUI()
       {
-         fieldPixelSize.text = preset.properties.detector.pixelSize.ToString(Settings.defaults.cultureInfo);
+         fieldPixelSizeX.text = preset.properties.detector.pixelSize.x.ToString(Settings.defaults.cultureInfo);
+         fieldPixelSizeY.text = preset.properties.detector.pixelSize.y.ToString(Settings.defaults.cultureInfo);
          fieldOffsetX.text = preset.properties.detector.offset.x.ToString(Settings.defaults.cultureInfo);
          fieldOffsetY.text = preset.properties.detector.offset.y.ToString(Settings.defaults.cultureInfo);
          fieldDistToSample.text = preset.properties.detector.distToSample.ToString(Settings.defaults.cultureInfo);
