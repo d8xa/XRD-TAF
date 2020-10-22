@@ -23,9 +23,7 @@ namespace adapter
 
         private float[] angles;
         private float[] vCosines;
-        
-        // Mask of diffraction points
-        //private Vector3Int[] _diffractionMask;
+
         private Vector2 _nrDiffractionPoints;
         private int[] _innerIndices;
         private int[] _outerIndices;

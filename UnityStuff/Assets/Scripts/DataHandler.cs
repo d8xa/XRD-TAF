@@ -156,10 +156,8 @@ public class DataHandler : MonoBehaviour{
             .Build();
         
         _shaderAdapter.SetStatus(ref status);
-
-        Debug.Log($"{mainPanel.preset.properties.absorption.mode}");
         
-        //_shaderAdapter.Execute();
+        _shaderAdapter.Execute();
     }
 
     public void SavePreset()

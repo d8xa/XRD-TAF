@@ -26,7 +26,7 @@ namespace model.properties
         public double GetRatioFromIndex(int pixelIndex, bool vertical)
         {
             return distToSample / Math.Sqrt(
-                Math.Pow(pixelIndex*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0], 2) + 
+                Math.Pow((pixelIndex+0.5)*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0], 2) + 
                 Math.Pow(distToSample, 2)
             );
         }
@@ -39,7 +39,7 @@ namespace model.properties
         /// <param name="vertical">Toggle between horizontal and vertical angle.</param>
         public double GetAngleFromIndex(int pixelIndex, bool vertical)
         {
-            return Math.Atan((pixelIndex*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0])/distToSample);
+            return Math.Atan(((pixelIndex+0.5)*pixelSize[vertical ? 1 : 0] - offset[vertical ? 1 : 0])/distToSample);
         }
 
         /// <summary>
