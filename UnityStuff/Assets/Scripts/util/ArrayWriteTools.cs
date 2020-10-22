@@ -29,9 +29,10 @@ namespace util
                 for (var i = iBounds.x; StrictCompare(i,iBounds.y); i += increment)
                 {
                     var sb = new StringBuilder();
+                    if (headCol != null) sb.Append(headCol[i] + sep);
+
                     for (var j = jBounds.x; StrictCompare(j, jBounds.y); j += increment)
                     {
-                        if (headCol != null) sb.Append(headCol[i]);
                         sb.Append(data[i, j].ToString("G", CultureInfo.InvariantCulture));
                         if (StrictCompare(j, jBounds.y - increment))
                             sb.Append(sep);
@@ -57,9 +58,10 @@ namespace util
                 for (var i = iBounds.x; StrictCompare(i,iBounds.y); i += increment)
                 {
                     var sb = new StringBuilder();
+                    if (headCol != null) sb.Append(headCol[i] + sep);
+
                     for (var j = jBounds.x; StrictCompare(j, jBounds.y); j += increment)
                     {
-                        if (headCol != null) sb.Append(headCol[i]);
                         sb.Append("(")
                             .Append(string.Join(", ",
                                 data[i, j].x.ToString("G", CultureInfo.InvariantCulture),
