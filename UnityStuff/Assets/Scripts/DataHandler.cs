@@ -1,17 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
-using System.Net.Mime;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Threading;
-using System.Xml;
 using adapter;
 using model;
 using model.properties;
 using ui;
-using UnityEditor.Build.Content;
 using UnityEngine.UI;
 using Button = UnityEngine.UI.Button;
 using Logger = util.Logger;
@@ -128,21 +123,9 @@ public class DataHandler : MonoBehaviour{
         _saveDir = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
     }
 
-    private void FillInBlanks()
-    {
-        UpdateSaveDir();
-        var filePath = Path.Combine(_saveDir, "Default.json");
-        if (File.Exists(filePath))
-        {
-            var presetJson = File.ReadAllText(filePath);
-            var preset = JsonUtility.FromJson<Preset>(presetJson);
-            mainPanel.FillFromPreset(preset);
-        }
-    }
-
     public void SubmitToComputing()
     {
-        //FillInBlanks();
+        //FillInBlanks();    // TODO
 
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
@@ -162,6 +145,7 @@ public class DataHandler : MonoBehaviour{
 
     public void SavePreset()
     {
+        UpdateSaveDir();
         var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + presetExtension);
 
         using (var stream = File.Open(path, FileMode.OpenOrCreate)) 
@@ -175,6 +159,7 @@ public class DataHandler : MonoBehaviour{
 
     public void LoadPreset()
     {
+        UpdateSaveDir();
         var loadFileNamePrefix = loadFileName.text;
         var loadFilePath = Path.Combine(_saveDir, loadFileNamePrefix + presetExtension);
 
