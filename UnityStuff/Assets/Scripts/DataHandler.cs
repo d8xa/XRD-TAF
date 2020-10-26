@@ -111,11 +111,7 @@ public class DataHandler : MonoBehaviour
         
         // TODO: hide "Submit" button until all required settings for the selected mode are set.
         // TODO: multithreading.
-        submitButton.onClick.AddListener(() =>
-        {
-            //stopButton.gameObject.SetActive(true);
-            //status.gameObject.SetActive(true);
-        });
+        submitButton.onClick.AddListener(SubmitToComputing);
         stopButton.gameObject.SetActive(false);
     }
 
