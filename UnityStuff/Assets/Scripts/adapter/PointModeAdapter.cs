@@ -93,6 +93,7 @@ namespace adapter
             // prepare required variables.
             shader.SetFloat("r_cell", r.cell);
             shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
             shader.SetInts("indicatorCount", 0, 0, 0);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
@@ -181,8 +182,8 @@ namespace adapter
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                shader.SetFloat("cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
-                shader.SetFloat("sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
@@ -258,29 +259,9 @@ namespace adapter
             }
             
             ArrayWriteTools.Write2D(path, headCol, headRow, data);
+            logger.Log(Logger.EventType.Step, "Writing done.");
         }
         
-        private void WriteAbsorptionFactorsNative()
-        {
-            logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): started.");
-
-            using (FileStream fileStream = File.Create(Path.Combine("Logs", "Absorptions2D", $"Output n={sampleResolution}.txt")))
-            using (BufferedStream buffered = new BufferedStream(fileStream))
-            using (StreamWriter writer = new StreamWriter(buffered))
-            {
-                writer.WriteLine(string.Join("\t", "2 theta","A_{s,sc}", "A_{c,sc}", "A_{c,c}"));
-                for (int i = 0; i < _nrAnglesTheta; i++)
-                {
-                    writer.WriteLine(string.Join("\t", 
-                        GetThetaAt(i).ToString("G", CultureInfo.InvariantCulture),
-                        _absorptionFactors[i].x.ToString("G", CultureInfo.InvariantCulture),
-                        _absorptionFactors[i].y.ToString("G", CultureInfo.InvariantCulture),
-                        _absorptionFactors[i].z.ToString("G", CultureInfo.InvariantCulture)));
-                }
-            }
-            
-            logger.Log(Logger.EventType.Method, "WriteAbsorptionFactors(): done.");
-        }
         
         private double GetThetaAt(int index)
         {

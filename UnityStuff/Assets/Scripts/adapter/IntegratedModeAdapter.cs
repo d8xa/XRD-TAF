@@ -205,13 +205,13 @@ namespace adapter
                     
                     if (IsOutside(j, i, tau, vCosInv))
                     {
-                        logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}) outside.");
+                        //logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}) outside.");
                         continue;
                     }
 
                     // set rotation parameters.
-                    shader.SetFloat("rotCos", (float) Math.Cos(Math.PI - tau));
-                    shader.SetFloat("rotSin", (float) Math.Sin(Math.PI - tau));
+                    shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - tau));
+                    shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
                     logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -228,14 +228,10 @@ namespace adapter
                     absorptionsBuffer.GetData(absorptionsTemp);
                     
                     ringAbsorptionValues.AddLast(GetAbsorptionFactor(absorptionsTemp));
-                    
-                    // TODO: remove after validation.
-                    if (IsUnrepresentable(ringAbsorptionValues.ElementAt(i)))
-                        logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}): NaN or Infinity detected.");
                 }
 
                 //if (AnyIrregular(ringValues)) 
-                logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
+                //logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
@@ -260,7 +256,9 @@ namespace adapter
 
         protected override void Write()
         {
-            var saveDir = Path.Combine("Logs", "AbsorptionsIntegrated");
+            logger.Log(Logger.EventType.Method, "Write(): started.");
+
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", "AbsorptionsIntegrated");
             Directory.CreateDirectory(saveDir);
             var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesPerRing}.txt";
 
@@ -278,6 +276,8 @@ namespace adapter
             }
             
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), headCol, headRow, data);
+            
+            logger.Log(Logger.EventType.Method, "Write(): done.");
         }
         
         #endregion
@@ -311,8 +311,8 @@ namespace adapter
 
         private bool IsOutside(int j, int i, double tau, double vCosInv)
         {
-            logger.Log(Logger.EventType.Inspect, 
-                $"(i={i}, j={j}): tau={tau}, vCos={1/vCosInv}, v angle={AsDegree(Math.Acos(1/vCosInv))} (deg)");
+            //logger.Log(Logger.EventType.Inspect, 
+              //  $"(i={i}, j={j}): tau={tau}, vCos={1/vCosInv}, v angle={AsDegree(Math.Acos(1/vCosInv))} (deg)");
             if (tau < _thetaLowerBound || tau > _thetaUpperBound) return true;
             else if (Math.Acos(1/vCosInv) < _alphaLowerBound || Math.Acos(1/vCosInv) > _alphaUpperBound) return true;
             return false;
@@ -360,7 +360,7 @@ namespace adapter
             var vCosInv = hypotLength / tauHypotLength;
                 if (Math.Abs(tauVerticalOffset) < 1E-5) vCosInv = 1;    // experimental
     
-            LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCosInv, hypotLength);
+            //LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCosInv, hypotLength);
 
             return vCosInv;
         }

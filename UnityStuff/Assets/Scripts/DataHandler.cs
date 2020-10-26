@@ -139,9 +139,13 @@ public class DataHandler : MonoBehaviour
             .AutoSetShader()
             .Build();
         
+        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Shader adapter built."
+        + $" preset set to = {mainPanel.preset}");
+        
         _shaderAdapter.SetStatus(ref status);
         
         _shaderAdapter.Execute();
+        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Shader adapter executed.");
     }
 
     public void SavePreset()

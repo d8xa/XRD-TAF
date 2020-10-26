@@ -10,10 +10,11 @@ float r_sample;     // inner radius
 float r_cell_sq;    // outer radius squared
 float r_sample_sq;  // inner radius squared
 
-float rotCos;          // cos(180-2*theta)
-float rotSin;          // sin(180-2*theta)
+float rot_cos;          // cos(180-2*theta)
+float rot_sin;          // sin(180-2*theta)
 float2 mu;          // absorption factors in cell, sample.
 float vCos;         // vertical cosine.
+float ray_width;
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
@@ -95,8 +96,8 @@ void g1_dists(uint3 id : SV_DispatchThreadID)
 void g2_dists (uint3 id : SV_DispatchThreadID)
 {
     float2 rv = float2(
-        rotCos*segment[id.x].x-rotSin*segment[id.x].y, 
-        rotSin*segment[id.x].x+rotCos*segment[id.x].y
+        rot_cos*segment[id.x].x-rot_sin*segment[id.x].y, 
+        rot_sin*segment[id.x].x+rot_cos*segment[id.x].y
     );
     g2DistancesOuter[id.x] = ER_dists_F2(rv);
     g2DistancesInner[id.x] = ER_dists_F1(rv);
@@ -109,7 +110,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 {
     float norm = length(segment[id.x]);
     
-    if (norm <= r_cell)
+    if (norm <= r_cell && abs(segment[id.x].x) <= ray_width)
     {
         if (norm > r_sample)
         {

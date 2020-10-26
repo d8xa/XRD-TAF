@@ -99,6 +99,7 @@ namespace adapter
             // prepare required variables.
             shader.SetFloat("r_cell", r.cell);
             shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -189,8 +190,8 @@ namespace adapter
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
-                shader.SetFloat("cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
-                shader.SetFloat("sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
+                shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 
                 // compute g2 distances.
                 logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");

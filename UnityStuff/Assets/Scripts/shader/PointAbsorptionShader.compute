@@ -7,9 +7,10 @@ float r_sample;     // inner radius
 float r_cell_sq;    // outer radius squared
 float r_sample_sq;  // inner radius squared
 
-float cos;          // cos to use for rotation matrix
-float sin;          // sin to use for rotation matrix
+float rot_cos;          // cos to use for rotation matrix
+float rot_sin;          // sin to use for rotation matrix
 float2 mu;          // absorption factors in cell, sample.
+float ray_width;
 
 /* CONTENT: Read-only buffers. */
 StructuredBuffer<float2> segment;                   // list of segment coordinates.
@@ -84,7 +85,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 {
     float norm = length(segment[id.x]);
     
-    if (norm <= r_cell)
+    if (norm <= r_cell && abs(segment[id.x].x) <= ray_width)
     {
         if (norm > r_sample)
         {
@@ -104,8 +105,8 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 void Absorptions(uint3 id : SV_DispatchThreadID){
     //float2 rv = rotatePoint(id.x);//
     float2 rv = float2(
-        cos*segment[id.x].x-sin*segment[id.x].y, 
-        sin*segment[id.x].x+cos*segment[id.x].y
+        rot_cos*segment[id.x].x-rot_sin*segment[id.x].y, 
+        rot_sin*segment[id.x].x+rot_cos*segment[id.x].y
     );
     float norm = length(segment[id.x]);
     

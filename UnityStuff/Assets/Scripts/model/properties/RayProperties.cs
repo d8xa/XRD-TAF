@@ -6,7 +6,7 @@ namespace model.properties
     [DataContract]
     public class RayProperties {
         [DataMember] public Profile profile;
-        public Vector2 dimensions;    // TODO: support
+        [DataMember] public Vector2 dimensions;    // TODO: support
         public float intensity;
         
         /// <summary> The horizontal and vertical offset from the center of the capillary. </summary>
