@@ -11,7 +11,8 @@ using UnityEngine.UI;
 using Button = UnityEngine.UI.Button;
 using Logger = util.Logger;
 
-public class DataHandler : MonoBehaviour{
+public class DataHandler : MonoBehaviour
+{
     
     #region Panels
     
@@ -120,7 +121,7 @@ public class DataHandler : MonoBehaviour{
 
     private void UpdateSaveDir()
     {
-        _saveDir = Path.Combine(Path.GetFullPath(Application.dataPath), "Settings");
+        _saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
     }
 
     public void SubmitToComputing()
@@ -130,6 +131,10 @@ public class DataHandler : MonoBehaviour{
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
+
+        var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "mode2_debug.txt");
+        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Logger initialized.");
+        logger.AppendToFile(logPath);
         
         _shaderAdapter = _builder
             .SetLogger(logger)
@@ -146,6 +151,7 @@ public class DataHandler : MonoBehaviour{
     public void SavePreset()
     {
         UpdateSaveDir();
+        Directory.CreateDirectory(_saveDir);
         var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + presetExtension);
 
         using (var stream = File.Open(path, FileMode.OpenOrCreate)) 

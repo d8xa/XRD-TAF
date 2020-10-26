@@ -59,7 +59,7 @@ namespace adapter
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             
             angles = Parser.ImportAngles(
-                Path.Combine(Application.dataPath, "Input", properties.angle.pathToAngleFile + ".txt"));
+                Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
 
             _nrAnglesTheta = angles.Length;
             _nrSegments = sampleResolution * sampleResolution;
@@ -239,7 +239,11 @@ namespace adapter
 
         private void WriteAbsorptionFactors()
         {
-            var path = Path.Combine("Logs", "Absorptions2D", $"Output n={sampleResolution}.txt");
+            var folder = Path.Combine(Directory.GetCurrentDirectory(), "Output", "Absorptions2D");
+            var path = Path.Combine(folder, $"Output n={sampleResolution}.txt");
+            Directory.CreateDirectory(folder);
+            logger.Log(Logger.EventType.Step, $"Writing to path {path}");
+
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))

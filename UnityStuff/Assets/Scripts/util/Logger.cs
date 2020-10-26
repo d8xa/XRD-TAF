@@ -135,10 +135,12 @@ namespace util
 
         public void WriteToFile(string filePath)
         {
+            var folderPath = Path.GetDirectoryName(filePath) ?? _defaultFolder;
+            Directory.CreateDirectory(folderPath);
+            
             if (File.Exists(filePath))
             {
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
-                var folderPath = Path.GetDirectoryName(filePath) ?? _defaultFolder;
                 var fileExtension = Path.GetExtension(filePath);
                 var number = 1;
 

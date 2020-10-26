@@ -55,7 +55,7 @@ namespace adapter
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             
             angles = Parser.ImportAngles(
-                Path.Combine(Application.dataPath, "Input", properties.angle.pathToAngleFile + ".txt"));
+                Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
 
             // initialize dimensions.

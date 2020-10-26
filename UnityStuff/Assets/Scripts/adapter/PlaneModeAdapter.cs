@@ -242,8 +242,9 @@ namespace adapter
         protected override void Write()
         {
             SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
+            
 
-            var saveDir = Path.Combine("Logs", "Absorptions3D");
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", "Absorptions3D");
             Directory.CreateDirectory(saveDir);
             var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
 
