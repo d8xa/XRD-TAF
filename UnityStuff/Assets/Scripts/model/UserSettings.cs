@@ -1,5 +1,7 @@
 ﻿using System.Globalization;
+using System.IO;
 using System.Runtime.Serialization;
+using UnityEngine;
 
 namespace model
 {
@@ -65,6 +67,18 @@ namespace model
             /// Use radian angles for input and output.
             /// </summary>
             [DataMember] public bool useRadian;
+
+            /// <summary>
+            /// Toggle to switch on or off the use of Logger objects.
+            /// </summary>
+            //[DataMember]
+            public bool useLogging;
+
+            /// <summary>
+            /// Write logs. If enabled, useLogging is set to true. 
+            /// </summary>
+            //[DataMember]
+            public bool writeLogs;
             
             // only for debugging use.
             public bool writeFactors = true;
