@@ -9,6 +9,7 @@ float2 r;                                       // (cell,sample) radius of the m
 float2 r2;                                      // r^2.
 float2 mu;                                      // (cell,sample) mass attenuation coefficient.
 float2 ray_dim;                                 // (width,height) dimensions of the ray.
+float2 ray_pos;                                 // (x,y) offset of the ray.
 
 // PARAMETERS (variable):
 float2 rot;                                     // (cos,sin) of the rotation for a given theta.
@@ -38,7 +39,7 @@ void get_indicator(uint3 id : SV_DispatchThreadID)
 {
     float norm = length(segment[id.x]);
     
-    if (norm <= r.x && abs(segment[id.x].x) <= ray_dim.x)
+    if (norm <= r.x && abs(segment[id.x].x - ray_pos.x) <= ray_dim.x)
     {
         if (norm > r.y)
             indicatorMask[id.x].y = 1;    // cases A_{c,sc}, A_{c,c}.
