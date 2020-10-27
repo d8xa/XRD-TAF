@@ -97,10 +97,8 @@ namespace adapter
             SetStatusMessage($"Step 2/{(writeFactors ? 4 : 3)}: Computing indicator mask...");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
-            var maskHandle = shader.FindKernel("getIndicatorMask");
+            SetSharedParameters();
+            var maskHandle = shader.FindKernel("get_indicator");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
@@ -117,6 +115,14 @@ namespace adapter
 
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
         }
+        
+        private void SetSharedParameters()
+        {
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloats("r", r.cell, r.sample);
+            shader.SetFloats("r2", rSq.cell, rSq.sample);
+            shader.SetFloats("ray_dim", properties.ray.dimensions.x / 2, properties.ray.dimensions.y / 2);
+        }
 
         protected override void Compute()
         {
@@ -127,19 +133,14 @@ namespace adapter
             sw.Start();
 
             // initialize parameters in shader.
-            // necessary here already?
-            shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
+            // SetSharedParameters();
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             
             // get kernel handles.
-            var g1Handle = shader.FindKernel("g1_dists");
-            var g2Handle = shader.FindKernel("g2_dists");
-            var absorptionsHandle = shader.FindKernel("Absorptions");
+            var g1Handle = shader.FindKernel("dists_part1");
+            var g2Handle = shader.FindKernel("dists_part2");
+            var absorptionsHandle = shader.FindKernel("get_absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
             
@@ -190,8 +191,8 @@ namespace adapter
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 // set rotation parameters.
-                shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
-                shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
+                shader.SetFloats("rot", (float) Math.Cos(Math.PI - GetThetaAt(j)),
+                    (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 
                 // compute g2 distances.
                 logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
@@ -206,7 +207,7 @@ namespace adapter
                 {
                     var startInnerLoop = sw.Elapsed;
                     
-                    shader.SetFloat("vCos", vCosines[i]);
+                    shader.SetFloat("stretch", vCosines[i]);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);

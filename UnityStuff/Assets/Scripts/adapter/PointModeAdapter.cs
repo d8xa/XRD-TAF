@@ -91,10 +91,7 @@ namespace adapter
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
-            shader.SetInts("indicatorCount", 0, 0, 0);
+            SetSharedParameters();
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -117,6 +114,14 @@ namespace adapter
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
         }
 
+        private void SetSharedParameters()
+        {
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloats("r", r.cell, r.sample);
+            shader.SetFloats("r2", rSq.cell, rSq.sample);
+            shader.SetFloats("ray_dim", properties.ray.dimensions.x / 2, properties.ray.dimensions.y / 2);
+        }
+
         protected override void Compute()
         {
             logger.Log(Logger.EventType.Method, "Compute(): started.");
@@ -132,18 +137,13 @@ namespace adapter
             logger.Log(Logger.EventType.Step, "Initialized g1 distance arrays.");
 
             // initialize parameters in shader.
-            // necessary here already?
-            shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
+            //SetSharedParameters();
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
             // get kernel handles.
-            var g1Handle = shader.FindKernel("g1_dists");
-            var absorptionsHandle = shader.FindKernel("Absorptions");
+            var part1Handle = shader.FindKernel("dists_part1");
+            var absorptionsHandle = shader.FindKernel("get_absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
 
  
@@ -158,15 +158,15 @@ namespace adapter
             _inputBuffer.SetData(coordinates);
             
             // set buffers for g1 kernel.
-            shader.SetBuffer(g1Handle, "segment", _inputBuffer);
-            shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
-            shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
+            shader.SetBuffer(part1Handle, "segment", _inputBuffer);
+            shader.SetBuffer(part1Handle, "distancesInner", outputBufferInner);
+            shader.SetBuffer(part1Handle, "distancesOuter", outputBufferOuter);
             logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
 
             
             // compute g1 distances.
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
-            shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
+            shader.Dispatch(part1Handle, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
                      
@@ -182,8 +182,8 @@ namespace adapter
                 var loopStart = sw.Elapsed;
 
                 // set coordinate buffer. remove?
-                shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
-                shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
+                shader.SetFloats("rot", (float) Math.Cos(Math.PI - GetThetaAt(j)), 
+                    (float) Math.Sin(Math.PI - GetThetaAt(j)));
                 shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
                 shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
                 shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);

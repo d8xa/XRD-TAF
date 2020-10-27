@@ -1,0 +1,79 @@
+﻿/// <summary>
+/// This shader provides common methods to be imported into other shaders.
+/// </summary>
+
+
+/// <summary>
+/// Gives the x coordinate of the left or right intersection between the ray and a medium boundary at radius r.
+/// </summary>
+/// <param name="v">the coordinate vector.</param>
+/// <param name="r2">the radius squared.</param>
+/// <param name="right">Flag to toggle between lef/right (positive/negative) intersection.</param>
+float get_intersect_x(float2 v, float r2, bool right)
+{
+    if (right)
+    { 
+        return sqrt(abs(r2 - pow(v.y, 2)));
+    } 
+    return -sqrt(abs(r2 - pow(v.y, 2)));
+}
+
+/// <summary>
+/// Sums the travel distances of a ray segment through the medium by material.
+/// The ray is diffracted at v. v is inside the sample.
+/// </summary>
+/// <param name="v">the coordinate vector.</param>
+/// <param name="r">the radii of the medium.</param>
+/// <param name="r2">the squared radii.</param>
+float2 dists_case1(float2 v, float2 r, float2 r2)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
+    
+    if (length(v) <= r.y)
+    {
+        d_cell = abs(get_intersect_x(v, r2.y, false) - get_intersect_x(v, r2.x, false));
+        d_sample = abs(v.x - get_intersect_x(v, r2.y, false));
+    }
+    
+    return float2(d_cell, d_sample);
+}
+
+/// <summary>
+/// Sums the travel distances of a ray segment through the medium by material.
+/// The ray is diffracted at v. v is inside the cell.
+/// </summary>
+/// <param name="v">the coordinate vector.</param>
+/// <param name="r">the radii of the medium.</param>
+/// <param name="r2">the squared radii.</param>
+float2 dists_case2(float2 v, float2 r, float2 r2)
+{
+    float d_cell = 0.0;
+    float d_sample = 0.0;
+    
+    if (length(v) > r.y & length(v) <= r.x)
+    {
+        float entry_outer = get_intersect_x(v, r2.x, false);
+        if (v.x >= 0 & abs(v.y) < r.y)
+        {
+            float entry_inner = get_intersect_x(v, r2.y, false);
+            float exit_inner = get_intersect_x(v, r2.y, true);
+            d_cell = abs(entry_outer - entry_inner) + abs(exit_inner - v.x);
+            d_sample = abs(entry_inner - exit_inner);
+        }
+        else
+        {
+            d_cell = abs(entry_outer - v.x);
+        }
+    }
+    
+    return float2(d_cell, d_sample);
+}
+
+float2 rotate_point(float2 rot, float2 v)
+{
+    return float2(
+        rot.x * v.x - rot.y * v.y,
+        rot.y * v.x + rot.x * v.y
+   );
+}
