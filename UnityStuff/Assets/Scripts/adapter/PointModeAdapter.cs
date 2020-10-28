@@ -35,8 +35,8 @@ namespace adapter
 
         #region Constructors
 
-        public PointModeAdapter(ComputeShader shader, Properties properties, bool writeFactors, Logger customLogger) 
-            : base(shader, properties, writeFactors, customLogger)
+        public PointModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger) 
+            : base(shader, preset, writeFactors, customLogger)
         {
             SetLogger(customLogger);
             logger.SetPrintFilter(new List<Logger.EventType>()
@@ -240,10 +240,19 @@ namespace adapter
 
         private void WriteAbsorptionFactors()
         {
-            var folder = Path.Combine(Directory.GetCurrentDirectory(), "Output", "Absorptions2D");
-            var path = Path.Combine(folder, $"Output n={sampleResolution}.txt");
-            Directory.CreateDirectory(folder);
-            logger.Log(Logger.EventType.Step, $"Writing to path {path}");
+            var res = sampleResolution;
+            var n = _nrAnglesTheta;
+            var m = 1;
+            var k = 1;
+
+            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
+            
+            var saveFileName = $"[mode={0}] [dim=({res},{n},{m},{k})] Output.txt";
+            var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var savePath = Path.Combine(saveDir, saveFileName);
+            Directory.CreateDirectory(saveDir);
+            logger.Log(Logger.EventType.Step, $"Writing to path {savePath}");
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
@@ -258,7 +267,7 @@ namespace adapter
                 }
             }
             
-            ArrayWriteTools.Write2D(path, headCol, headRow, data);
+            ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
             logger.Log(Logger.EventType.Step, "Writing done.");
         }
         

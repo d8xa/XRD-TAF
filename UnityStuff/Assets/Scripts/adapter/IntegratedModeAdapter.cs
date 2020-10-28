@@ -38,8 +38,8 @@ namespace adapter
 
         #region Constructors
 
-        public IntegratedModeAdapter(ComputeShader shader, Properties properties, bool writeFactors, Logger customLogger
-        ) : base(shader, properties, writeFactors, customLogger)
+        public IntegratedModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger
+        ) : base(shader, preset, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -259,9 +259,18 @@ namespace adapter
         {
             logger.Log(Logger.EventType.Method, "Write(): started.");
 
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", "AbsorptionsIntegrated");
+            var res = sampleResolution;
+            var n = _nrAnglesTheta;
+            var m = 1;
+            var k = _nrAnglesPerRing;
+
+            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
+            
+            var saveFileName = $"[mode={2}] [dim=({res},{n},{m},{k})] Output.txt";
+            var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
-            var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesPerRing}.txt";
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
@@ -276,7 +285,7 @@ namespace adapter
                 }
             }
             
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), headCol, headRow, data);
+            ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
             
             logger.Log(Logger.EventType.Method, "Write(): done.");
         }

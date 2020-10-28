@@ -15,7 +15,7 @@ namespace adapter
         private bool _writeFactors;
         private float? _margin;
         [CanBeNull] private ComputeShader _shader;
-        [CanBeNull] private Properties _properties;
+        private Preset _preset;
         private static Dictionary<AbsorptionProperties.Mode, ComputeShader> _shaderMapping;
         private Logger _logger;
         
@@ -35,16 +35,16 @@ namespace adapter
             ShaderAdapter adapter = null;
             if (IsComplete())
             {
-                switch (_properties.absorption.mode)
+                switch (_preset.properties.absorption.mode)
                 {
                     case AbsorptionProperties.Mode.Point:
-                        adapter = new PointModeAdapter(_shader, _properties, _writeFactors, _logger);
+                        adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger);
                         break;
                     case AbsorptionProperties.Mode.Area:
-                        adapter = new PlaneModeAdapter(_shader, _properties, _writeFactors, _logger);
+                        adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger);
                         break;
                     case AbsorptionProperties.Mode.Integrated:
-                        adapter = new IntegratedModeAdapter(_shader, _properties, _writeFactors, _logger);
+                        adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger);
                         break;
                 }
             }
@@ -58,7 +58,7 @@ namespace adapter
             {
                 if (_shader == null)
                     throw new NullReferenceException("Please specify a shader.");
-                else if (_properties == null)
+                else if (_preset == null)
                     throw new NullReferenceException("Please specify properties.");
                 else if (_margin == null)
                     throw new NullReferenceException("");
@@ -83,7 +83,7 @@ namespace adapter
 
         public ShaderAdapterBuilder SetProperties(Preset preset)
         {
-            _properties = preset.properties;
+            _preset = preset;
             return this;
         }
 
@@ -103,7 +103,7 @@ namespace adapter
         
         public ShaderAdapterBuilder AutoSetShader()
         {
-            var mode = _properties.absorption.mode;
+            var mode = _preset.properties.absorption.mode;
             if (mode == AbsorptionProperties.Mode.Undefined)
                 throw new InvalidOperationException("Mode must be set.");
             if (_shaderMapping == null)

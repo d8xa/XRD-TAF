@@ -37,10 +37,10 @@ namespace adapter
 
         public PlaneModeAdapter(
             ComputeShader shader, 
-            Properties properties,
+            Preset preset,
             bool writeFactors,
             Logger customLogger
-        ) : base(shader, properties, writeFactors, customLogger)
+        ) : base(shader, preset, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(new Logger());
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
@@ -244,24 +244,32 @@ namespace adapter
         {
             SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
             
+            var res = sampleResolution;
+            var n = _nrAnglesTheta;
+            var m = _nrAnglesAlpha;
+            var k = 1;
 
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", "Absorptions3D");
+            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
+            
+            var saveFileName = $"[mode={1}] [dim=({res},{n},{m},{k})] Output.txt";
+            var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
-            var saveName = $"Output res={sampleResolution}, n={_nrAnglesTheta}, m={_nrAnglesAlpha}.txt";
 
             if (Settings.flags.planeModeWriteSeparateFiles)
             {
                 float[,] current = new float[_nrAnglesAlpha, _nrAnglesTheta];
-                for (int k = 0; k < 3; k++)
+                for (int col = 0; col < 3; col++)
                 for (int j = 0; j < _nrAnglesTheta; j++)
                 for (int i = 0; i < _nrAnglesAlpha; i++)
-                    current[i, j] = _absorptionFactors[i, j][k];
-                ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), current, reverse: true);
+                    current[i, j] = _absorptionFactors[i, j][col];
+                ArrayWriteTools.Write2D(savePath, current, reverse: true);
 
 
             }
             else
-                ArrayWriteTools.Write2D(Path.Combine(saveDir, saveName), _absorptionFactors, reverse: true);
+                ArrayWriteTools.Write2D(savePath, _absorptionFactors, reverse: true);
         }
 
         protected override void Cleanup()
