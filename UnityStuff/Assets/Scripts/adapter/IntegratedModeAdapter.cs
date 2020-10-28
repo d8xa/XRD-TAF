@@ -112,6 +112,7 @@ namespace adapter
             // prepare required variables.
             shader.SetFloat("r_cell", r.cell);
             shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
