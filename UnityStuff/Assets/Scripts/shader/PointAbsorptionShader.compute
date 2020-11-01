@@ -85,7 +85,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
 {
     float norm = length(segment[id.x]);
     
-    if (norm <= r_cell && abs(segment[id.x].x) <= ray_width)
+    if (norm <= r_cell && abs(segment[id.x].y) <= ray_width)
     {
         if (norm > r_sample)
         {
