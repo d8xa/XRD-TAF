@@ -7,6 +7,7 @@ using System.Linq;
 using model;
 using UnityEngine;
 using util;
+using static util.MathTools;
 using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Logger = util.Logger;
@@ -60,7 +61,9 @@ namespace adapter
             
             angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
-
+            if (!Settings.flags.useRadian)
+                angles = angles.Select(AsRadian).ToArray();
+            
             _nrAnglesTheta = angles.Length;
             _nrSegments = sampleResolution * sampleResolution;
             
@@ -256,17 +259,14 @@ namespace adapter
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
+                .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
             for (int i = 0; i < _nrAnglesTheta; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                {
-                    data[i, j] = _absorptionFactors[i][j];
-                }
-            }
-            
+            for (int j = 0; j < 3; j++)
+                data[i, j] = _absorptionFactors[i][j];
+
             ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
             logger.Log(Logger.EventType.Step, "Writing done.");
         }
@@ -274,7 +274,7 @@ namespace adapter
         
         private double GetThetaAt(int index)
         {
-            return MathTools.AsRadian(Math.Abs(angles[index]));
+            return Math.Abs(angles[index]);
         }
 
         #endregion

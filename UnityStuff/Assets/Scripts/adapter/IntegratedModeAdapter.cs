@@ -56,6 +56,8 @@ namespace adapter
             
             angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
+            if (!Settings.flags.useRadian)
+                angles = angles.Select(AsRadian).ToArray();
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
 
             // initialize dimensions.
@@ -274,6 +276,7 @@ namespace adapter
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
+                .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
             var data = new float[_nrAnglesTheta, 3];
@@ -316,7 +319,7 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return AsRadian(angles[index]);
+            return angles[index];
         }
 
         private bool IsOutside(int j, int i, double tau, double vCosInv)

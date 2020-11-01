@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Runtime.Serialization;
 using UnityEngine;
-using util;
 
 namespace model.properties
 {
@@ -52,10 +51,10 @@ namespace model.properties
         {
             return Math.Atan((length-offset[vertical ? 1 : 0])/distToSample);
         }
-
-        public float GetAngleFromRatio(double ratio)
+        
+        public double GetAngleFromRatio(double ratio)
         {
-            return (float) MathTools.AsDegree(Math.Acos(ratio));
+            return Math.Acos(ratio);
         }
     }
 }

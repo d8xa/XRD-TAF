@@ -63,6 +63,7 @@ namespace adapter
             angles = Enumerable.Range(0, properties.detector.resolution.x)
                 .Select(j => properties.detector.GetRatioFromIndex(j, false))
                 .Select(v => properties.detector.GetAngleFromRatio(v))
+                .Select(v => (float) v)
                 .ToArray();
             vCosines = Enumerable.Range(0, properties.detector.resolution.y)
                 .Select(j => (float) properties.detector.GetRatioFromIndex(j, true))
@@ -295,7 +296,7 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return MathTools.AsRadian(Math.Abs(angles[index]));
+            return Math.Abs(angles[index]);
         }
 
         #endregion
