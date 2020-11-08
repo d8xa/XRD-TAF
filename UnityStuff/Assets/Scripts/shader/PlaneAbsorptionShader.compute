@@ -123,7 +123,7 @@ void getIndicatorMask(uint3 id : SV_DispatchThreadID)
     else
     {
         indicatorMask[id.x] = uint2(0, 0);
-        // TODO: why u no initialize in script cabron?
+        // TODO: initialize in script.
     }
 }
 

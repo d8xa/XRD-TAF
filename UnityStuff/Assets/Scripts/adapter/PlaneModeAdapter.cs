@@ -206,8 +206,12 @@ namespace adapter
                 for (int i = 0; i < _nrAnglesAlpha; i++)
                 {
                     var startInnerLoop = sw.Elapsed;
+
+                    var v = GetDistanceVector(i, j);
+                    var stretchFactor = GetStretchFactor(v);
+
                     
-                    shader.SetFloat("vCos", vCosines[i]);
+                    shader.SetFloat("vCos", stretchFactor);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
@@ -262,12 +266,14 @@ namespace adapter
             {
                 float[,] current = new float[_nrAnglesAlpha, _nrAnglesTheta];
                 for (int col = 0; col < 3; col++)
-                for (int j = 0; j < _nrAnglesTheta; j++)
-                for (int i = 0; i < _nrAnglesAlpha; i++)
-                    current[i, j] = _absorptionFactors[i, j][col];
-                ArrayWriteTools.Write2D(savePath, current, reverse: true);
-
-
+                {
+                    for (int j = 0; j < _nrAnglesTheta; j++)
+                    for (int i = 0; i < _nrAnglesAlpha; i++)
+                        current[i, j] = _absorptionFactors[i, j][col];
+                    
+                    ArrayWriteTools.Write2D(savePath.Replace("[mode=1]", $"[mode=1][case={col}]"), current,
+                        reverse: true);
+                }
             }
             else
                 ArrayWriteTools.Write2D(savePath, _absorptionFactors, reverse: true);
@@ -297,6 +303,23 @@ namespace adapter
         private double GetThetaAt(int index)
         {
             return Math.Abs(angles[index]);
+        }
+
+        // TODO: check axes
+        private Vector2 GetDistanceVector(int i, int j)
+        {
+            return new Vector2(
+                (j + 0.5f)*properties.detector.pixelSize.x,
+                (i + 0.5f)*properties.detector.pixelSize.y
+            ) - properties.detector.offset;
+        }
+
+        private float GetStretchFactor(Vector2 distance)
+        {
+            var hypotXZ = Math.Sqrt(Math.Pow(distance.x, 2) + Math.Pow(properties.detector.distToSample, 2));
+            var hypot = Math.Sqrt(Math.Pow(distance.y, 2) + Math.Pow(hypotXZ, 2));
+
+            return (float) (hypot / hypotXZ);
         }
 
         #endregion
