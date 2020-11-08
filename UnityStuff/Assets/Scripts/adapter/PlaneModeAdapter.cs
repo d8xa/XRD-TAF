@@ -21,8 +21,7 @@ namespace adapter
         private int _nrAnglesTheta;
         private int _nrAnglesAlpha;
 
-        private float[] angles;
-        private float[] vCosines;
+        private float[] _angles;
 
         private Vector2 _nrDiffractionPoints;
         private int[] _innerIndices;
@@ -60,13 +59,9 @@ namespace adapter
             _nrAnglesAlpha = properties.detector.resolution.y;
             _nrSegments = sampleResolution * sampleResolution;
             
-            angles = Enumerable.Range(0, properties.detector.resolution.x)
-                .Select(j => properties.detector.GetRatioFromIndex(j, false))
-                .Select(v => properties.detector.GetAngleFromRatio(v))
+            _angles = Enumerable.Range(0, properties.detector.resolution.x)
+                .Select(j => properties.detector.GetAngleFromIndex(j))
                 .Select(v => (float) v)
-                .ToArray();
-            vCosines = Enumerable.Range(0, properties.detector.resolution.y)
-                .Select(j => (float) properties.detector.GetRatioFromIndex(j, true))
                 .ToArray();
             
             // initialize absorption array. dim n: (#thetas).
@@ -128,7 +123,7 @@ namespace adapter
             sw.Start();
 
             // initialize parameters in shader.
-            // necessary here already?
+            // TODO: extract.
             shader.SetFloats("mu", mu.cell, mu.sample);
             shader.SetFloat("r_cell", r.cell);
             shader.SetFloat("r_sample", r.sample);
@@ -145,7 +140,6 @@ namespace adapter
             
             
             // make buffers.
-            //var inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
             var g1OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var g1OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var g2OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
@@ -166,8 +160,6 @@ namespace adapter
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
             shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
-            
-            //Array.Clear(absorptionFactorColumn, 0, absorptionFactorColumn.Length);
             
             // set buffers for g2 kernel.
             shader.SetBuffer(g2Handle, "segment", _inputBuffer);
@@ -209,7 +201,6 @@ namespace adapter
 
                     var v = GetDistanceVector(i, j);
                     var stretchFactor = GetStretchFactor(v);
-
                     
                     shader.SetFloat("vCos", stretchFactor);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
@@ -302,7 +293,7 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return Math.Abs(angles[index]);
+            return Math.Abs(_angles[index]);
         }
 
         // TODO: check axes
