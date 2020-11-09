@@ -22,7 +22,7 @@ namespace adapter
         private int _nrSegments;
         private int _nrAnglesTheta;
 
-        private float[] angles;
+        private float[] _angles;
         
         // Mask of diffraction points
         private Vector2Int[] _diffractionMask;
@@ -59,12 +59,12 @@ namespace adapter
             logger.SetPrintLevel(Logger.LogLevel.All);
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             
-            angles = Parser.ImportAngles(
+            _angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
             if (!Settings.flags.useRadian)
-                angles = angles.Select(AsRadian).ToArray();
+                _angles = _angles.Select(AsRadian).ToArray();
             
-            _nrAnglesTheta = angles.Length;
+            _nrAnglesTheta = _angles.Length;
             _nrSegments = sampleResolution * sampleResolution;
             
             // initialize absorption array. dim n: (#thetas).
@@ -258,7 +258,7 @@ namespace adapter
             logger.Log(Logger.EventType.Step, $"Writing to path {savePath}");
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = angles
+            var headCol = _angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
@@ -274,7 +274,7 @@ namespace adapter
         
         private double GetThetaAt(int index)
         {
-            return Math.Abs(angles[index]);
+            return Math.Abs(_angles[index]);
         }
 
         #endregion

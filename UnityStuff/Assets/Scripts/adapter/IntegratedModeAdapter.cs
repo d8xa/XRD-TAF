@@ -64,9 +64,7 @@ namespace adapter
             _nrSegments = sampleResolution * sampleResolution;
             _nrAnglesTheta = _angles.Length;
             _nrAnglesPerRing = properties.angle.angleCount;
-            
-            
-            // TODO: support negative lower bounds. Find out why one bound is negative and one isn't.
+
             _thetaLowerBound = properties.detector.GetAngleFromIndex(0, false);
             _alphaLowerBound = properties.detector.GetAngleFromIndex(0, true);
             
@@ -250,11 +248,7 @@ namespace adapter
                     
                     ringAbsorptionValues.AddLast(af);
                 }
-
-                //if (GetThetaAt(j) > 80 && GetThetaAt(j) < 90)
-                  //  logger.Log(Logger.EventType.Inspect, "Ring values: " + );
-                //if (AnyIrregular(ringValues)) 
-                //logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
+                
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
@@ -367,17 +361,6 @@ namespace adapter
                 ringValues.AsParallel().Select(v => v.y).Average(),
                 ringValues.AsParallel().Select(v => v.z).Average()
             );
-        }
-
-        /// <summary>
-        /// Calculates the ratio between diffraction ray and its projection on the XY-plane.
-        /// </summary>
-        private float GetStretchFactor(Vector2 distance)
-        {
-            var hypotXZ = Math.Sqrt(Math.Pow(distance.x, 2) + Math.Pow(properties.detector.distToSample, 2));
-            var hypot = Math.Sqrt(Math.Pow(distance.y, 2) + Math.Pow(hypotXZ, 2));
-
-            return (float) (hypot / hypotXZ);
         }
 
         #endregion
