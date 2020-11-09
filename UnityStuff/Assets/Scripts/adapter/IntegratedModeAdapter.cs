@@ -25,7 +25,7 @@ namespace adapter
         private double _thetaLowerBound, _thetaUpperBound;
         private double _alphaLowerBound, _alphaUpperBound;
         
-        private float[] angles;
+        private float[] _angles;
         
         private Vector2 _nrDiffractionPoints;
         private int[] _innerIndices;
@@ -54,15 +54,15 @@ namespace adapter
         {
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
             
-            angles = Parser.ImportAngles(
+            _angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
             if (!Settings.flags.useRadian)
-                angles = angles.Select(AsRadian).ToArray();
+                _angles = _angles.Select(AsRadian).ToArray();
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
 
             // initialize dimensions.
             _nrSegments = sampleResolution * sampleResolution;
-            _nrAnglesTheta = angles.Length;
+            _nrAnglesTheta = _angles.Length;
             _nrAnglesPerRing = properties.angle.angleCount;
             
             
@@ -187,28 +187,43 @@ namespace adapter
             var absorptionsTemp = new Vector3[coordinates.Length];
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
             absorptionsBuffer.SetData(absorptionsTemp);
+
+            // debug
+            var stretchFactors = new float[_nrAnglesTheta, _nrAnglesTheta];
+            var ringCoordinates = new Vector2[_nrAnglesTheta, _nrAnglesTheta];
+            var ringAbsorptions = new Vector3[_nrAnglesTheta, _nrAnglesTheta];
+
             
             // iterative computation of average absorption values for each ring of radius theta:
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
                 var ringAbsorptionValues = new LinkedList<Vector3>();
                 
-                // ring geometry values for current theta:
-                var thetaHypotLength = Math.Abs(properties.detector.distToSample / Math.Cos(GetThetaAt(j))); // p (green)
-                var thetaRadius = 
-                    Math.Sqrt(Math.Pow(thetaHypotLength, 2) - Math.Pow(properties.detector.distToSample, 2));    // r (blue)
+                // ring geometry for current theta:
+                var ringDistance = Math.Cos(GetThetaAt(j)) * properties.detector.distToSample;
+                var ringRadius = Math.Sin(GetThetaAt(j)) * properties.detector.distToSample;
+
+                // The distance of any point on the ring to capillary center.
+                var hypot = Math.Sqrt(Math.Pow(ringDistance, 2) + Math.Pow(ringRadius, 2));
                 
                 // iterative computation of absorption values for each point on the current ring:
                 for (int i = 0; i < _nrAnglesPerRing; i++)
                 {
-                    // tau: theta angle at x-coordinate of rotated point.
+                    // tau: beam angle to current point on ring.
                     var tau = _rotations[i].cos * GetThetaAt(j);
+                    var tauRadius = _rotations[i].cos * ringRadius;
+
+                    var hypotXZ = Math.Sqrt(Math.Pow(ringDistance, 2) + Math.Pow(tauRadius, 2));
                     
-                    var vCosInv = GetVFactor(i, j, tau, thetaRadius, thetaHypotLength);
+                    var stretchFactor = hypot / hypotXZ;
+                    stretchFactors[i, j] = (float) stretchFactor;
+
+                    var v = GetRingCoordinate(i, ringRadius);
+                    ringCoordinates[i, j] = v;
                     
-                    if (IsOutside(j, i, tau, vCosInv))
+                    if (BoundaryCheck(v))
                     {
-                        //logger.Log(Logger.EventType.Inspect, $"(i={i}, j={j}) outside.");
+                        ringAbsorptions[i,j] = Vector3.positiveInfinity;
                         continue;
                     }
 
@@ -225,24 +240,25 @@ namespace adapter
                     shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
                     shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
                     
-                    shader.SetFloat("vCos", (float) vCosInv);
+                    shader.SetFloat("vCos", (float) stretchFactor);
                     shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
                     shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
+
+                    var af = GetAbsorptionFactor(absorptionsTemp);
+                    ringAbsorptions[i, j] = af;
                     
-                    ringAbsorptionValues.AddLast(GetAbsorptionFactor(absorptionsTemp));
+                    ringAbsorptionValues.AddLast(af);
                 }
 
+                //if (GetThetaAt(j) > 80 && GetThetaAt(j) < 90)
+                  //  logger.Log(Logger.EventType.Inspect, "Ring values: " + );
                 //if (AnyIrregular(ringValues)) 
                 //logger.Log(Logger.EventType.Inspect, $"(j={j})\t" + string.Join(", ", ringAbsorptionValues.Select(v => v.ToString("F5"))));
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
             logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
-
-            var results = string.Join(", ", 
-                _absorptionFactors.Select(v => v.ToString("F5")).ToArray());
-            logger.Log(Logger.EventType.Inspect, $"Absorptions factors: {results}");
 
             // release buffers.
             _inputBuffer.Release();
@@ -253,7 +269,20 @@ namespace adapter
             g2OutputBufferInner.Release();
             absorptionsBuffer.Release();
             logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+
+            const string saveFileName1 = "[mode=2] ring coordinates.txt";
+            const string saveFileName2 = "[mode=2] vcosinv.txt";
+            const string saveFileName3 = "[mode=2] ring absorption values.txt";
+            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
+            var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            //var savePath = Path.Combine(saveDir, saveFileName);
+            Directory.CreateDirectory(saveDir);
             
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName1), ringCoordinates, reverse:true);
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName2), stretchFactors, reverse:true);
+            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName3), ringAbsorptions, reverse:true);
+
             logger.Log(Logger.EventType.Method, "Compute(): done.");
         }
 
@@ -263,7 +292,7 @@ namespace adapter
 
             var res = sampleResolution;
             var n = _nrAnglesTheta;
-            var m = 1;
+            const int m = 1;
             var k = _nrAnglesPerRing;
 
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
@@ -275,7 +304,7 @@ namespace adapter
             Directory.CreateDirectory(saveDir);
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = angles
+            var headCol = _angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
@@ -297,46 +326,29 @@ namespace adapter
 
         #region Helper methods
 
-        private void LogRingGeometry(int i, int j, double thetaHypotLength, double thetaRadius, double tau,
-            double tauVerticalDiff, double tauHypotLength, double vCos, double hypotLength)
+        private Vector2 GetRingCoordinate(int i, double thetaRadius)
         {
-            logger.Log(Logger.EventType.Inspect,
-                $"(i={i}, j={j})"
-                + $"\ntheta: {GetThetaAt(j)} (deg)"
-                + $", thetaHypotLength: {thetaHypotLength:G}"
-                + $", thetaRadius: {thetaRadius:G}"
-                + $"\ntau: {AsDegree(tau):G} (deg)"
-                + $", tauVerticalDiff: {tauVerticalDiff:G}"
-                + $", tauHypotLength: {tauHypotLength:G}"
-                + "\nrho: "
-                + $"{Math.Acos(_rotations[i].cos)} (rad)"
-                + $", {AsDegree(Math.Acos(_rotations[i].cos))} (deg)"
-                + $"\nalpha: {AsDegree(Math.Acos(1/vCos))} (deg)"
-                + $", vCos: {vCos:G}"
-                + $"\nhypotLength: {hypotLength:G}"
-            );
+            var x = thetaRadius * _rotations[i].cos;
+            var y = thetaRadius * _rotations[i].sin;
+
+            return new Vector2((float) x, (float) y);
         }
 
         private double GetThetaAt(int index)
         {
-            return angles[index];
+            return _angles[index];
         }
-
-        private bool IsOutside(int j, int i, double tau, double vCosInv)
+        
+        private bool BoundaryCheck(Vector2 v)
         {
-            //logger.Log(Logger.EventType.Inspect, 
-              //  $"(i={i}, j={j}): tau={tau}, vCos={1/vCosInv}, v angle={AsDegree(Math.Acos(1/vCosInv))} (deg)");
-            if (tau < _thetaLowerBound || tau > _thetaUpperBound) return true;
-            else if (Math.Acos(1/vCosInv) < _alphaLowerBound || Math.Acos(1/vCosInv) > _alphaUpperBound) return true;
+            var lowerBound = Vector2.zero - properties.detector.offset;
+            var upperBound = properties.detector.pixelSize * properties.detector.resolution;
+            
+            if (v.x < lowerBound.x || v.x > upperBound.x) return true;
+            if (v.y < lowerBound.y || v.y > upperBound.y) return true;
             return false;
         }
 
-        private bool IsUnrepresentable(Vector3 value)
-        {
-            return float.IsNaN(value.x) || float.IsNaN(value.y) || float.IsNaN(value.z) 
-                   || float.IsInfinity(value.x) || float.IsInfinity(value.y) || float.IsInfinity(value.z);
-        }
-        
         private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
         {
             return new Vector3(
@@ -346,7 +358,7 @@ namespace adapter
             );
         }
         
-        private Vector3 GetRingAverage(ICollection<Vector3> ringValues)
+        private static Vector3 GetRingAverage(ICollection<Vector3> ringValues)
         {
             if (ringValues.Count == 0) 
                 return Vector3.positiveInfinity;    // untested.
@@ -358,24 +370,14 @@ namespace adapter
         }
 
         /// <summary>
-        /// Calculates the cosine of the (vertical) angle between the diffraction ray and its projection on the XY-plane.
+        /// Calculates the ratio between diffraction ray and its projection on the XY-plane.
         /// </summary>
-        /// <returns></returns>
-        private double GetVFactor(int i, int j, double tau, double thetaRadius, double thetaHypotLength)
+        private float GetStretchFactor(Vector2 distance)
         {
-            // vertical offset of rotated point to base point. 
-            var tauVerticalOffset = _rotations[i].sin * thetaRadius;    // a (orange)
-                        
-            var tauHypotLength = properties.detector.distToSample / Math.Cos(tau);    // b (pink)
-            var hypotLength = Math.Sqrt(Math.Pow(tauHypotLength, 2) + Math.Pow(tauVerticalOffset, 2));    // c (light blue)
-    
-            // ratio of distance to 2D projection of ray from sample center to rotated point.
-            var vCosInv = hypotLength / tauHypotLength;
-                if (Math.Abs(tauVerticalOffset) < 1E-5) vCosInv = 1;    // experimental
-    
-            //LogRingGeometry(i, j, thetaHypotLength, thetaRadius, tau, tauVerticalOffset, tauHypotLength, vCosInv, hypotLength);
+            var hypotXZ = Math.Sqrt(Math.Pow(distance.x, 2) + Math.Pow(properties.detector.distToSample, 2));
+            var hypot = Math.Sqrt(Math.Pow(distance.y, 2) + Math.Pow(hypotXZ, 2));
 
-            return vCosInv;
+            return (float) (hypot / hypotXZ);
         }
 
         #endregion
