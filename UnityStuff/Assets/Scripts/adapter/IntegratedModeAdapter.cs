@@ -198,8 +198,9 @@ namespace adapter
                 var ringAbsorptionValues = new LinkedList<Vector3>();
                 
                 // ring geometry for current theta:
-                var ringDistance = Math.Cos(GetThetaAt(j)) * properties.detector.distToSample;
-                var ringRadius = Math.Sin(GetThetaAt(j)) * properties.detector.distToSample;
+                var ringDistance = Math.Abs(Math.Cos(GetThetaAt(j))) * properties.detector.distToSample;
+                var ringRadius = Math.Abs(Math.Sin(GetThetaAt(j))) * properties.detector.distToSample;
+                var ringProjRadius = Math.Abs(Math.Tan(GetThetaAt(j))) * properties.detector.distToSample;
 
                 // The distance of any point on the ring to capillary center.
                 var hypot = Math.Sqrt(Math.Pow(ringDistance, 2) + Math.Pow(ringRadius, 2));
@@ -216,7 +217,7 @@ namespace adapter
                     var stretchFactor = hypot / hypotXZ;
                     stretchFactors[i, j] = (float) stretchFactor;
 
-                    var v = GetRingCoordinate(i, ringRadius);
+                    var v = GetRingCoordinate(i, ringProjRadius);
                     ringCoordinates[i, j] = v;
                     
                     if (BoundaryCheck(v))
