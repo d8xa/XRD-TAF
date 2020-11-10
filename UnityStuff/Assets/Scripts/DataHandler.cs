@@ -49,6 +49,7 @@ public class DataHandler : MonoBehaviour
     public Button saveButton;
     public Button submitButton;
     public Button stopButton;
+    public Button runBenchmark;
     
     public ComputeShader pointModeShader;
     public ComputeShader planeModeShader;
