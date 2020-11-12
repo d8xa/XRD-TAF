@@ -243,19 +243,12 @@ namespace adapter
 
         private void WriteAbsorptionFactors()
         {
-            var res = sampleResolution;
-            var n = _nrAnglesTheta;
-            var m = 1;
-            var k = 1;
-
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
-            
-            var saveFileName = $"[mode={0}] [dim=({res},{n},{m},{k})] Output.txt";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
             var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var saveFileName = properties.FilenameFormatter(_nrAnglesTheta);
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
-            logger.Log(Logger.EventType.Step, $"Writing to path {savePath}");
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = _angles

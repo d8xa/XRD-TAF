@@ -239,17 +239,11 @@ namespace adapter
         protected override void Write()
         {
             SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
-            
-            var res = sampleResolution;
-            var n = _nrAnglesTheta;
-            var m = _nrAnglesAlpha;
-            var k = 1;
 
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
-            
-            var saveFileName = $"[mode={1}] [dim=({res},{n},{m},{k})] Output.txt";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
             var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var saveFileName = properties.FilenameFormatter(_nrAnglesTheta);
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 

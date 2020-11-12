@@ -284,17 +284,11 @@ namespace adapter
         protected override void Write()
         {
             logger.Log(Logger.EventType.Method, "Write(): started.");
-
-            var res = sampleResolution;
-            var n = _nrAnglesTheta;
-            const int m = 1;
-            var k = _nrAnglesPerRing;
-
-            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             
-            var saveFileName = $"[mode={2}] [dim=({res},{n},{m},{k})] Output.txt";
+            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
             var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var saveFileName = properties.FilenameFormatter(_nrAnglesTheta);
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 

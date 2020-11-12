@@ -109,5 +109,34 @@ namespace model
             detector = DetectorProperties.Initialize();
             angle = AngleProperties.Initialize();
         }
+        
+        internal string FilenameFormatter(int nrAngles)
+        {
+            int n, m, k;
+
+            var mode = (int) absorption.mode;
+            var res = sample.gridResolution;
+            
+            switch (absorption.mode)
+            {
+                case AbsorptionProperties.Mode.Point:
+                    n = nrAngles;
+                    m = 1;
+                    k = 1;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+                case AbsorptionProperties.Mode.Area:
+                    n = detector.resolution.x;
+                    m = detector.resolution.y;
+                    k = 1;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+                case AbsorptionProperties.Mode.Integrated:
+                    n = nrAngles;
+                    m = 1;
+                    k = angle.angleCount;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+            }
+            
+            return "[mode=?] [dims=?] Output.txt";;
+        }
     }
 }
