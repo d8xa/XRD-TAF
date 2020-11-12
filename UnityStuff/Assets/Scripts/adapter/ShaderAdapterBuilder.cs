@@ -33,20 +33,18 @@ namespace adapter
         public ShaderAdapter Build()
         {
             ShaderAdapter adapter = null;
-            if (IsComplete())
+            if (!IsComplete()) return null;
+            switch (_preset.properties.absorption.mode)
             {
-                switch (_preset.properties.absorption.mode)
-                {
-                    case AbsorptionProperties.Mode.Point:
-                        adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger);
-                        break;
-                    case AbsorptionProperties.Mode.Area:
-                        adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger);
-                        break;
-                    case AbsorptionProperties.Mode.Integrated:
-                        adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger);
-                        break;
-                }
+                case AbsorptionProperties.Mode.Point:
+                    adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    break;
+                case AbsorptionProperties.Mode.Area:
+                    adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    break;
+                case AbsorptionProperties.Mode.Integrated:
+                    adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    break;
             }
             return adapter;
         }
@@ -58,9 +56,9 @@ namespace adapter
             {
                 if (_shader == null)
                     throw new NullReferenceException("Please specify a shader.");
-                else if (_preset == null)
+                if (_preset == null)
                     throw new NullReferenceException("Please specify properties.");
-                else if (_margin == null)
+                if (_margin == null)
                     throw new NullReferenceException("");
                 return true;
             }

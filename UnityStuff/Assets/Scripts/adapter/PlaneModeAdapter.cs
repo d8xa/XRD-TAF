@@ -41,7 +41,7 @@ namespace adapter
             Logger customLogger
         ) : base(shader, preset, writeFactors, customLogger)
         {
-            if (logger == null) SetLogger(new Logger());
+            if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }

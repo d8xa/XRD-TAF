@@ -33,8 +33,10 @@ namespace util
             InitializerMethod = 49,      // every event inside initializer methods of class, unless events are declared as lower.
             ShaderInteraction = 48,
             Data = 59,                   // data retrieval, assignment, allocation, etc.
-            Step = 69,                    // a logical step or group of the code. 
-            Performance = 68
+            Step = 69,                   // a logical step or group of the code. 
+            Info = 68,
+            Performance = 67,
+            Test = 66                    // a test result or report.
         }
         
         /**
@@ -133,6 +135,7 @@ namespace util
             PrintToDebug(PrintLevel);
         }
 
+        // TODO: better log filtering
         public void WriteToFile(string filePath)
         {
             var folderPath = Path.GetDirectoryName(filePath) ?? _defaultFolder;
@@ -178,6 +181,7 @@ namespace util
             WriteToFile(Path.Combine(_defaultFolder, fileName));
         }
 
+        // TODO: better log filtering
         public void AppendToFile(string filePath)
         {
             if (File.Exists(filePath))
@@ -186,7 +190,10 @@ namespace util
                 using (var buffered = new BufferedStream(fileStream))
                 using (var writer = new StreamWriter(buffered))
                 {
-                    _logEntries.ForEach(entry => writer.WriteLine(entry));
+                    if (WriteLevel == LogLevel.Custom)
+                        Filter(_printEvents).ForEach(entry => writer.WriteLine(entry));
+                    else
+                        _logEntries.ForEach(entry => writer.WriteLine(entry));
                 }
             }
             else WriteToFile(filePath);

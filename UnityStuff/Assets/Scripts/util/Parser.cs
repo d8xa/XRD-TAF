@@ -27,16 +27,30 @@ namespace util
                 .ToArray();
         }
         
-         /// <summary>
+        /// <summary>
         /// Parses tuple in string to Vector3.
         /// </summary>
         /// <param name="tuple">string containing a tuple of form (float,float,float)</param>
         private static Vector3 ParseTuple(string tuple)
         {
             var floats = tuple
-                .TrimStart('(').TrimEnd(')')
+                .Trim(' ')
+                .Replace("(", "")
+                .Replace(")", "")
                 .Split(',')
-                .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+                .Select(s =>
+                {
+                    try
+                    {
+                        return float.Parse(s, CultureInfo.InvariantCulture);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log($"tuple: {tuple}, trimmed = {s}");
+                        Console.WriteLine(e);
+                        throw;
+                    }
+                })
                 .ToArray();
             return new Vector3(floats[0], floats[1], floats[2]);
         }
@@ -65,18 +79,18 @@ namespace util
             var n = parsed.Length - Math.Abs(iOffset);    // row count.
             var m = parsed.Select(row => row.Length).Max() - jOffset;    // column count.
 
-            var data = new Vector3[n,m]; 
-            
-            bool StrictCompare(int a, int b) => reverse ? a >= b : a < b;
-            var iBounds = reverse ? new Vector2Int(n - 1, 0) : new Vector2Int(0, n);
-            var increment = reverse ? -1 : 1;
+            var data = new Vector3[n,m];
 
-            for (int i = iBounds.x; StrictCompare(i, iBounds.y); i += increment)
+            Func<int, int> idx;
+            if (reverse) idx = i => n - i - 1;
+            else idx = i => i;
+
+            for (int i = 0; i < n; i++)
             {
                 // TODO: check length of inner array and decide how to fill rest if length < m.
                 for (int j = 0; j < m; j++)
                 {
-                    data[i, j] = parsed[i + iOffset][j + jOffset];
+                    data[idx(i), idx(j)] = parsed[i + iOffset][j + jOffset];
                 }
             }
 
@@ -150,13 +164,13 @@ namespace util
                 .Split('\n')
                 .Where(s => s.Length > 0)
                 .Select(s => Regex.Split(s, sep))
+                .Skip(headCol ? 1 : 0)
                 .Select(row => row.Select(s => float.Parse(s, CultureInfo.InvariantCulture)).ToArray())
                 .ToArray();
 
-            var iOffset = (reverse ? -1 : 1) * (headRow ? 1 : 0);
             var jOffset = headCol ? 1 : 0;
 
-            var n = parsed.Length - Math.Abs(iOffset);    // row count.
+            var n = parsed.Length;    // row count.
             var m = parsed.Select(row => row.Length).Max() - jOffset;    // column count.
 
             var data = new Vector3[n]; 
@@ -168,9 +182,9 @@ namespace util
             for (int i = iBounds.x; StrictCompare(i, iBounds.y); i += increment)
             {
                 data[i] = new Vector3(
-                    parsed[i + iOffset][0 + jOffset],
-                    parsed[i + iOffset][1 + jOffset],
-                    parsed[i + iOffset][2 + jOffset]
+                    parsed[i][0 + jOffset],
+                    parsed[i][1 + jOffset],
+                    parsed[i][2 + jOffset]
                 );
             }
 

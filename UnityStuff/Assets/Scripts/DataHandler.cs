@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using adapter;
@@ -8,6 +9,7 @@ using model;
 using model.properties;
 using ui;
 using UnityEngine.UI;
+using util;
 using Button = UnityEngine.UI.Button;
 using Logger = util.Logger;
 
@@ -49,8 +51,9 @@ public class DataHandler : MonoBehaviour
     public Button saveButton;
     public Button submitButton;
     public Button stopButton;
-    public Button runBenchmark;
-    
+    public Button runBenchmarkButton;
+    public Button runABTestsButton;
+
     public ComputeShader pointModeShader;
     public ComputeShader planeModeShader;
     public ComputeShader integratedModeShader;
@@ -108,12 +111,150 @@ public class DataHandler : MonoBehaviour
         });
         loadButton.onClick.AddListener(LoadPreset);
         saveButton.onClick.AddListener(SavePreset);
+        
+        runABTestsButton.onClick.AddListener(RunABTests);
 
         
         // TODO: hide "Submit" button until all required settings for the selected mode are set.
         // TODO: multithreading.
         submitButton.onClick.AddListener(SubmitToComputing);
         stopButton.gameObject.SetActive(false);
+    }
+
+    private void RunABTests()
+    {
+        var logger = new Logger()
+            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test})
+            .SetWriteFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test});
+
+        var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "A-B Test log.txt");
+        logger.Log(Logger.EventType.Info, nameof(DataHandler) + ": " + "Logger initialized.");
+
+        // read presets
+        var testPresetNames = new List<string> {"ref", "ref ray"};
+        var testPresets = testPresetNames
+            .Select(s => Path.Combine(_saveDir, s + presetExtension))
+            .Select(ReadPreset)
+            .ToList();
+
+        // generate and save dataset B.
+        var step = 0;
+        var modeList = new List<AbsorptionProperties.Mode>
+            {AbsorptionProperties.Mode.Point, AbsorptionProperties.Mode.Area, AbsorptionProperties.Mode.Integrated};
+        foreach (var preset in testPresets)
+        {
+            foreach (var mode in modeList)
+            {
+                preset.properties.absorption.mode = mode;
+                preset.metadata.pathOutputData = "B";
+                _shaderAdapter = _builder
+                        .SetLogger(logger)
+                        .SetWriteFactors(true)
+                        .SetProperties(preset)
+                        .AutoSetShader()
+                        .Build()
+                    ;
+                _shaderAdapter.SetStatus(ref status);
+
+                ++step;
+                logger.Log(Logger.EventType.Test, nameof(DataHandler) + ", A/B-Test: " 
+                                                     + $"Shader adapter built. ({step}/{testPresets.Count*modeList.Count})"
+                                                     + $" preset set to = {preset.metadata.saveName}");
+                _shaderAdapter.Execute();
+                //_shaderAdapter.Cleanup();
+                logger.Log(Logger.EventType.Test, 
+                    nameof(DataHandler) + ", A/B-Test: " 
+                                        + $"Shader adapter executed. ({step}/{testPresets.Count*modeList.Count})");
+                _shaderAdapter.SetStatusMessage($"Step {step}/6: preset {preset.metadata.saveName}, {mode}");
+            }
+        }
+        
+        // read datasets, compare B to A, generate report.
+        foreach (var preset in testPresets)
+        {
+            var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), "Input",
+                preset.properties.angle.pathToAngleFile + ".txt")).Length;
+            
+            foreach (var mode in modeList)
+            {
+                preset.properties.absorption.mode = mode;
+
+                var folderBottom = preset.metadata.saveName ?? "";
+                var dirA = Path.Combine(Directory.GetCurrentDirectory(), "Output", "A", folderBottom);
+                var dirB = Path.Combine(Directory.GetCurrentDirectory(), "Output", "B", folderBottom);
+
+                List<Vector3> a;
+                List<Vector3> b;
+
+                preset.metadata.pathOutputData = "A";
+                var fileNameA = preset.properties.FilenameFormatter(nrAngles);
+                preset.metadata.pathOutputData = "B";
+                var fileNameB = preset.properties.FilenameFormatter(nrAngles);
+
+                if (mode == AbsorptionProperties.Mode.Area)
+                {
+                    var a2D = Parser.ReadArray(Path.Combine(dirA, fileNameA), false, false, reverse: true);
+                    var b2D = Parser.ReadArray(Path.Combine(dirB, fileNameB), false, false, reverse: true);
+
+                    a = Enumerable.Range(0, a2D.GetLength(0))
+                        .Select(i => Enumerable.Range(0, a2D.GetLength(1))
+                            .Select(j => a2D[i, j]))
+                        .SelectMany(v => v)
+                        .ToList();
+                    b = Enumerable.Range(0, b2D.GetLength(0))
+                        .Select(i => Enumerable.Range(0, b2D.GetLength(1))
+                            .Select(j => b2D[i, j]))
+                        .SelectMany(v => v)
+                        .ToList();
+                }
+                else
+                {
+                    a = Parser.ReadTableVector(Path.Combine(dirA, fileNameA), true, true).ToList();
+                    b = Parser.ReadTableVector(Path.Combine(dirB, fileNameB), true, true).ToList();
+                }
+
+                Vector3 Subtract(Vector3 v1, Vector3 v2)
+                {
+                    return new Vector3(
+                        float.IsInfinity(v1.x) && float.IsInfinity(v2.x) ? 0f : v1.x - v2.x,
+                        float.IsInfinity(v1.y) && float.IsInfinity(v2.y) ? 0f : v1.y - v2.y,
+                        float.IsInfinity(v1.z) && float.IsInfinity(v2.z) ? 0f : v1.z - v2.z
+                    );
+                }
+
+                var diff = Enumerable.Range(0, a.Count)
+                    .Select(i => Subtract(a[i], b[i]))
+                    .ToList();
+                var min = new Vector3(
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.x).Min(),
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.y).Min(),
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.z).Min()
+                );
+                var max = new Vector3(
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.x).Max(),
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.y).Max(),
+                    diff.AsParallel().Where(v => v != Vector3.positiveInfinity).Select(v => v.z).Max()
+                );
+                var mean = diff.AsParallel()
+                    .Where(v => v != Vector3.positiveInfinity)
+                    .Aggregate((sum,v) => sum + v) / 
+                           diff.Count(v => v != Vector3.positiveInfinity);
+                var var = diff.AsParallel()
+                    .Where(v => v != Vector3.positiveInfinity)
+                    .Select(v => v - mean)
+                    .Select(v => Vector3.Scale(v, v))
+                    .Aggregate((variance, v) => variance + v) / 
+                          diff.Count(v => v != Vector3.positiveInfinity);
+                    
+                logger.Log(Logger.EventType.Test, 
+                    $"Test result (preset=\"{preset.metadata.saveName}\", mode={mode}): "
+                    + $"min={min:G}, max={max:G}, mean={mean:G}, var={var:G}");
+            }
+            SetStatusMessage("A/B-Test completed.");
+        }
+        
+        // output test report in log.
+        logger.AppendToFile(logPath);
     }
 
     private void UpdateSaveDir()
@@ -166,9 +307,13 @@ public class DataHandler : MonoBehaviour
 
     public void LoadPreset()
     {
+        LoadPreset(loadFileName.text);
+    }
+
+    private void LoadPreset(string filename)
+    {
         UpdateSaveDir();
-        var loadFileNamePrefix = loadFileName.text;
-        var loadFilePath = Path.Combine(_saveDir, loadFileNamePrefix + presetExtension);
+        var loadFilePath = Path.Combine(_saveDir, filename + presetExtension);
 
         if (File.Exists(loadFilePath))
         {
@@ -180,9 +325,17 @@ public class DataHandler : MonoBehaviour
             }
             
             mainPanel.UpdateAllUI();
-            SetCurrentPresetName(loadFileNamePrefix);
+            SetCurrentPresetName(filename);
         }
         // TODO: else
+    }
+    
+    public Preset ReadPreset(string filePath)
+    {
+        if (!File.Exists(filePath)) return null;
+        var presetJson = File.ReadAllText(filePath, Encoding);
+        using (var stream = new MemoryStream(Encoding.GetBytes(presetJson)))
+            return (Preset) PresetSerializer.ReadObject(stream);
     }
 
     private void SetCurrentPresetName(string presetName)

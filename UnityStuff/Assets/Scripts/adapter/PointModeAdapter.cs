@@ -39,13 +39,7 @@ namespace adapter
         public PointModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger) 
             : base(shader, preset, writeFactors, customLogger)
         {
-            SetLogger(customLogger);
-            logger.SetPrintFilter(new List<Logger.EventType>()
-            {
-                Logger.EventType.Performance,
-                Logger.EventType.Class,
-                Logger.EventType.InitializerMethod
-            });
+            if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
             InitializeOtherFields();
         }
