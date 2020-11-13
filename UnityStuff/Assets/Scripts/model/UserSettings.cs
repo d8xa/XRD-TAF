@@ -67,6 +67,11 @@ namespace model
             /// Use radian angles for input and output.
             /// </summary>
             [DataMember] public bool useRadian;
+            
+            /// <summary>
+            /// In integrated mode, clip angles outside of the detector range.
+            /// </summary>
+            [DataMember] public bool useClipping;
 
             /// <summary>
             /// Toggle to switch on or off the use of Logger objects.
@@ -79,6 +84,8 @@ namespace model
             /// </summary>
             //[DataMember]
             public bool writeLogs;
+
+            public bool isDebugBuild = true;
             
             // only for debugging use.
             public bool writeFactors = true;
