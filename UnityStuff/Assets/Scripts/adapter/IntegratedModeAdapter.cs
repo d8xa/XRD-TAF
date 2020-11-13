@@ -215,7 +215,7 @@ namespace adapter
                     var v = GetRingCoordinate(i, ringProjRadius);
                     ringCoordinates[i, j] = v;
                     
-                    if (BoundaryCheck(v))
+                    if (Settings.flags.useClipping && BoundaryCheck(v))
                     {
                         ringAbsorptions[i,j] = Vector3.positiveInfinity;
                         continue;

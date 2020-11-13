@@ -61,8 +61,8 @@ public class DataHandler : MonoBehaviour
     private ShaderAdapter _shaderAdapter;
 
     private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
-    
-    public static readonly DataContractJsonSerializerSettings SerializerSettings = 
+
+    private static readonly DataContractJsonSerializerSettings SerializerSettings = 
         new DataContractJsonSerializerSettings
         {
             UseSimpleDictionaryFormat = true,
@@ -71,7 +71,7 @@ public class DataHandler : MonoBehaviour
     private static readonly DataContractJsonSerializer PresetSerializer = 
         new DataContractJsonSerializer(typeof(Preset), SerializerSettings);
     private static readonly Encoding Encoding = Encoding.UTF8;
-    private static readonly string presetExtension = ".json";
+    private const string PRESET_EXTENSION = ".json";
 
     private void Awake() {
         _builder
@@ -122,61 +122,18 @@ public class DataHandler : MonoBehaviour
         stopButton.gameObject.SetActive(false);
     }
 
-    private void RunABTests()
+    #region Testing
+    
+    
+    private void CompareTestData(Logger logger, List<Preset> presets, List<AbsorptionProperties.Mode> modes)
     {
-        var logger = new Logger()
-            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test})
-            .SetWriteFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test});
-
-        var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "A-B Test log.txt");
-        logger.Log(Logger.EventType.Info, nameof(DataHandler) + ": " + "Logger initialized.");
-
-        // read presets
-        var testPresetNames = new List<string> {"ref", "ref ray"};
-        var testPresets = testPresetNames
-            .Select(s => Path.Combine(_saveDir, s + presetExtension))
-            .Select(ReadPreset)
-            .ToList();
-
-        // generate and save dataset B.
-        var step = 0;
-        var modeList = new List<AbsorptionProperties.Mode>
-            {AbsorptionProperties.Mode.Point, AbsorptionProperties.Mode.Area, AbsorptionProperties.Mode.Integrated};
-        foreach (var preset in testPresets)
-        {
-            foreach (var mode in modeList)
-            {
-                preset.properties.absorption.mode = mode;
-                preset.metadata.pathOutputData = "B";
-                _shaderAdapter = _builder
-                        .SetLogger(logger)
-                        .SetWriteFactors(true)
-                        .SetProperties(preset)
-                        .AutoSetShader()
-                        .Build()
-                    ;
-                _shaderAdapter.SetStatus(ref status);
-
-                ++step;
-                logger.Log(Logger.EventType.Test, nameof(DataHandler) + ", A/B-Test: " 
-                                                     + $"Shader adapter built. ({step}/{testPresets.Count*modeList.Count})"
-                                                     + $" preset set to = {preset.metadata.saveName}");
-                _shaderAdapter.Execute();
-                //_shaderAdapter.Cleanup();
-                logger.Log(Logger.EventType.Test, 
-                    nameof(DataHandler) + ", A/B-Test: " 
-                                        + $"Shader adapter executed. ({step}/{testPresets.Count*modeList.Count})");
-                _shaderAdapter.SetStatusMessage($"Step {step}/6: preset {preset.metadata.saveName}, {mode}");
-            }
-        }
-        
         // read datasets, compare B to A, generate report.
-        foreach (var preset in testPresets)
+        foreach (var preset in presets)
         {
             var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), "Input",
                 preset.properties.angle.pathToAngleFile + ".txt")).Length;
             
-            foreach (var mode in modeList)
+            foreach (var mode in modes)
             {
                 preset.properties.absorption.mode = mode;
 
@@ -251,12 +208,77 @@ public class DataHandler : MonoBehaviour
                     $"Test result (preset=\"{preset.metadata.saveName}\", mode={mode}): "
                     + $"min={min:G}, max={max:G}, mean={mean:G}, var={var:G}");
             }
-            SetStatusMessage("A/B-Test completed.");
+        }
+    }
+
+    private void GenerateTestData(Logger logger, List<Preset> presets, List<AbsorptionProperties.Mode> modes)
+    {
+        // Backup and modify flag.
+        var clippingBackup = Settings.flags.useClipping;
+        Settings.flags.useClipping = false;
+
+        // generate and save test dataset.
+        var step = 0;
+        foreach (var preset in presets)
+        {
+            foreach (var mode in modes)
+            {
+                preset.properties.absorption.mode = mode;
+                preset.metadata.pathOutputData = "B";
+                _shaderAdapter = _builder
+                        .SetLogger(logger)
+                        .SetWriteFactors(true)
+                        .SetProperties(preset)
+                        .AutoSetShader()
+                        .Build()
+                    ;
+                _shaderAdapter.SetStatus(ref status);
+
+                ++step;
+                logger.Log(Logger.EventType.Test, 
+                    nameof(DataHandler) + ", A/B-Test: " 
+                                        + $"Shader adapter built. ({step}/{presets.Count*modes.Count})"
+                                        + $" preset set to = {preset.metadata.saveName}");
+                _shaderAdapter.Execute();
+                logger.Log(Logger.EventType.Test, 
+                    nameof(DataHandler) + ", A/B-Test: " 
+                                        + $"Shader adapter executed. ({step}/{presets.Count*modes.Count})");
+                _shaderAdapter.SetStatusMessage($"Step {step}/6: preset {preset.metadata.saveName}, {mode}");
+            }
         }
         
-        // output test report in log.
+        Settings.flags.useClipping = clippingBackup;
+    }
+
+    private void RunABTests()
+    {
+        Debug.Log("RunAbTests() started.");
+        var logger = new Logger()
+            .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test})
+            .SetWriteFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test});
+
+        var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "A-B Test log.txt");
+        logger.Log(Logger.EventType.Info, nameof(DataHandler) + ": " + "Logger initialized.");
+
+        // read presets
+        var testPresetNames = new List<string> {"ref", "ref ray"};
+        var testPresets = testPresetNames
+            .Select(s => Path.Combine(_saveDir, s + PRESET_EXTENSION))
+            .Select(ReadPreset)
+            .ToList();
+        
+        var modeList = new List<AbsorptionProperties.Mode>
+            {AbsorptionProperties.Mode.Point, AbsorptionProperties.Mode.Area, AbsorptionProperties.Mode.Integrated};
+        
+        GenerateTestData(logger, testPresets, modeList);
+        CompareTestData(logger, testPresets, modeList);
+        
+        SetStatusMessage("A/B-Test completed.");
         logger.AppendToFile(logPath);
     }
+    
+    #endregion
+    
 
     private void UpdateSaveDir()
     {
@@ -271,9 +293,7 @@ public class DataHandler : MonoBehaviour
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
 
-        var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "mode2_debug.txt");
         logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Logger initialized.");
-        logger.AppendToFile(logPath);
         
         _shaderAdapter = _builder
             .SetLogger(logger)
@@ -295,7 +315,7 @@ public class DataHandler : MonoBehaviour
     {
         UpdateSaveDir();
         Directory.CreateDirectory(_saveDir);
-        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + presetExtension);
+        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + PRESET_EXTENSION);
 
         using (var stream = File.Open(path, FileMode.OpenOrCreate)) 
         using (var writer = JsonReaderWriterFactory
@@ -314,7 +334,7 @@ public class DataHandler : MonoBehaviour
     private void LoadPreset(string filename)
     {
         UpdateSaveDir();
-        var loadFilePath = Path.Combine(_saveDir, filename + presetExtension);
+        var loadFilePath = Path.Combine(_saveDir, filename + PRESET_EXTENSION);
 
         if (File.Exists(loadFilePath))
         {
