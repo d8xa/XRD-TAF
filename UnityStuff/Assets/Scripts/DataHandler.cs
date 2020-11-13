@@ -112,6 +112,7 @@ public class DataHandler : MonoBehaviour
         loadButton.onClick.AddListener(LoadPreset);
         saveButton.onClick.AddListener(SavePreset);
         
+        runABTestsButton.gameObject.SetActive(Settings.flags.isDebugBuild);
         runABTestsButton.onClick.AddListener(RunABTests);
 
         

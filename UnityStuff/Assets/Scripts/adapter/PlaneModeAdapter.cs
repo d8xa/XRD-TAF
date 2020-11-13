@@ -93,9 +93,8 @@ namespace adapter
             SetStatusMessage($"Step 2/{(writeFactors ? 4 : 3)}: Computing indicator mask...");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
+            SetShaderConstants();
+            
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -123,12 +122,7 @@ namespace adapter
             sw.Start();
 
             // initialize parameters in shader.
-            // TODO: extract.
-            shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
+            SetShaderConstants();
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             
@@ -270,6 +264,16 @@ namespace adapter
             _maskBuffer.Release();
             
             SetStatusMessage("Done.");
+        }
+        
+        private void SetShaderConstants()
+        {
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
         }
 
         #endregion

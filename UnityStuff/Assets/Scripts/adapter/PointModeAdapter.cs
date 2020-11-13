@@ -88,10 +88,9 @@ namespace adapter
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
+            SetShaderConstants();
             shader.SetInts("indicatorCount", 0, 0, 0);
+
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -129,12 +128,7 @@ namespace adapter
             logger.Log(Logger.EventType.Step, "Initialized g1 distance arrays.");
 
             // initialize parameters in shader.
-            // necessary here already?
-            shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
+            SetShaderConstants();
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
 
 
@@ -220,6 +214,16 @@ namespace adapter
         protected override void Write()
         {
             if (writeFactors) WriteAbsorptionFactors();
+        }
+        
+        private void SetShaderConstants()
+        {
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
         }
 
         #endregion

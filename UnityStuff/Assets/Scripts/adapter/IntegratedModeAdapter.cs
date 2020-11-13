@@ -110,9 +110,8 @@ namespace adapter
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
             // prepare required variables.
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
+            SetShaderConstants();
+            
             var maskHandle = shader.FindKernel("getIndicatorMask");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
@@ -136,11 +135,7 @@ namespace adapter
             logger.Log(Logger.EventType.Method, "Compute(): started.");
             
             // initialize parameters in shader.
-            shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
+            SetShaderConstants();
             logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             // get kernel handles.
@@ -309,6 +304,16 @@ namespace adapter
             ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
             
             logger.Log(Logger.EventType.Method, "Write(): done.");
+        }
+        
+        private void SetShaderConstants()
+        {
+            shader.SetFloats("mu", mu.cell, mu.sample);
+            shader.SetFloat("r_cell", r.cell);
+            shader.SetFloat("r_sample", r.sample);
+            shader.SetFloat("r_cell_sq", rSq.cell);
+            shader.SetFloat("r_sample_sq", rSq.sample);
+            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
         }
         
         #endregion
