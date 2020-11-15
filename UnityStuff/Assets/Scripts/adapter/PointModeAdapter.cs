@@ -19,16 +19,15 @@ namespace adapter
         #region Fields
         
         private Vector3[] _absorptionFactors;
-        private int _nrSegments;
+        private int _nrCoordinates;
         private int _nrAnglesTheta;
 
         private float[] _angles;
         
         // Mask of diffraction points
         private Vector2Int[] _diffractionMask;
-        private Vector2 _nrDiffractionPoints;
-        private int[] _innerIndices;
-        private int[] _outerIndices;
+        private int[] _indicesSample;
+        private int[] _indicesCell;
         
         private ComputeBuffer _inputBuffer;
         
@@ -59,7 +58,7 @@ namespace adapter
                 _angles = _angles.Select(AsRadian).ToArray();
             
             _nrAnglesTheta = _angles.Length;
-            _nrSegments = sampleResolution * sampleResolution;
+            _nrCoordinates = sampleResolution * sampleResolution;
             
             // initialize absorption array. dim n: (#thetas).
             _absorptionFactors = new Vector3[_nrAnglesTheta];
@@ -68,17 +67,16 @@ namespace adapter
             _diffractionMask = new Vector2Int[coordinates.Length];
             ComputeIndicatorMask();
             
-            _innerIndices = ParallelEnumerable.Range(0, _diffractionMask.Length)
+            _indicesSample = ParallelEnumerable.Range(0, _diffractionMask.Length)
                 .Where(i => _diffractionMask[i].x > 0.0)
                 .ToArray();
-            _outerIndices = ParallelEnumerable.Range(0, _diffractionMask.Length)
+            _indicesCell = ParallelEnumerable.Range(0, _diffractionMask.Length)
                 .Where(i => _diffractionMask[i].y > 0.0)
                 .ToArray();
             
-            // count diffracting points in each case.
             logger.Log(Logger.EventType.Step, 
                 "InitializeOtherFields():" +
-                $" found ({_innerIndices.Length}, {_outerIndices.Length}) diffraction points (of {_nrSegments}).");
+                $" found ({_indicesSample.Length}, {_indicesCell.Length}) diffraction points (of {_nrCoordinates}).");
             
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
@@ -89,21 +87,20 @@ namespace adapter
 
             // prepare required variables.
             SetShaderConstants();
-            shader.SetInts("indicatorCount", 0, 0, 0);
 
-            var maskHandle = shader.FindKernel("getIndicatorMask");
+            var handleIndicator = shader.FindKernel("get_indicator");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
             _inputBuffer.SetData(coordinates);
             maskBuffer.SetData(_diffractionMask);
             
-            shader.SetBuffer(maskHandle, "segment", _inputBuffer);
-            shader.SetBuffer(maskHandle, "indicatorMask", maskBuffer);
+            shader.SetBuffer(handleIndicator, "coordinates", _inputBuffer);
+            shader.SetBuffer(handleIndicator, "indicator_mask", maskBuffer);
 
             logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader dispatch.");
-            shader.Dispatch(maskHandle, threadGroupsX, 1, 1);
+            shader.Dispatch(handleIndicator, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader return.");
             maskBuffer.GetData(_diffractionMask);
@@ -120,71 +117,55 @@ namespace adapter
             var sw = new Stopwatch();
             sw.Start();
             
-            // initialize g1 distance arrays.
-            var g1DistsOuter = new Vector2[_nrSegments];
-            var g1DistsInner = new Vector2[_nrSegments];
-            Array.Clear(g1DistsOuter, 0, _nrSegments);    // necessary ? 
-            Array.Clear(g1DistsInner, 0, _nrSegments);    // necessary ? 
-            logger.Log(Logger.EventType.Step, "Initialized g1 distance arrays.");
-
-            // initialize parameters in shader.
             SetShaderConstants();
-            logger.Log(Logger.EventType.Step, "Set shader parameters.");
-
 
             // get kernel handles.
-            var g1Handle = shader.FindKernel("g1_dists");
-            var absorptionsHandle = shader.FindKernel("Absorptions");
+            var handlePart1 = shader.FindKernel("get_dists_part1");
+            var handleAbsorptions = shader.FindKernel("get_absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
 
  
             // make buffers.
-            //var _inputBuffer = new ComputeBuffer(Coordinates.Length, sizeof(float)*2);
-            //maskBuffer = new ComputeBuffer(Coordinates.Length, sizeof(uint)*3);
-            var outputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
-            var outputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferCell = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferSample = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
             logger.Log(Logger.EventType.Data, "Created buffers.");
             
             _inputBuffer.SetData(coordinates);
             
-            // set buffers for g1 kernel.
-            shader.SetBuffer(g1Handle, "segment", _inputBuffer);
-            shader.SetBuffer(g1Handle, "distancesInner", outputBufferInner);
-            shader.SetBuffer(g1Handle, "distancesOuter", outputBufferOuter);
+            // set buffers for part1 kernel.
+            shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
+            shader.SetBuffer(handlePart1, "distances_sample", outputBufferSample);
+            shader.SetBuffer(handlePart1, "distances_cell", outputBufferCell);
             logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
 
             
-            // compute g1 distances.
-            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
-            shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
-            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
+            // compute part1 distances.
+            logger.Log(Logger.EventType.ShaderInteraction, "part1 distances kernel dispatch.");
+            shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
+            logger.Log(Logger.EventType.ShaderInteraction, "part1 distances kernel return.");
             
                      
             var loopTs = new TimeSpan();
             var factorsTs = new TimeSpan();
-            var absorptions = new Vector3[_nrSegments];
+            var absorptions = new Vector3[_nrCoordinates];
             Array.Clear(absorptions, 0, absorptions.Length);
             
-            shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
+            shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer);
 
             // for each angle:
             for (int j = 0; j < _nrAnglesTheta; j++) {
                 var loopStart = sw.Elapsed;
 
-                // set coordinate buffer. remove?
-                shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - GetThetaAt(j)));
-                shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - GetThetaAt(j)));
-                shader.SetBuffer(absorptionsHandle, "distancesInner", outputBufferInner);
-                shader.SetBuffer(absorptionsHandle, "distancesOuter", outputBufferOuter);
-                shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
+                shader.SetFloats("rot", (float) Math.Cos(Math.PI - GetThetaAt(j)),
+                    (float) Math.Sin(Math.PI - GetThetaAt(j)));
+                shader.SetBuffer(handleAbsorptions, "distances_sample", outputBufferSample);
+                shader.SetBuffer(handleAbsorptions, "distances_cell", outputBufferCell);
+                shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
                 
-                shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
-                
-
+                shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1);
                 absorptionsBuffer.GetData(absorptions);
-                //Debug.Log(string.Join(", ", 
-                  //  absorptions.Select(v => v.ToString("G"))));
+                
                 var factorStart = sw.Elapsed;
                 _absorptionFactors[j] = GetAbsorptionFactor(absorptions);
                 var factorStop = sw.Elapsed;
@@ -202,8 +183,8 @@ namespace adapter
             
             // release buffers.
             _inputBuffer.Release();
-            outputBufferOuter.Release();
-            outputBufferInner.Release();
+            outputBufferCell.Release();
+            outputBufferSample.Release();
             absorptionsBuffer.Release();
             logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
 
@@ -219,23 +200,21 @@ namespace adapter
         private void SetShaderConstants()
         {
             shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
+            shader.SetFloats("r", r.cell, r.sample);
+            shader.SetFloats("r2", rSq.cell, rSq.sample);
+            shader.SetFloats("ray_dim", properties.ray.dimensions.x/2, properties.ray.dimensions.y/2);
         }
 
         #endregion
 
         #region Helper methods
 
-        private Vector3 GetAbsorptionFactor(Vector3[] absorptions)
+        private Vector3 GetAbsorptionFactor(IList<Vector3> absorptions)
         {
             return new Vector3(
-                _innerIndices.AsParallel().Select(i => absorptions[i].x).Average(),
-                _outerIndices.AsParallel().Select(i => absorptions[i].y).Average(),
-                _outerIndices.AsParallel().Select(i => absorptions[i].z).Average()
+                _indicesSample.AsParallel().Select(i => absorptions[i].x).Average(),
+                _indicesCell.AsParallel().Select(i => absorptions[i].y).Average(),
+                _indicesCell.AsParallel().Select(i => absorptions[i].z).Average()
             );
         }
 

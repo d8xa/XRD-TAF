@@ -19,7 +19,7 @@ namespace adapter
         
         private Rotation[] _rotations;
         private Vector3[] _absorptionFactors;
-        private int _nrSegments;
+        private int _nrCoordinates;
         private int _nrAnglesPerRing;
         private int _nrAnglesTheta;
         private double _thetaLowerBound, _thetaUpperBound;
@@ -61,7 +61,7 @@ namespace adapter
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
 
             // initialize dimensions.
-            _nrSegments = sampleResolution * sampleResolution;
+            _nrCoordinates = sampleResolution * sampleResolution;
             _nrAnglesTheta = _angles.Length;
             _nrAnglesPerRing = properties.angle.angleCount;
 
@@ -90,7 +90,7 @@ namespace adapter
             ComputeIndicatorMask();
             
             // count diffracting points in each case.
-            var mask = new Vector2Int[_nrSegments];
+            var mask = new Vector2Int[_nrCoordinates];
             _maskBuffer.GetData(mask);
             _innerIndices = ParallelEnumerable.Range(0, mask.Length)
                 .Where(i => mask[i].x > 0.0)
@@ -100,7 +100,7 @@ namespace adapter
                 .ToArray();
             _nrDiffractionPoints = new Vector2(_innerIndices.Length, _outerIndices.Length);
             logger.Log(Logger.EventType.Step, 
-                $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrSegments}).");
+                $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrCoordinates}).");
             
             logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
         }
@@ -109,17 +109,16 @@ namespace adapter
         {
             logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
 
-            // prepare required variables.
-            SetShaderConstants();
-            
-            var maskHandle = shader.FindKernel("getIndicatorMask");
+            var maskHandle = shader.FindKernel("get_indicator");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
+            SetShaderConstants();
             _inputBuffer.SetData(coordinates);
+            _maskBuffer.SetData(new Vector2Int[_nrCoordinates]);
             
-            shader.SetBuffer(maskHandle, "segment", _inputBuffer);
-            shader.SetBuffer(maskHandle, "indicatorMask", _maskBuffer);
+            shader.SetBuffer(maskHandle, "coordinates", _inputBuffer);
+            shader.SetBuffer(maskHandle, "indicator_mask", _maskBuffer);
 
             logger.Log(Logger.EventType.ShaderInteraction, 
                 "ComputeIndicatorMask(): indicator mask shader dispatch.");
@@ -134,48 +133,46 @@ namespace adapter
         {
             logger.Log(Logger.EventType.Method, "Compute(): started.");
             
-            // initialize parameters in shader.
             SetShaderConstants();
-            logger.Log(Logger.EventType.Step, "Set shader parameters.");
             
             // get kernel handles.
-            var g1Handle = shader.FindKernel("g1_dists");
-            var g2Handle = shader.FindKernel("g2_dists");
-            var absorptionsHandle = shader.FindKernel("Absorptions");
+            var handlePart1 = shader.FindKernel("get_dists_part1");
+            var handlePart2 = shader.FindKernel("get_dists_part2");
+            var handleAbsorptions = shader.FindKernel("get_absorptions");
             logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
             
             // make buffers.
-            var g1OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
-            var g1OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
-            var g2OutputBufferOuter = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
-            var g2OutputBufferInner = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferCellPart1 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferSamplePart1 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferCellPart2 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
+            var outputBufferSamplePart2 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
             logger.Log(Logger.EventType.Data, "Created buffers.");
             
             // set buffers for g1 kernel.
-            shader.SetBuffer(g1Handle, "segment", _inputBuffer);
-            shader.SetBuffer(g1Handle, "g1DistancesInner", g1OutputBufferInner);
-            shader.SetBuffer(g1Handle, "g1DistancesOuter", g1OutputBufferOuter);
+            shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
+            shader.SetBuffer(handlePart1, "distances_sample_part1", outputBufferSamplePart1);
+            shader.SetBuffer(handlePart1, "distances_cell_part1", outputBufferCellPart1);
             logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
             
             _inputBuffer.SetData(coordinates);
             
             // compute g1 distances.
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
-            shader.Dispatch(g1Handle, threadGroupsX, 1, 1);
+            shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
             logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
             
             // set buffers for g2 kernel.
-            shader.SetBuffer(g2Handle, "segment", _inputBuffer);
-            shader.SetBuffer(g2Handle, "g2DistancesInner", g2OutputBufferInner);
-            shader.SetBuffer(g2Handle, "g2DistancesOuter", g2OutputBufferOuter);
+            shader.SetBuffer(handlePart2, "coordinates", _inputBuffer);
+            shader.SetBuffer(handlePart2, "distances_sample_part2", outputBufferSamplePart2);
+            shader.SetBuffer(handlePart2, "distances_cell_part2", outputBufferCellPart2);
 
             // set shared buffers for absorption factor kernel.
-            shader.SetBuffer(absorptionsHandle, "segment", _inputBuffer);
-            shader.SetBuffer(absorptionsHandle, "g1DistancesInner", g1OutputBufferInner);
-            shader.SetBuffer(absorptionsHandle, "g1DistancesOuter", g1OutputBufferOuter);
-            shader.SetBuffer(absorptionsHandle, "absorptions", absorptionsBuffer);
-            shader.SetBuffer(absorptionsHandle, "indicatorMask", _maskBuffer);
+            shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer);
+            shader.SetBuffer(handleAbsorptions, "distances_sample_part1", outputBufferSamplePart1);
+            shader.SetBuffer(handleAbsorptions, "distances_cell_part1", outputBufferCellPart1);
+            shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+            shader.SetBuffer(handleAbsorptions, "indicator_mask", _maskBuffer);
 
             var absorptionsTemp = new Vector3[coordinates.Length];
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
@@ -222,21 +219,21 @@ namespace adapter
                     }
 
                     // set rotation parameters.
-                    shader.SetFloat("rot_cos", (float) Math.Cos(Math.PI - tau));
-                    shader.SetFloat("rot_sin", (float) Math.Sin(Math.PI - tau));
+                    shader.SetFloats("rot", (float) Math.Cos(Math.PI - tau), 
+                        (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
                     logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
-                    shader.Dispatch(g2Handle, threadGroupsX, 1, 1);
+                    shader.Dispatch(handlePart2, threadGroupsX, 1, 1);
                     logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
 
                     // set iterative buffers for absorption factors kernel.
-                    shader.SetBuffer(absorptionsHandle, "g2DistancesInner", g2OutputBufferInner);
-                    shader.SetBuffer(absorptionsHandle, "g2DistancesOuter", g2OutputBufferOuter);
+                    shader.SetBuffer(handleAbsorptions, "distances_sample_part2", outputBufferSamplePart2);
+                    shader.SetBuffer(handleAbsorptions, "distances_cell_part2", outputBufferCellPart2);
                     
-                    shader.SetFloat("vCos", (float) stretchFactor);
-                    shader.SetBuffer(absorptionsHandle, "absorptionFactors", absorptionsBuffer);
-                    shader.Dispatch(absorptionsHandle, threadGroupsX, 1, 1);
+                    shader.SetFloat("stretch_factor", (float) stretchFactor);
+                    shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+                    shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
 
                     var af = GetAbsorptionFactor(absorptionsTemp);
@@ -253,10 +250,10 @@ namespace adapter
             // release buffers.
             _inputBuffer.Release();
             _maskBuffer.Release();
-            g1OutputBufferOuter.Release();
-            g1OutputBufferInner.Release();
-            g2OutputBufferOuter.Release();
-            g2OutputBufferInner.Release();
+            outputBufferCellPart1.Release();
+            outputBufferSamplePart1.Release();
+            outputBufferCellPart2.Release();
+            outputBufferSamplePart2.Release();
             absorptionsBuffer.Release();
             logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
 
@@ -309,11 +306,9 @@ namespace adapter
         private void SetShaderConstants()
         {
             shader.SetFloats("mu", mu.cell, mu.sample);
-            shader.SetFloat("r_cell", r.cell);
-            shader.SetFloat("r_sample", r.sample);
-            shader.SetFloat("r_cell_sq", rSq.cell);
-            shader.SetFloat("r_sample_sq", rSq.sample);
-            shader.SetFloat("ray_width", properties.ray.dimensions.x/2);
+            shader.SetFloats("r", r.cell, r.sample);
+            shader.SetFloats("r2", rSq.cell, rSq.sample);
+            shader.SetFloats("ray_dim", properties.ray.dimensions.x/2, properties.ray.dimensions.y/2);
         }
         
         #endregion

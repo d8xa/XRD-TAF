@@ -1,126 +1,67 @@
-﻿#pragma kernel getIndicatorMask
-#pragma kernel g1_dists
-#pragma kernel Absorptions
+﻿#pragma kernel get_indicator
+#pragma kernel get_dists_part1
+#pragma kernel get_absorptions
 
-float r_cell;       // outer radius
-float r_sample;     // inner radius
-float r_cell_sq;    // outer radius squared
-float r_sample_sq;  // inner radius squared
+#include "Shared.compute"
 
-float rot_cos;          // cos to use for rotation matrix
-float rot_sin;          // sin to use for rotation matrix
-float2 mu;          // absorption factors in cell, sample.
-float ray_width;
+// PARAMETERS (constant):
+float2 r;                                       // (cell,sample) radius of the medium.
+float2 r2;                                      // r^2.
+float2 mu;                                      // (cell,sample) mass attenuation coefficient.
+float2 ray_dim;                                 // (width,height) dimensions of the ray.
 
-/* CONTENT: Read-only buffers. */
-StructuredBuffer<float2> segment;                   // list of segment coordinates.
+// PARAMETERS (variable):
+float2 rot;                                     // (cos,sin) of the coordinate rotation by pi-theta.
 
-/* CONTENT: g1_dists from script, precomputed in shader. */
-RWStructuredBuffer<float2> distancesOuter;          // Diffraction only in cell.
-RWStructuredBuffer<float2> distancesInner;          // Diffraction only in sample.
+// BUFFERS (read-only):
+StructuredBuffer<float2> coordinates;           // list of given coordinates in the medium cross-section.
 
-/* Absorption */
-RWStructuredBuffer<float3> absorptions;           // Pointwise absorption factors.
-RWStructuredBuffer<uint2> indicatorMask;          // Pointwise indicatorCount if ray is diffracted in point.
+// BUFFERS (variable):
+RWStructuredBuffer<float2> distances_cell;      // Ray travel distance through cell.
+RWStructuredBuffer<float2> distances_sample;    // Ray travel distance through sample.
+RWStructuredBuffer<float3> absorptions;         // Point-wise absorption factors at coordinate.
+RWStructuredBuffer<uint2> indicator_mask;       // Point-wise indicator if ray diffraction happens at coordinate.
 
-float getIntersectX(float2 v, float radius_sq, bool right)
+
+/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+[numthreads(1024,1,1)]
+void get_dists_part1(uint3 id : SV_DispatchThreadID)
 {
-    if (right)
-    { 
-        return sqrt(abs(radius_sq - pow(v.y, 2)));
-    } 
-    return -sqrt(abs(radius_sq - pow(v.y, 2)));
-}
-
-
-float2 ER_dists_F1(float2 v)
-{
-    float d_cell = 0.0;
-    float d_sample = 0.0;
-    
-    if (length(v) <= r_sample)
-    {
-        d_cell = abs(getIntersectX(v, r_sample_sq, false) - getIntersectX(v, r_cell_sq, false));
-        d_sample = abs(v.x - getIntersectX(v, r_sample_sq, false));
-    }
-    return float2(d_cell, d_sample);
-}
-
-
-float2 ER_dists_F2(float2 v)
-{
-    float d_cell = 0.0;
-    float d_sample = 0.0;
-    if (length(v) > r_sample & length(v) <= r_cell)
-    {
-        float RENx_o = getIntersectX(v, r_cell_sq, false);
-        if (v.x >= 0 & abs(v.y) < r_sample)
-        {
-            float RENx_i = getIntersectX(v, r_sample_sq, false);
-            float REXx_i = getIntersectX(v, r_sample_sq, true);
-            d_cell = abs(RENx_o - RENx_i) + abs(REXx_i - v.x);
-            d_sample = abs(RENx_i - REXx_i);
-        }
-        else
-        {
-            d_cell = abs(RENx_o - v.x);
-        }
-    }
-    return float2(d_cell, d_sample);
+    distances_cell[id.x] = get_dists_case2(coordinates[id.x], r, r2); 
+    distances_sample[id.x] = get_dists_case1(coordinates[id.x], r, r2);
 }
 
 
 /* call ER_dists for coordinate per diffraction case, save in shader variable. */
 [numthreads(1024,1,1)]
-void g1_dists(uint3 id : SV_DispatchThreadID)
+void get_indicator(uint3 id : SV_DispatchThreadID)
 {
-    distancesOuter[id.x] = ER_dists_F2(segment[id.x]); 
-    distancesInner[id.x] = ER_dists_F1(segment[id.x]);
-}
-
-
-/* call ER_dists for coordinate per diffraction case, save in shader variable. */
-[numthreads(1024,1,1)]
-void getIndicatorMask(uint3 id : SV_DispatchThreadID)
-{
-    float norm = length(segment[id.x]);
+    float norm = length(coordinates[id.x]);
     
-    if (norm <= r_cell && abs(segment[id.x].y) <= ray_width)
+    if (norm <= r.x && abs(coordinates[id.x].y) <= ray_dim.x)
     {
-        if (norm > r_sample)
-        {
-            // case A_{c,sc}.
-            indicatorMask[id.x].y = 1;   
-        }
-        else 
-        {
-            // case A_{s,sc}.
-            indicatorMask[id.x].x = 1;   
-        }
+        if (norm > r.y) indicator_mask[id.x].y = 1;   // case A_{c,sc}.
+        else indicator_mask[id.x].x = 1;              // case A_{s,sc}.
     }
 }
 
 
 [numthreads(1024,1,1)]
-void Absorptions(uint3 id : SV_DispatchThreadID){
-    //float2 rv = rotatePoint(id.x);//
-    float2 rv = float2(
-        rot_cos*segment[id.x].x-rot_sin*segment[id.x].y, 
-        rot_sin*segment[id.x].x+rot_cos*segment[id.x].y
-    );
-    float norm = length(segment[id.x]);
+void get_absorptions(uint3 id : SV_DispatchThreadID){
+    float2 rv = rotate_point(coordinates[id.x], rot);
+    float norm = length(coordinates[id.x]);
     
-    if (norm <= r_cell && abs(segment[id.x].y) <= ray_width)
+    if (norm <= r.x && abs(coordinates[id.x].y) <= ray_dim.x)
     {
-        if (norm > r_sample)
+        if (norm > r.y)
         {
-            float2 d_outer = distancesOuter[id.x] + ER_dists_F2(rv);
+            float2 d_outer = distances_cell[id.x] + get_dists_case2(rv, r, r2);
             absorptions[id.x].y = exp(-dot(mu, d_outer));                 // case A_{c,sc}.
             absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), d_outer));  // case A_{c,c}.
         }
         else 
         {
-            absorptions[id.x].x = exp(-dot(mu, distancesInner[id.x] + ER_dists_F1(rv)));    // case A_{s,sc}.
+            absorptions[id.x].x = exp(-dot(mu, distances_sample[id.x] + get_dists_case1(rv, r, r2)));    // case A_{s,sc}.
         }
     }
 }
