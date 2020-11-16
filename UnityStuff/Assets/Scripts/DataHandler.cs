@@ -73,6 +73,11 @@ public class DataHandler : MonoBehaviour
     private static readonly Encoding Encoding = Encoding.UTF8;
     private const string PRESET_EXTENSION = ".json";
 
+    private string Scope(string method)
+    {
+        return GetType().Name + (string.IsNullOrWhiteSpace(method) ? "" : "." + method);
+    }
+
     private void Awake() {
         _builder
             .AddShader(AbsorptionProperties.Mode.Point, pointModeShader)
@@ -135,8 +140,6 @@ public class DataHandler : MonoBehaviour
             
             foreach (var mode in modes)
             {
-                preset.properties.absorption.mode = mode;
-
                 var folderBottom = preset.metadata.saveName ?? "";
                 var dirA = Path.Combine(Directory.GetCurrentDirectory(), "Output", "A", folderBottom);
                 var dirB = Path.Combine(Directory.GetCurrentDirectory(), "Output", "B", folderBottom);
@@ -144,6 +147,7 @@ public class DataHandler : MonoBehaviour
                 List<Vector3> a;
                 List<Vector3> b;
 
+                preset.properties.absorption.mode = mode;
                 preset.metadata.pathOutputData = "A";
                 var fileNameA = preset.properties.FilenameFormatter(nrAngles);
                 preset.metadata.pathOutputData = "B";
@@ -205,23 +209,27 @@ public class DataHandler : MonoBehaviour
                           diff.Count(v => v != Vector3.positiveInfinity);
                     
                 logger.Log(Logger.EventType.Test, 
-                    $"Test result (preset=\"{preset.metadata.saveName}\", mode={mode}): "
-                    + $"min={min:G}, max={max:G}, mean={mean:G}, var={var:G}");
+                    $"{Scope(nameof(CompareTestData))}: " +
+                    $"Test result (preset=\"{preset.metadata.saveName}\", mode={mode}): " +
+                    $"min={min:G}, max={max:G}, mean={mean:G}, var={var:G}"
+                    );
             }
         }
     }
 
     private void GenerateTestData(Logger logger, List<Preset> presets, List<AbsorptionProperties.Mode> modes)
     {
+        const string method = nameof(GenerateTestData);
+        
         // Backup and modify flag.
         var clippingBackup = Settings.flags.useClipping;
         Settings.flags.useClipping = false;
 
         // generate and save test dataset.
         var step = 0;
-        foreach (var preset in presets)
+        foreach (var mode in modes)
         {
-            foreach (var mode in modes)
+            foreach (var preset in presets)
             {
                 preset.properties.absorption.mode = mode;
                 preset.metadata.pathOutputData = "B";
@@ -236,14 +244,14 @@ public class DataHandler : MonoBehaviour
 
                 ++step;
                 logger.Log(Logger.EventType.Test, 
-                    nameof(DataHandler) + ", A/B-Test: " 
-                                        + $"Shader adapter built. ({step}/{presets.Count*modes.Count})"
-                                        + $" preset set to = {preset.metadata.saveName}");
+                    $"{Scope(method)}: " + 
+                    $"Shader adapter built. ({step}/{presets.Count*modes.Count})" + 
+                    $" preset set to = {preset.metadata.saveName}");
                 _shaderAdapter.Execute();
-                logger.Log(Logger.EventType.Test, 
-                    nameof(DataHandler) + ", A/B-Test: " 
-                                        + $"Shader adapter executed. ({step}/{presets.Count*modes.Count})");
-                _shaderAdapter.SetStatusMessage($"Step {step}/6: preset {preset.metadata.saveName}, {mode}");
+                logger.Log(Logger.EventType.Test,
+                    $"{Scope(method)}: Shader adapter executed. ({step}/{presets.Count * modes.Count})");
+                _shaderAdapter.SetStatusMessage(
+                    $"{Scope(method)}: Step {step}/6: preset {preset.metadata.saveName}, {mode}");
             }
         }
         
@@ -252,23 +260,33 @@ public class DataHandler : MonoBehaviour
 
     private void RunABTests()
     {
-        Debug.Log("RunAbTests() started.");
+        const string method = nameof(RunABTests);
+        Debug.Log($"{Scope(method)}: started.");
+        
         var logger = new Logger()
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test})
             .SetWriteFilter(new List<Logger.EventType> {Logger.EventType.Warning, Logger.EventType.Test});
 
         var logPath = Path.Combine(Directory.GetCurrentDirectory(), "Logs", "A-B Test log.txt");
-        logger.Log(Logger.EventType.Info, nameof(DataHandler) + ": " + "Logger initialized.");
+        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Logger initialized.");
 
         // read presets
-        var testPresetNames = new List<string> {"ref", "ref ray"};
+        var testPresetNames = new List<string>
+        {
+            "ref", 
+            "ref ray"
+        };
         var testPresets = testPresetNames
             .Select(s => Path.Combine(_saveDir, s + PRESET_EXTENSION))
             .Select(ReadPreset)
             .ToList();
         
         var modeList = new List<AbsorptionProperties.Mode>
-            {AbsorptionProperties.Mode.Point, AbsorptionProperties.Mode.Area, AbsorptionProperties.Mode.Integrated};
+            {
+                AbsorptionProperties.Mode.Point, 
+                //AbsorptionProperties.Mode.Area, 
+                AbsorptionProperties.Mode.Integrated
+            };
         
         GenerateTestData(logger, testPresets, modeList);
         CompareTestData(logger, testPresets, modeList);
@@ -287,13 +305,16 @@ public class DataHandler : MonoBehaviour
 
     public void SubmitToComputing()
     {
+        const string method = nameof(SubmitToComputing);
+        
         //FillInBlanks();    // TODO
 
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
+        
 
-        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Logger initialized.");
+        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Logger initialized.");
         
         _shaderAdapter = _builder
             .SetLogger(logger)
@@ -302,13 +323,13 @@ public class DataHandler : MonoBehaviour
             .AutoSetShader()
             .Build();
         
-        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Shader adapter built."
-        + $" preset set to = {mainPanel.preset}");
+        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter built." +
+                                             $" preset set to = {mainPanel.preset}");
         
         _shaderAdapter.SetStatus(ref status);
         
         _shaderAdapter.Execute();
-        logger.Log(Logger.EventType.Inspect, nameof(DataHandler) + ": " + "Shader adapter executed.");
+        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter executed.");
     }
 
     public void SavePreset()
