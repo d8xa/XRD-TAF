@@ -8,7 +8,6 @@ using model;
 using UnityEngine;
 using util;
 using static util.MathTools;
-using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 using Logger = util.Logger;
 
@@ -31,6 +30,12 @@ namespace adapter
         
         private ComputeBuffer _inputBuffer;
         
+        private const string SCOPE = nameof(PlaneModeAdapter);
+        private static string Context(string methodName, string className = SCOPE)
+        {
+            return className + "." + methodName;
+        }
+        
         #endregion
 
         #region Constructors
@@ -39,7 +44,7 @@ namespace adapter
             : base(shader, preset, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(customLogger);
-            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{nameof(PointModeAdapter)} created.");
             InitializeOtherFields();
         }
 
@@ -49,8 +54,8 @@ namespace adapter
 
         private void InitializeOtherFields()
         {
-            logger.SetPrintLevel(Logger.LogLevel.All);
-            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
+            const string method = nameof(InitializeOtherFields);
+            logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
             
             _angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
@@ -75,17 +80,17 @@ namespace adapter
                 .ToArray();
             
             logger.Log(Logger.EventType.Step, 
-                "InitializeOtherFields():" +
+                $"{Context(method)}:" +
                 $" found ({_indicesSample.Length}, {_indicesCell.Length}) diffraction points (of {_nrCoordinates}).");
             
-            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
+            logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: done.");
         }
 
         private void ComputeIndicatorMask()
         {
-            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
+            const string method = nameof(ComputeIndicatorMask); 
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
 
-            // prepare required variables.
             SetShaderConstants();
 
             var handleIndicator = shader.FindKernel("get_indicator");
@@ -93,26 +98,24 @@ namespace adapter
             var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
             _inputBuffer.SetData(coordinates);
-            maskBuffer.SetData(_diffractionMask);
             
             shader.SetBuffer(handleIndicator, "coordinates", _inputBuffer);
             shader.SetBuffer(handleIndicator, "indicator_mask", maskBuffer);
 
-            logger.Log(Logger.EventType.ShaderInteraction, 
-                "ComputeIndicatorMask(): indicator mask shader dispatch.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader dispatch.");
             shader.Dispatch(handleIndicator, threadGroupsX, 1, 1);
-            logger.Log(Logger.EventType.ShaderInteraction, 
-                "ComputeIndicatorMask(): indicator mask shader return.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader return.");
             maskBuffer.GetData(_diffractionMask);
             
             maskBuffer.Release();
 
-            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
 
         protected override void Compute()
         {
-            logger.Log(Logger.EventType.Method, "Compute(): started.");
+            const string method = nameof(Compute);
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
 
             var sw = new Stopwatch();
             sw.Start();
@@ -122,14 +125,14 @@ namespace adapter
             // get kernel handles.
             var handlePart1 = shader.FindKernel("get_dists_part1");
             var handleAbsorptions = shader.FindKernel("get_absorptions");
-            logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Retrieved kernel handles.");
 
  
             // make buffers.
             var outputBufferCell = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var outputBufferSample = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
-            logger.Log(Logger.EventType.Data, "Created buffers.");
+            logger.Log(Logger.EventType.Data, $"{Context(method)}: Created buffers.");
             
             _inputBuffer.SetData(coordinates);
             
@@ -137,13 +140,13 @@ namespace adapter
             shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
             shader.SetBuffer(handlePart1, "distances_sample", outputBufferSample);
             shader.SetBuffer(handlePart1, "distances_cell", outputBufferCell);
-            logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Wrote data to buffers.");
 
             
             // compute part1 distances.
-            logger.Log(Logger.EventType.ShaderInteraction, "part1 distances kernel dispatch.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: part1 distances kernel dispatch.");
             shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
-            logger.Log(Logger.EventType.ShaderInteraction, "part1 distances kernel return.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: part1 distances kernel return.");
             
                      
             var loopTs = new TimeSpan();
@@ -175,9 +178,9 @@ namespace adapter
                 loopTs += loopStop - loopStart;
             }
             
-            logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Calculated all absorptions.");
             logger.Log(Logger.EventType.Performance, 
-                $"Absorption calculation took {loopTs}, " +
+                $"{Context(method)}: Absorption calculation took {loopTs}, " +
                 $"{TimeSpan.FromTicks(loopTs.Ticks/_nrAnglesTheta)} avg. per loop, " + 
                 $"{TimeSpan.FromTicks(factorsTs.Ticks/_nrAnglesTheta)} of which for absorption factor calculation.");
             
@@ -186,10 +189,10 @@ namespace adapter
             outputBufferCell.Release();
             outputBufferSample.Release();
             absorptionsBuffer.Release();
-            logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
 
             sw.Stop();
-            logger.Log(Logger.EventType.Method, "Compute(): done.");
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
         
         protected override void Write()
@@ -220,6 +223,7 @@ namespace adapter
 
         private void WriteAbsorptionFactors()
         {
+            const string method = nameof(WriteAbsorptionFactors);
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
             var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
@@ -238,7 +242,7 @@ namespace adapter
                 data[i, j] = _absorptionFactors[i][j];
 
             ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
-            logger.Log(Logger.EventType.Step, "Writing done.");
+            logger.Log(Logger.EventType.Step, $"{Context(Context(method))}: done.");
         }
         
         

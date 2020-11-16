@@ -33,6 +33,12 @@ namespace adapter
 
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
+
+        private const string SCOPE = nameof(IntegratedModeAdapter);
+        private static string Context(string methodName, string className = SCOPE)
+        {
+            return className + "." + methodName;
+        }
         
         #endregion
 
@@ -42,7 +48,7 @@ namespace adapter
         ) : base(shader, preset, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(customLogger);
-            logger.Log(Logger.EventType.Class, $"{GetType().Name} created.");
+            logger.Log(Logger.EventType.Class, $"{SCOPE} created.");
             InitializeOtherFields();
         }
 
@@ -52,7 +58,8 @@ namespace adapter
 
         private void InitializeOtherFields()
         {
-            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): started.");
+            const string method = nameof(InitializeOtherFields);
+            logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
             
             _angles = Parser.ImportAngles(
                 Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
@@ -70,7 +77,8 @@ namespace adapter
             
             _thetaUpperBound = properties.detector.GetAngleFromIndex(properties.detector.resolution.x, false);
             _alphaUpperBound = properties.detector.GetAngleFromIndex(properties.detector.resolution.y, true);
-            logger.Log(Logger.EventType.Inspect, $"Bounds: alpha = ({_alphaLowerBound}, {_alphaUpperBound})" +
+            logger.Log(Logger.EventType.Inspect, 
+                $"{Context(method)}: Bounds:\n\talpha = ({_alphaLowerBound}, {_alphaUpperBound})" +
                                                  $", theta = ({_thetaLowerBound}, {_thetaUpperBound})");
 
             // initialize arrays.
@@ -85,7 +93,7 @@ namespace adapter
                 .Select(Rotation.FromAngle)
                 .ToArray();
             logger.Log(Logger.EventType.Inspect, 
-                $"{string.Join(",", _rotations.Select(v => v.ToString()))}");
+                $"{Context(method)}: rotations = [{string.Join(",", _rotations.Select(v => v.ToString()))}]");
             
             ComputeIndicatorMask();
             
@@ -100,14 +108,15 @@ namespace adapter
                 .ToArray();
             _nrDiffractionPoints = new Vector2(_innerIndices.Length, _outerIndices.Length);
             logger.Log(Logger.EventType.Step, 
-                $"InitializeOtherFields(): found {_nrDiffractionPoints} diffraction points (of {_nrCoordinates}).");
+                $"I{Context(method)}: found {_nrDiffractionPoints} diffraction points (of {_nrCoordinates}).");
             
-            logger.Log(Logger.EventType.InitializerMethod, "InitializeOtherFields(): done.");
+            logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: done.");
         }
         
         private void ComputeIndicatorMask()
         {
-            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): started.");
+            const string method = nameof(ComputeIndicatorMask);
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
 
             var maskHandle = shader.FindKernel("get_indicator");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
@@ -121,17 +130,17 @@ namespace adapter
             shader.SetBuffer(maskHandle, "indicator_mask", _maskBuffer);
 
             logger.Log(Logger.EventType.ShaderInteraction, 
-                "ComputeIndicatorMask(): indicator mask shader dispatch.");
+                $"{Context(method)}: indicator mask shader dispatch.");
             shader.Dispatch(maskHandle, threadGroupsX, 1, 1);
-            logger.Log(Logger.EventType.ShaderInteraction, 
-                "ComputeIndicatorMask(): indicator mask shader return.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader return.");
 
-            logger.Log(Logger.EventType.Method, "ComputeIndicatorMask(): done.");
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
 
         protected override void Compute()
         {
-            logger.Log(Logger.EventType.Method, "Compute(): started.");
+            const string method = nameof(Compute);
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
             
             SetShaderConstants();
             
@@ -139,7 +148,7 @@ namespace adapter
             var handlePart1 = shader.FindKernel("get_dists_part1");
             var handlePart2 = shader.FindKernel("get_dists_part2");
             var handleAbsorptions = shader.FindKernel("get_absorptions");
-            logger.Log(Logger.EventType.ShaderInteraction, "Retrieved kernel handles.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Retrieved kernel handles.");
             
             // make buffers.
             var outputBufferCellPart1 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
@@ -147,20 +156,20 @@ namespace adapter
             var outputBufferCellPart2 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var outputBufferSamplePart2 = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
-            logger.Log(Logger.EventType.Data, "Created buffers.");
+            logger.Log(Logger.EventType.Data, $"{Context(method)}: Created buffers.");
             
             // set buffers for g1 kernel.
             shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
             shader.SetBuffer(handlePart1, "distances_sample_part1", outputBufferSamplePart1);
             shader.SetBuffer(handlePart1, "distances_cell_part1", outputBufferCellPart1);
-            logger.Log(Logger.EventType.ShaderInteraction, "Wrote data to buffers.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Wrote data to buffers.");
             
             _inputBuffer.SetData(coordinates);
             
             // compute g1 distances.
-            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel dispatch.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g1 distances kernel dispatch.");
             shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
-            logger.Log(Logger.EventType.ShaderInteraction, "g1 distances kernel return.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g1 distances kernel return.");
             
             // set buffers for g2 kernel.
             shader.SetBuffer(handlePart2, "coordinates", _inputBuffer);
@@ -223,9 +232,11 @@ namespace adapter
                         (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
-                    logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel dispatch.");
+                    logger.Log(Logger.EventType.ShaderInteraction, 
+                        $"{Context(method)}: g2 distances kernel dispatch.");
                     shader.Dispatch(handlePart2, threadGroupsX, 1, 1);
-                    logger.Log(Logger.EventType.ShaderInteraction, "g2 distances kernel return.");
+                    logger.Log(Logger.EventType.ShaderInteraction, 
+                        $"{Context(method)}: g2 distances kernel return.");
 
                     // set iterative buffers for absorption factors kernel.
                     shader.SetBuffer(handleAbsorptions, "distances_sample_part2", outputBufferSamplePart2);
@@ -245,7 +256,7 @@ namespace adapter
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
             }
             
-            logger.Log(Logger.EventType.ShaderInteraction, "Calculated all absorptions.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Calculated all absorptions.");
 
             // release buffers.
             _inputBuffer.Release();
@@ -255,7 +266,7 @@ namespace adapter
             outputBufferCellPart2.Release();
             outputBufferSamplePart2.Release();
             absorptionsBuffer.Release();
-            logger.Log(Logger.EventType.ShaderInteraction, "Shader buffers released.");
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
 
             const string saveFileName1 = "[mode=2] ring coordinates.txt";
             const string saveFileName2 = "[mode=2] vcosinv.txt";
@@ -270,12 +281,13 @@ namespace adapter
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName2), stretchFactors, reverse:true);
             ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName3), ringAbsorptions, reverse:true);
 
-            logger.Log(Logger.EventType.Method, "Compute(): done.");
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
 
         protected override void Write()
         {
-            logger.Log(Logger.EventType.Method, "Write(): started.");
+            const string method = nameof(Write);
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
             
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
@@ -300,7 +312,7 @@ namespace adapter
             
             ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
             
-            logger.Log(Logger.EventType.Method, "Write(): done.");
+            logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
         
         private void SetShaderConstants()
