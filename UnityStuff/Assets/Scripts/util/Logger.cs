@@ -86,14 +86,18 @@ namespace util
         public Logger SetPrintFilter(List<EventType> eventTypes)
         {
             PrintLevel = LogLevel.Custom;
-            _printEvents = eventTypes;
+            if (_printEvents == null) _printEvents = new List<EventType>();
+            _printEvents.Clear();
+            _printEvents.AddRange(eventTypes);
             return this;
         }
         
         public Logger SetWriteFilter(List<EventType> eventTypes)
         {
-            PrintLevel = LogLevel.Custom;
-            _printEvents = eventTypes;
+            WriteLevel = LogLevel.Custom;
+            if (_writeEvents == null) _writeEvents = new List<EventType>();
+            _writeEvents.Clear();
+            _writeEvents.AddRange(eventTypes);
             return this;
         }
 
@@ -106,8 +110,14 @@ namespace util
         {
             var entry = new LogEntry(eventType, DateTime.Now, message);
             _logEntries.Add(entry);
-            if (printDebug || PrintLevel == LogLevel.Custom && _printEvents.Contains(eventType) 
-                           || (int) eventType <= (int) PrintLevel)
+            if (printDebug)
+                Debug.Log(entry.ToString());
+            else if (PrintLevel != LogLevel.Custom)
+            {
+                if ((int) eventType <= (int) PrintLevel) 
+                    Debug.Log(entry.ToString());
+            }
+            else if (_printEvents.Contains(eventType)) 
                 Debug.Log(entry.ToString());
         }
 
