@@ -42,7 +42,7 @@ namespace model
 
         public void Serialize(string filepath)
         {
-            using (var stream = File.Open(filepath, FileMode.OpenOrCreate)) 
+            using (var stream = File.Open(filepath, FileMode.Create)) 
             using (var writer = JsonReaderWriterFactory
                 .CreateJsonWriter(stream, Settings.DefaultValues.Encoding, true, true, "\t"))
             {
