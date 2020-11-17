@@ -25,7 +25,7 @@ float get_intersect_x(float2 v, float r2, bool right)
 /// <param name="v">the coordinate vector.</param>
 /// <param name="r">the radii of the medium.</param>
 /// <param name="r2">the squared radii.</param>
-float2 dists_case1(float2 v, float2 r, float2 r2)
+float2 get_dists_case1(float2 v, float2 r, float2 r2)
 {
     float d_cell = 0.0;
     float d_sample = 0.0;
@@ -46,7 +46,7 @@ float2 dists_case1(float2 v, float2 r, float2 r2)
 /// <param name="v">the coordinate vector.</param>
 /// <param name="r">the radii of the medium.</param>
 /// <param name="r2">the squared radii.</param>
-float2 dists_case2(float2 v, float2 r, float2 r2)
+float2 get_dists_case2(float2 v, float2 r, float2 r2)
 {
     float d_cell = 0.0;
     float d_sample = 0.0;
@@ -70,7 +70,7 @@ float2 dists_case2(float2 v, float2 r, float2 r2)
     return float2(d_cell, d_sample);
 }
 
-float2 rotate_point(float2 rot, float2 v)
+float2 rotate_point(float2 v, float2 rot)
 {
     return float2(
         rot.x * v.x - rot.y * v.y,

@@ -33,8 +33,10 @@ namespace util
             InitializerMethod = 49,      // every event inside initializer methods of class, unless events are declared as lower.
             ShaderInteraction = 48,
             Data = 59,                   // data retrieval, assignment, allocation, etc.
-            Step = 69,                    // a logical step or group of the code. 
-            Performance = 68
+            Step = 69,                   // a logical step or group of the code. 
+            Info = 68,
+            Performance = 67,
+            Test = 66                    // a test result or report.
         }
         
         /**
@@ -84,14 +86,18 @@ namespace util
         public Logger SetPrintFilter(List<EventType> eventTypes)
         {
             PrintLevel = LogLevel.Custom;
-            _printEvents = eventTypes;
+            if (_printEvents == null) _printEvents = new List<EventType>();
+            _printEvents.Clear();
+            _printEvents.AddRange(eventTypes);
             return this;
         }
         
         public Logger SetWriteFilter(List<EventType> eventTypes)
         {
-            PrintLevel = LogLevel.Custom;
-            _printEvents = eventTypes;
+            WriteLevel = LogLevel.Custom;
+            if (_writeEvents == null) _writeEvents = new List<EventType>();
+            _writeEvents.Clear();
+            _writeEvents.AddRange(eventTypes);
             return this;
         }
 
@@ -104,8 +110,14 @@ namespace util
         {
             var entry = new LogEntry(eventType, DateTime.Now, message);
             _logEntries.Add(entry);
-            if (printDebug || PrintLevel == LogLevel.Custom && _printEvents.Contains(eventType) 
-                           || (int) eventType <= (int) PrintLevel)
+            if (printDebug)
+                Debug.Log(entry.ToString());
+            else if (PrintLevel != LogLevel.Custom)
+            {
+                if ((int) eventType <= (int) PrintLevel) 
+                    Debug.Log(entry.ToString());
+            }
+            else if (_printEvents.Contains(eventType)) 
                 Debug.Log(entry.ToString());
         }
 
@@ -133,6 +145,7 @@ namespace util
             PrintToDebug(PrintLevel);
         }
 
+        // TODO: better log filtering
         public void WriteToFile(string filePath)
         {
             var folderPath = Path.GetDirectoryName(filePath) ?? _defaultFolder;
@@ -178,6 +191,7 @@ namespace util
             WriteToFile(Path.Combine(_defaultFolder, fileName));
         }
 
+        // TODO: better log filtering
         public void AppendToFile(string filePath)
         {
             if (File.Exists(filePath))
@@ -186,7 +200,10 @@ namespace util
                 using (var buffered = new BufferedStream(fileStream))
                 using (var writer = new StreamWriter(buffered))
                 {
-                    _logEntries.ForEach(entry => writer.WriteLine(entry));
+                    if (WriteLevel == LogLevel.Custom)
+                        Filter(_printEvents).ForEach(entry => writer.WriteLine(entry));
+                    else
+                        _logEntries.ForEach(entry => writer.WriteLine(entry));
                 }
             }
             else WriteToFile(filePath);

@@ -1,4 +1,6 @@
-﻿using System.Runtime.Serialization;
+using System.IO;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 using JetBrains.Annotations;
 using model.properties;
 
@@ -27,6 +29,26 @@ namespace model
         {
             metadata = new Metadata();
             properties = new Properties();
+        }
+        
+        public static Preset Deserialize(string filePath)
+        {
+            if (!File.Exists(filePath)) 
+                throw new FileNotFoundException("Could not load preset; file not found.");
+            var presetJson = File.ReadAllText(filePath, Settings.DefaultValues.Encoding);
+            using (var stream = new MemoryStream(Settings.DefaultValues.Encoding.GetBytes(presetJson)))
+                return (Preset) Settings.DefaultValues.PresetSerializer.ReadObject(stream);
+        }
+
+        public void Serialize(string filepath)
+        {
+            using (var stream = File.Open(filepath, FileMode.OpenOrCreate)) 
+            using (var writer = JsonReaderWriterFactory
+                .CreateJsonWriter(stream, Settings.DefaultValues.Encoding, true, true, "\t"))
+            {
+                Settings.DefaultValues.PresetSerializer.WriteObject(writer, this);
+                writer.Flush();
+            }
         }
     }
     
@@ -108,6 +130,35 @@ namespace model
             ray = RayProperties.Initialize();
             detector = DetectorProperties.Initialize();
             angle = AngleProperties.Initialize();
+        }
+        
+        internal string FilenameFormatter(int nrAngles)
+        {
+            int n, m, k;
+
+            var mode = (int) absorption.mode;
+            var res = sample.gridResolution;
+            
+            switch (absorption.mode)
+            {
+                case AbsorptionProperties.Mode.Point:
+                    n = nrAngles;
+                    m = 1;
+                    k = 1;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+                case AbsorptionProperties.Mode.Area:
+                    n = detector.resolution.x;
+                    m = detector.resolution.y;
+                    k = 1;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+                case AbsorptionProperties.Mode.Integrated:
+                    n = nrAngles;
+                    m = 1;
+                    k = angle.angleCount;
+                    return $"[mode={mode}] [dim=({res},{n},{m},{k})] Output.txt";
+            }
+            
+            return "[mode=?] [dims=?] Output.txt";;
         }
     }
 }

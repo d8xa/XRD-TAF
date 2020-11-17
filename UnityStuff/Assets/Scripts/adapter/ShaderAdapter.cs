@@ -17,6 +17,7 @@ namespace adapter
         
         private protected readonly ComputeShader shader;
         private protected readonly Properties properties;
+        private protected readonly Metadata metadata;
         private protected int threadGroupsX;
         
         private protected Vector2[] coordinates;
@@ -39,10 +40,11 @@ namespace adapter
 
         #region Constructors
 
-        protected ShaderAdapter(ComputeShader shader, Properties properties, bool writeFactors, Logger logger = null)
+        protected ShaderAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger logger = null)
         {
             this.shader = shader;
-            this.properties = properties;
+            properties = preset.properties;
+            metadata = preset.metadata;
             this.writeFactors = writeFactors;
             if (logger != null) SetLogger(logger);
             

@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -80,7 +77,7 @@ namespace util
         private static void Write2D(string path, string[] headCol, string headRow, Vector2[,] data, 
             string sep = "\t", bool reverse = false)
         {
-            bool StrictCompare(int a, int b) => reverse ? a > b : a < b;
+            bool StrictCompare(int a, int b) => reverse ? a >= b : a < b;
             var iBounds = reverse ? new Vector2Int(data.GetLength(0) - 1, 0) : new Vector2Int(0, data.GetLength(0));
             var jBounds = reverse ? new Vector2Int(data.GetLength(1) - 1, 0) : new Vector2Int(0, data.GetLength(1));
             var increment = reverse ? -1 : 1;
