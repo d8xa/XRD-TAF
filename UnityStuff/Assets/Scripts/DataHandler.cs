@@ -106,7 +106,7 @@ public class DataHandler : MonoBehaviour
         loadButton.onClick.AddListener(LoadPreset);
         saveButton.onClick.AddListener(SavePreset);
         
-        runABTestsButton.gameObject.SetActive(Settings.flags.isDebugBuild);
+        runABTestsButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
         runABTestsButton.onClick.AddListener(RunABTests);
 
         
@@ -211,8 +211,8 @@ public class DataHandler : MonoBehaviour
         const string method = nameof(GenerateTestData);
         
         // Backup and modify flag.
-        var clippingBackup = Settings.flags.useClipping;
-        Settings.flags.useClipping = false;
+        var clippingBackup = Settings.flags.clipAngles;
+        Settings.flags.clipAngles = false;
 
         // generate and save test dataset.
         var step = 0;
@@ -244,7 +244,7 @@ public class DataHandler : MonoBehaviour
             }
         }
         
-        Settings.flags.useClipping = clippingBackup;
+        Settings.flags.clipAngles = clippingBackup;
     }
 
     private void RunABTests()
@@ -307,7 +307,7 @@ public class DataHandler : MonoBehaviour
         
         _shaderAdapter = _builder
             .SetLogger(logger)
-            .SetWriteFactors(Settings.flags.writeFactors)
+            .SetWriteFactors(Settings.Flags.WriteFactors)
             .SetProperties(mainPanel.preset)
             .AutoSetShader()
             .Build();

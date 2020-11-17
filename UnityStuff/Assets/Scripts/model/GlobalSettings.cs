@@ -83,33 +83,36 @@ namespace model
             /// <summary>
             /// In integrated mode, clip angles outside of the detector range.
             /// </summary>
-            [DataMember] public bool useClipping;
+            [DataMember] public bool clipAngles = true;
+            
+            /// <summary>
+            /// Write logs. If enabled, useLogging is set to true. 
+            /// </summary>
+            [DataMember] public bool writeLogs;
+
+            #region Internal settings
 
             /// <summary>
             /// Toggle to switch on or off the use of Logger objects.
             /// </summary>
             //[DataMember]
             public bool useLogging;
-
-            /// <summary>
-            /// Write logs. If enabled, useLogging is set to true. 
-            /// </summary>
-            //[DataMember]
-            public bool writeLogs;
-
-            public bool isDebugBuild = true;
             
-            // only for debugging use.
-            public bool writeFactors = true;
+            public const bool IsDebugBuild = true;
+            public const bool WriteFactors = true;
+
+            #endregion
+            
             
             public Flags DeepCopy()
             {
                 var flags = new Flags
                 {
-                    useRadian = useRadian,
-                    writeFactors = writeFactors,
+                    planeModeWriteSeparateFiles = planeModeWriteSeparateFiles,
                     fillEmptyWithDefault = fillEmptyWithDefault,
-                    planeModeWriteSeparateFiles = planeModeWriteSeparateFiles
+                    useRadian = useRadian,
+                    clipAngles = clipAngles,
+                    writeLogs = writeLogs
                 };
                 return flags;
             }

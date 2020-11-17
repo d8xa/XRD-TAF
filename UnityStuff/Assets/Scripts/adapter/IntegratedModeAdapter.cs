@@ -212,7 +212,7 @@ namespace adapter
                     var stretchFactor = hypot / hypotXZ;
                     var v = GetRingCoordinate(i, ringProjRadius);
                     
-                    if (Settings.flags.useClipping && BoundaryCheck(v)) continue;
+                    if (Settings.flags.clipAngles && BoundaryCheck(v, GetThetaAt(j))) continue;
 
                     // set rotation parameters.
                     shader.SetFloats("rot", (float) Math.Cos(Math.PI - tau), 
@@ -312,8 +312,10 @@ namespace adapter
             return _angles[index];
         }
         
-        private bool BoundaryCheck(Vector2 v)
+        private bool BoundaryCheck(Vector2 v, double angle)
         {
+            if (Math.Abs(angle) >= Math.PI/2) return true;
+            
             var lowerBound = Vector2.zero - properties.detector.offset;
             var upperBound = properties.detector.pixelSize * properties.detector.resolution;
             
