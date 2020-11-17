@@ -10,6 +10,7 @@ float2 r;                                           // (cell,sample) radius of t
 float2 r2;                                          // r^2.
 float2 mu;                                          // (cell,sample) mass attenuation coefficient.
 float2 ray_dim;                                     // (width,height) dimensions of the ray.
+float2 ray_offset;                                  // (x,y) offset of the ray, relative to capillary center.
 
 // PARAMETERS (variable):   
 float2 rot;                                         // (cos,sin) of the coordinate rotation by pi-theta.
@@ -53,7 +54,7 @@ void get_indicator(uint3 id : SV_DispatchThreadID)
 {
     float norm = length(coordinates[id.x]);
     
-    if (norm <= r.x && abs(coordinates[id.x].y) <= ray_dim.x)
+    if (norm <= r.x && abs(coordinates[id.x].y - ray_offset.x) <= ray_dim.x)
     {
         if (norm > r.y) indicator_mask[id.x].y = 1;    // cases A_{c,sc}, A_{c,c}.
         else indicator_mask[id.x].x = 1;    // case A_{s,sc}.

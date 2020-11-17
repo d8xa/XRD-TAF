@@ -292,6 +292,7 @@ namespace adapter
             shader.SetFloats("r", r.cell, r.sample);
             shader.SetFloats("r2", rSq.cell, rSq.sample);
             shader.SetFloats("ray_dim", properties.ray.dimensions.x/2, properties.ray.dimensions.y/2);
+            shader.SetFloats("ray_offset", properties.ray.offset.x, properties.ray.offset.y);
         }
         
         #endregion
