@@ -64,7 +64,7 @@ namespace adapter
             mu.cell = properties.sample.muCell;
             mu.sample = properties.sample.muSample;
 
-            var boundary = r.cell * (1 + Settings.defaults.sampleAreaMarginDefault);
+            var boundary = r.cell * (1 + Settings.defaults.samplePaddingDefault);
             coordinates = MathTools.LinSpace2D(-boundary, boundary, sampleResolution);
             threadGroupsX =  (int) Math.Min(Math.Pow(2, 16) - 1, Math.Pow(sampleResolution, 2));
         }

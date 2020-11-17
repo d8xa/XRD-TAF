@@ -72,10 +72,10 @@ public class DataHandler : MonoBehaviour
             .AddShader(AbsorptionProperties.Mode.Point, pointModeShader)
             .AddShader(AbsorptionProperties.Mode.Area, planeModeShader)
             .AddShader(AbsorptionProperties.Mode.Integrated, integratedModeShader)
-            .SetSegmentMargin(Settings.defaults.sampleAreaMarginDefault);
+            .SetSegmentMargin(Settings.defaults.samplePaddingDefault);
             // TODO: calculate best/minimum margin for segment resolution later. 
         
-        UpdateSaveDir();
+        UpdatePresetDir();
         ButtonSetup();
     }
     
@@ -266,7 +266,7 @@ public class DataHandler : MonoBehaviour
             "ref ray"
         };
         var testPresets = testPresetNames
-            .Select(s => Path.Combine(_saveDir, s + Settings.DefaultValues.PresetExtension))
+            .Select(s => Path.Combine(_saveDir, s + Settings.DefaultValues.SerializedExtension))
             .Select(ReadPreset)
             .ToList();
         
@@ -287,9 +287,9 @@ public class DataHandler : MonoBehaviour
     #endregion
     
 
-    private void UpdateSaveDir()
+    private static void UpdatePresetDir()
     {
-        _saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
+        _saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Presets");
     }
 
     public void SubmitToComputing()
@@ -323,9 +323,9 @@ public class DataHandler : MonoBehaviour
 
     public void SavePreset()
     {
-        UpdateSaveDir();
+        UpdatePresetDir();
         Directory.CreateDirectory(_saveDir);
-        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + Settings.DefaultValues.PresetExtension);
+        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + Settings.DefaultValues.SerializedExtension);
 
         mainPanel.preset?.Serialize(path);
     }
@@ -337,8 +337,8 @@ public class DataHandler : MonoBehaviour
 
     private void LoadPreset(string filename)
     {
-        UpdateSaveDir();
-        var loadFilePath = Path.Combine(_saveDir, filename + Settings.DefaultValues.PresetExtension);
+        UpdatePresetDir();
+        var loadFilePath = Path.Combine(_saveDir, filename + Settings.DefaultValues.SerializedExtension);
 
         try
         {

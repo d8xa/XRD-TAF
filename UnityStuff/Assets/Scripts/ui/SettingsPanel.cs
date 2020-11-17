@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using model;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,29 +12,41 @@ namespace ui
         public Button closeButton;
         public Button saveChanges;
 
-        private bool hasUnsavedChanges;
+        private bool _hasUnsavedChanges;
 
-        // TODO: add input members.
         public InputField fieldSampleAreaMargin;
-        public Toggle toggleRadian;
-        public Toggle toggleFillEmpty;
         public Toggle toggleWriteSeparateFiles;
+        public Toggle toggleFillEmpty;
+        public Toggle toggleRadian;
+        public Toggle toggleClipAngles;
+        public Toggle toggleWriteLogs;
         
         // copy of Settings members to store unsaved changes.
-        private Settings.Flags flags;
-        private Settings.DefaultValues defaults;
+        private Settings.Flags _flags;
+        private Settings.DefaultValues _defaults;
+        
 
         private void Awake()
         {
-            LoadFromSettings();
+            try
+            {
+                LoadFromFile();
+                LoadFromSettings();
+            }
+            catch (FileNotFoundException e)
+            {
+                Console.WriteLine(e);
+                LoadFromSettings();
+                SaveChanges();
+            }
             RefreshUI();
 
             InitializeListeners();
         }
-
+        
         private void InitializeListeners()
         {
-            //saveChanges.onClick.AddListener((SaveChanges));
+            saveChanges.onClick.AddListener(SaveChanges);
 
             fieldSampleAreaMargin.onValueChanged.AddListener(text =>
             {
@@ -52,80 +65,116 @@ namespace ui
                 if (IsValue(text))
                 {
                     var value = ParseFloat(text);
-                    if (value != null && IsMarginValid(value)) defaults.sampleAreaMarginDefault = (float) value / 100f;
+                    if (value != null && IsMarginValid(value)) _defaults.samplePaddingDefault = (float) value / 100f;
                 }
 
                 fieldSampleAreaMargin.image.color = GetValidationColor(true); // reset to valid state.
-                fieldSampleAreaMargin.text = (defaults.sampleAreaMarginDefault*100f).ToString(defaults.cultureInfo);
+                fieldSampleAreaMargin.text = (_defaults.samplePaddingDefault*100f).ToString(_defaults.cultureInfo);
 
                 CheckForChanges();
             });
             
             toggleRadian.onValueChanged.AddListener(value =>
             {
-                flags.useRadian = value;
+                _flags.useRadian = value;
                 CheckForChanges();
             });
             
             toggleFillEmpty.onValueChanged.AddListener(value =>
             {
-                flags.fillEmptyWithDefault = value;
+                _flags.fillEmptyWithDefault = value;
                 CheckForChanges();
             });
             
             toggleWriteSeparateFiles.onValueChanged.AddListener(value =>
             {
-                flags.planeModeWriteSeparateFiles = value;
+                _flags.planeModeWriteSeparateFiles = value;
                 CheckForChanges();
             });
             
-            // TODO: continue impl.
+            toggleWriteLogs.onValueChanged.AddListener(value =>
+            {
+                _flags.writeLogs = value;
+                CheckForChanges();
+            });
+            
+            toggleClipAngles.onValueChanged.AddListener(value =>
+            {
+                _flags.clipAngles = value;
+                CheckForChanges();
+            });
         }
 
         private bool IsMarginValid(float? value) => 0 <= value && value <= 100;
 
         private Color GetValidationColor(bool valid) => valid ? Color.white : Color.red;
-
-        private void LoadFromSettings()
-        {
-            flags = Settings.flags.DeepCopy();
-            defaults = Settings.defaults.DeepCopy();
-        }
-
+        
         private void ShowChangesIndicator(bool value)
         {
-            hasUnsavedChanges = value; 
+            _hasUnsavedChanges = value; 
             saveChanges.gameObject.SetActive(value);
         }
 
         private void RefreshUI()
         {
-            fieldSampleAreaMargin.text = (defaults.sampleAreaMarginDefault*100).ToString(defaults.cultureInfo);
-            toggleRadian.isOn = flags.useRadian;
-            toggleFillEmpty.isOn = flags.fillEmptyWithDefault;
-            toggleWriteSeparateFiles.isOn = flags.planeModeWriteSeparateFiles;
+            fieldSampleAreaMargin.text = (_defaults.samplePaddingDefault*100).ToString(_defaults.cultureInfo);
+            toggleWriteSeparateFiles.isOn = _flags.planeModeWriteSeparateFiles;
+            toggleFillEmpty.isOn = _flags.fillEmptyWithDefault;
+            toggleRadian.isOn = _flags.useRadian;
+            toggleClipAngles.isOn = _flags.clipAngles;
+            toggleWriteLogs.isOn = _flags.writeLogs;
         }
 
         private void CheckForChanges()
         {
-            if (Math.Abs(defaults.sampleAreaMarginDefault - Settings.defaults.sampleAreaMarginDefault) > 1E-3)
-                hasUnsavedChanges = true;
-            else if (flags.useRadian != Settings.flags.useRadian) hasUnsavedChanges = true;
-            else if (flags.fillEmptyWithDefault != Settings.flags.fillEmptyWithDefault) hasUnsavedChanges = true;
-            else if (flags.planeModeWriteSeparateFiles != Settings.flags.planeModeWriteSeparateFiles) 
-                hasUnsavedChanges = true;
-            else hasUnsavedChanges = false;
+            if (Math.Abs(_defaults.samplePaddingDefault - Settings.defaults.samplePaddingDefault) > 1E-3)
+                _hasUnsavedChanges = true;
+            else if (_flags.useRadian != Settings.flags.useRadian) _hasUnsavedChanges = true;
+            else if (_flags.fillEmptyWithDefault != Settings.flags.fillEmptyWithDefault) _hasUnsavedChanges = true;
+            else if (_flags.planeModeWriteSeparateFiles != Settings.flags.planeModeWriteSeparateFiles) 
+                _hasUnsavedChanges = true;
+            else if (_flags.clipAngles != Settings.flags.clipAngles) _hasUnsavedChanges = true;
+            else if (_flags.writeLogs != Settings.flags.writeLogs) _hasUnsavedChanges = true;
+            else _hasUnsavedChanges = false;
             
-            saveChanges.gameObject.SetActive(hasUnsavedChanges);
+            saveChanges.gameObject.SetActive(_hasUnsavedChanges);
         }
 
         private void SaveChanges()
         {
-            Settings.flags = flags;
-            Settings.defaults = defaults;
-            // TODO: serialize here or in Settings class
+            Settings.CopyUserSettings(_flags, Settings.flags);
+            Settings.CopyUserSettings(_defaults, Settings.defaults);
 
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
+            Directory.CreateDirectory(saveDir);
+            var path = Path.Combine(saveDir, "settings" + Settings.DefaultValues.SerializedExtension);
+            Settings.current.Serialize(path);
+            
             ShowChangesIndicator(false);
+        }
+        
+        private static void LoadFromFile()
+        {
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
+            var path = Path.Combine(saveDir, "settings" + Settings.DefaultValues.SerializedExtension);
+            
+            if (!File.Exists(path)) 
+                throw new FileNotFoundException("Could not load preset; file not found.");
+            var presetJson = File.ReadAllText(path, Settings.DefaultValues.Encoding);
+            using (var stream = new MemoryStream(Settings.DefaultValues.Encoding.GetBytes(presetJson)))
+            {
+                var settings = (Settings) Settings.DefaultValues.SettingsSerializer.ReadObject(stream);
+                Settings.CopyUserSettings(settings, Settings.current);
+            }
+        }
+        
+        /// <summary>
+        /// Copies all settings to class variables.
+        /// </summary>
+        private void LoadFromSettings()
+        {
+            _flags = Settings.flags.DeepCopy();
+            _defaults = Settings.defaults.DeepCopy();
         }
     }
 }
