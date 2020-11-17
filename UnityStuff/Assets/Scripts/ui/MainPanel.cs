@@ -42,6 +42,12 @@ namespace ui
       public InputField fieldAngleEnd;
       public InputField fieldAngleSteps;
 
+      public InputField fieldRayDimensionsX;
+      public InputField fieldRayDimensionsY;
+      public InputField fieldRayOffsetX;
+      public InputField fieldRayOffsetY;
+      public Dropdown dropdownRayProfile;
+
       public Preset selectedPreset;    // use if a saved preset was selected (incl. default).
       internal Preset preset;     // use for current state of properties.
       private bool presetHasChanged;
@@ -96,6 +102,14 @@ namespace ui
          fieldAngleStart.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleStart));
          fieldAngleEnd.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleEnd));
          fieldAngleSteps.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.angle.angleCount));
+         
+         // Ray parameters
+         dropdownMode.onValueChanged.AddListener(value =>
+            preset.properties.ray.profile = (RayProperties.Profile) dropdownRayProfile.value);
+         fieldRayDimensionsX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.ray.dimensions.x));
+         fieldRayDimensionsY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.ray.dimensions.y));
+         fieldRayOffsetX.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.ray.offset.x));
+         fieldRayOffsetY.onEndEdit.AddListener(text => ParseField(text, ref preset.properties.ray.offset.y));
       }
 
       private void SetAllInputGroups(bool value)
@@ -121,7 +135,7 @@ namespace ui
 
       public void FillFromPreset(Preset source)
       {
-         FillFromPreset(source.metadata);   // not necessary for 
+         FillFromPreset(source.metadata);   // not necessary for
          FillFromPreset(source.properties.absorption);
          FillFromPreset(source.properties.angle);
          FillFromPreset(source.properties.detector);
@@ -157,12 +171,17 @@ namespace ui
 
       private void FillFromPreset(RayProperties source)
       {
-         preset.properties.ray.profile = source.profile;
-         preset.properties.ray.dimensions = source.dimensions; // TODO: add input field "ray dimensions".
-         preset.properties.ray.intensity = source.intensity;   // TODO: add input field "ray intensity".
-         preset.properties.ray.offset = source.offset;         // TODO: add input field "ray offset".
          
-         //RefreshRayPropertiesUI();
+         if (!IsValue(fieldRayDimensionsX.text)) preset.properties.ray.dimensions.x = source.dimensions.x;
+         if (!IsValue(fieldRayDimensionsY.text)) preset.properties.ray.dimensions.y = source.dimensions.y;
+         if (!IsValue(fieldRayOffsetX.text)) preset.properties.ray.offset.x = source.offset.x;
+         if (!IsValue(fieldRayOffsetY.text)) preset.properties.ray.offset.y = source.offset.y;
+         if (!Enum.IsDefined(typeof(RayProperties.Profile), preset.properties.ray.profile))
+            preset.properties.ray.profile = source.profile;
+         
+         preset.properties.ray.intensity = source.intensity;   // TODO: add input field "ray intensity".
+         
+         RefreshRayPropertiesUI();
       }
 
       private void FillFromPreset(DetectorProperties source)
@@ -198,7 +217,7 @@ namespace ui
          preset.properties.absorption.mode = (AbsorptionProperties.Mode) dropdownMode.value;
          ShowRelevantInputFields();
       }
-
+      
       #endregion
 
       #region UI update methods
@@ -249,6 +268,12 @@ namespace ui
          dropdownTarget.value = (int) target;
       }
 
+      private void SetDropdownTo(RayProperties.Profile profile) 
+      {
+         dropdownRayProfile.value = (int) profile;
+      }
+
+      
       public void UpdateAllUI()
       {
          RefreshModeUI();
@@ -287,7 +312,11 @@ namespace ui
       
       public void RefreshRayPropertiesUI()
       {
-         // TODO: implement as soon as ray properties are available.
+         SetDropdownTo(preset.properties.ray.profile);
+         fieldRayDimensionsX.text = preset.properties.ray.dimensions.x.ToString(Settings.defaults.cultureInfo);
+         fieldRayDimensionsY.text = preset.properties.ray.dimensions.y.ToString(Settings.defaults.cultureInfo);
+         fieldRayOffsetX.text = preset.properties.ray.offset.x.ToString(Settings.defaults.cultureInfo);
+         fieldRayOffsetY.text = preset.properties.ray.offset.y.ToString(Settings.defaults.cultureInfo);
       }
 
       public void RefreshDetectorPropertiesUI()
