@@ -145,7 +145,6 @@ namespace util
             PrintToDebug(PrintLevel);
         }
 
-        // TODO: better log filtering
         public void WriteToFile(string filePath)
         {
             var folderPath = Path.GetDirectoryName(filePath) ?? _defaultFolder;
@@ -191,7 +190,6 @@ namespace util
             WriteToFile(Path.Combine(_defaultFolder, fileName));
         }
 
-        // TODO: better log filtering
         public void AppendToFile(string filePath)
         {
             if (File.Exists(filePath))

@@ -187,12 +187,7 @@ namespace adapter
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
             absorptionsBuffer.SetData(absorptionsTemp);
 
-            // debug
-            var stretchFactors = new float[_nrAnglesTheta, _nrAnglesTheta];
-            var ringCoordinates = new Vector2[_nrAnglesTheta, _nrAnglesTheta];
-            var ringAbsorptions = new Vector3[_nrAnglesTheta, _nrAnglesTheta];
 
-            
             // iterative computation of average absorption values for each ring of radius theta:
             for (int j = 0; j < _nrAnglesTheta; j++)
             {
@@ -214,18 +209,10 @@ namespace adapter
                     var tauRadius = _rotations[i].cos * ringRadius;
 
                     var hypotXZ = Math.Sqrt(Math.Pow(ringDistance, 2) + Math.Pow(tauRadius, 2));
-                    
                     var stretchFactor = hypot / hypotXZ;
-                    stretchFactors[i, j] = (float) stretchFactor;
-
                     var v = GetRingCoordinate(i, ringProjRadius);
-                    ringCoordinates[i, j] = v;
                     
-                    if (Settings.flags.useClipping && BoundaryCheck(v))
-                    {
-                        ringAbsorptions[i,j] = Vector3.positiveInfinity;
-                        continue;
-                    }
+                    if (Settings.flags.useClipping && BoundaryCheck(v)) continue;
 
                     // set rotation parameters.
                     shader.SetFloats("rot", (float) Math.Cos(Math.PI - tau), 
@@ -247,10 +234,7 @@ namespace adapter
                     shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1);
                     absorptionsBuffer.GetData(absorptionsTemp);
 
-                    var af = GetAbsorptionFactor(absorptionsTemp);
-                    ringAbsorptions[i, j] = af;
-                    
-                    ringAbsorptionValues.AddLast(af);
+                    ringAbsorptionValues.AddLast(GetAbsorptionFactor(absorptionsTemp));
                 }
                 
                 _absorptionFactors[j] = GetRingAverage(ringAbsorptionValues);
@@ -267,19 +251,6 @@ namespace adapter
             outputBufferSamplePart2.Release();
             absorptionsBuffer.Release();
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
-
-            const string saveFileName1 = "[mode=2] ring coordinates.txt";
-            const string saveFileName2 = "[mode=2] vcosinv.txt";
-            const string saveFileName3 = "[mode=2] ring absorption values.txt";
-            var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
-            var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
-            //var savePath = Path.Combine(saveDir, saveFileName);
-            Directory.CreateDirectory(saveDir);
-            
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName1), ringCoordinates, reverse:true);
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName2), stretchFactors, reverse:true);
-            ArrayWriteTools.Write2D(Path.Combine(saveDir, saveFileName3), ringAbsorptions, reverse:true);
 
             logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
