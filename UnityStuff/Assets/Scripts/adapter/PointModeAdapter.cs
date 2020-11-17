@@ -30,10 +30,10 @@ namespace adapter
         
         private ComputeBuffer _inputBuffer;
         
-        private const string SCOPE = nameof(PlaneModeAdapter);
-        private static string Context(string methodName, string className = SCOPE)
+        private const string CLASS_NAME = nameof(PlaneModeAdapter);
+        private static string Context(string methodName, string className = CLASS_NAME)
         {
-            return className + "." + methodName;
+            return $"{className}.{methodName}()";
         }
         
         #endregion

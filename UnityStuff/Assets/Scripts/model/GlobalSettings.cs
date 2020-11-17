@@ -1,5 +1,7 @@
 ﻿using System.Globalization;
 using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
+using System.Text;
 
 namespace model
 {
@@ -9,12 +11,12 @@ namespace model
         private static Settings _instance;
 
         [DataMember(Name = "flags")] private Flags _flags;
-        [DataMember] private DefaultValues defaultValues;
+        [DataMember] private DefaultValues _defaultValues;
 
         private Settings()
         {
             _flags = new Flags();
-            defaultValues = new DefaultValues();
+            _defaultValues = new DefaultValues();
             // TODO: try loading default. Maybe move load operation to DataHandler.
         }
         
@@ -36,6 +38,18 @@ namespace model
             [DataMember] public float sampleAreaMarginDefault = 0.04f;
             public CultureInfo cultureInfo = CultureInfo.InvariantCulture;
             
+            // Serialization settings:
+            private static readonly DataContractJsonSerializerSettings SerializerSettings = 
+                new DataContractJsonSerializerSettings
+                {
+                    UseSimpleDictionaryFormat = true,
+                    IgnoreExtensionDataObject = true
+                };
+            public static readonly DataContractJsonSerializer PresetSerializer = 
+                new DataContractJsonSerializer(typeof(Preset), SerializerSettings);
+            public static readonly Encoding Encoding = Encoding.UTF8;
+            public const string PresetExtension = ".json";
+
             public DefaultValues DeepCopy()
             {
                 var defaults = new DefaultValues()
@@ -109,8 +123,8 @@ namespace model
 
         public static DefaultValues defaults
         {
-            get => current.defaultValues;
-            set => current.defaultValues = value;
+            get => current._defaultValues;
+            set => current._defaultValues = value;
         }
     }
 }

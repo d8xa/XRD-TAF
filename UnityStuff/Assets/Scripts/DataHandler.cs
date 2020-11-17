@@ -1,9 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Json;
-using System.Text;
 using adapter;
 using model;
 using model.properties;
@@ -61,21 +60,11 @@ public class DataHandler : MonoBehaviour
     private ShaderAdapter _shaderAdapter;
 
     private readonly ShaderAdapterBuilder _builder = ShaderAdapterBuilder.New();
-
-    private static readonly DataContractJsonSerializerSettings SerializerSettings = 
-        new DataContractJsonSerializerSettings
-        {
-            UseSimpleDictionaryFormat = true,
-            IgnoreExtensionDataObject = true
-        };
-    private static readonly DataContractJsonSerializer PresetSerializer = 
-        new DataContractJsonSerializer(typeof(Preset), SerializerSettings);
-    private static readonly Encoding Encoding = Encoding.UTF8;
-    private const string PRESET_EXTENSION = ".json";
+    
 
     private string Scope(string method)
     {
-        return GetType().Name + (string.IsNullOrWhiteSpace(method) ? "" : "." + method);
+        return GetType().Name + (string.IsNullOrWhiteSpace(method) ? "" : $".{method}()");
     }
 
     private void Awake() {
@@ -277,7 +266,7 @@ public class DataHandler : MonoBehaviour
             "ref ray"
         };
         var testPresets = testPresetNames
-            .Select(s => Path.Combine(_saveDir, s + PRESET_EXTENSION))
+            .Select(s => Path.Combine(_saveDir, s + Settings.DefaultValues.PresetExtension))
             .Select(ReadPreset)
             .ToList();
         
@@ -336,15 +325,9 @@ public class DataHandler : MonoBehaviour
     {
         UpdateSaveDir();
         Directory.CreateDirectory(_saveDir);
-        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + PRESET_EXTENSION);
+        var path = Path.Combine(_saveDir, mainPanel.preset.metadata.saveName + Settings.DefaultValues.PresetExtension);
 
-        using (var stream = File.Open(path, FileMode.OpenOrCreate)) 
-        using (var writer = JsonReaderWriterFactory
-            .CreateJsonWriter(stream, Encoding, true, true, "\t"))
-        {
-            PresetSerializer.WriteObject(writer, mainPanel.preset);
-            writer.Flush();
-        }
+        mainPanel.preset?.Serialize(path);
     }
 
     public void LoadPreset()
@@ -355,29 +338,26 @@ public class DataHandler : MonoBehaviour
     private void LoadPreset(string filename)
     {
         UpdateSaveDir();
-        var loadFilePath = Path.Combine(_saveDir, filename + PRESET_EXTENSION);
+        var loadFilePath = Path.Combine(_saveDir, filename + Settings.DefaultValues.PresetExtension);
 
-        if (File.Exists(loadFilePath))
+        try
         {
-            var presetJson = File.ReadAllText(loadFilePath, Encoding);
-            using (var stream = new MemoryStream(Encoding.GetBytes(presetJson)))
-            {
-                mainPanel.preset = (Preset) PresetSerializer.ReadObject(stream);
-                mainPanel.selectedPreset = mainPanel.preset;
-            }
-            
+            mainPanel.preset = Preset.Deserialize(loadFilePath);
+            mainPanel.selectedPreset = mainPanel.preset;
             mainPanel.UpdateAllUI();
             SetCurrentPresetName(filename);
         }
-        // TODO: else
+        catch (FileNotFoundException e)
+        {
+            // TODO
+            Console.WriteLine(e);
+            throw;
+        }
     }
-    
-    public Preset ReadPreset(string filePath)
+
+    private static Preset ReadPreset(string filePath)
     {
-        if (!File.Exists(filePath)) return null;
-        var presetJson = File.ReadAllText(filePath, Encoding);
-        using (var stream = new MemoryStream(Encoding.GetBytes(presetJson)))
-            return (Preset) PresetSerializer.ReadObject(stream);
+        return Preset.Deserialize(filePath);
     }
 
     private void SetCurrentPresetName(string presetName)

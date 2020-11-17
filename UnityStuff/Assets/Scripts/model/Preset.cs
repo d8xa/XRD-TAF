@@ -1,4 +1,6 @@
+using System.IO;
 using System.Runtime.Serialization;
+using System.Runtime.Serialization.Json;
 using JetBrains.Annotations;
 using model.properties;
 
@@ -27,6 +29,26 @@ namespace model
         {
             metadata = new Metadata();
             properties = new Properties();
+        }
+        
+        public static Preset Deserialize(string filePath)
+        {
+            if (!File.Exists(filePath)) 
+                throw new FileNotFoundException("Could not load preset; file not found.");
+            var presetJson = File.ReadAllText(filePath, Settings.DefaultValues.Encoding);
+            using (var stream = new MemoryStream(Settings.DefaultValues.Encoding.GetBytes(presetJson)))
+                return (Preset) Settings.DefaultValues.PresetSerializer.ReadObject(stream);
+        }
+
+        public void Serialize(string filepath)
+        {
+            using (var stream = File.Open(filepath, FileMode.OpenOrCreate)) 
+            using (var writer = JsonReaderWriterFactory
+                .CreateJsonWriter(stream, Settings.DefaultValues.Encoding, true, true, "\t"))
+            {
+                Settings.DefaultValues.PresetSerializer.WriteObject(writer, this);
+                writer.Flush();
+            }
         }
     }
     

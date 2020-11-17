@@ -34,10 +34,10 @@ namespace adapter
         private ComputeBuffer _inputBuffer;
         private ComputeBuffer _maskBuffer;
 
-        private const string SCOPE = nameof(IntegratedModeAdapter);
-        private static string Context(string methodName, string className = SCOPE)
+        private const string CLASS_NAME = nameof(IntegratedModeAdapter);
+        private static string Context(string methodName, string className = CLASS_NAME)
         {
-            return className + "." + methodName;
+            return $"{className}.{methodName}()";
         }
         
         #endregion
@@ -48,7 +48,7 @@ namespace adapter
         ) : base(shader, preset, writeFactors, customLogger)
         {
             if (logger == null) SetLogger(customLogger);
-            logger.Log(Logger.EventType.Class, $"{SCOPE} created.");
+            logger.Log(Logger.EventType.Class, $"{CLASS_NAME} created.");
             InitializeOtherFields();
         }
 
