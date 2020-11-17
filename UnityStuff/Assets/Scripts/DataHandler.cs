@@ -273,7 +273,7 @@ public class DataHandler : MonoBehaviour
         var modeList = new List<AbsorptionProperties.Mode>
             {
                 AbsorptionProperties.Mode.Point, 
-                //AbsorptionProperties.Mode.Area, 
+                AbsorptionProperties.Mode.Area, 
                 AbsorptionProperties.Mode.Integrated
             };
         
