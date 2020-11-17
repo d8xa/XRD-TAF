@@ -30,7 +30,9 @@ RWStructuredBuffer<float3> absorptions;             // Point-wise absorption fac
 
 
 
-/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+/**
+* \brief Compute ray travel distance in capillary from entry point to diffraction point, through each material. 
+*/
 [numthreads(1024,1,1)]
 void get_dists_part1(uint3 id : SV_DispatchThreadID)
 {
@@ -39,7 +41,9 @@ void get_dists_part1(uint3 id : SV_DispatchThreadID)
 }
 
 
-/* call ER_dists for rotated coordinate per diffraction case, add to shader variable. */
+/**
+* \brief Compute ray travel distance in capillary from diffraction point to exit point, through each material. 
+*/
 [numthreads(1024,1,1)]
 void get_dists_part2 (uint3 id : SV_DispatchThreadID)
 {
@@ -49,7 +53,9 @@ void get_dists_part2 (uint3 id : SV_DispatchThreadID)
 }
 
 
-/* call ER_dists for coordinate per diffraction case, save in shader variable. */
+/**
+* \brief Compute indicator mask to indicate in which material coordinate[id.x] is located.
+*/
 [numthreads(1024,1,1)]
 void get_indicator(uint3 id : SV_DispatchThreadID)
 {
@@ -63,6 +69,9 @@ void get_indicator(uint3 id : SV_DispatchThreadID)
 }
 
 
+/**
+* \brief Compute absorption factors for ray travel distances.
+*/
 [numthreads(1024,1,1)]
 void get_absorptions(uint3 id : SV_DispatchThreadID){
     if (indicator_mask[id.x].x > 0)
