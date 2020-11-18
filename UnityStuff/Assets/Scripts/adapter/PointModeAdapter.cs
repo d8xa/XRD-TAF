@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using model;
 using UnityEngine;
 using util;
+using static tests.PerformanceReport.TimeInterval;
 using static util.MathTools;
 using Vector3 = UnityEngine.Vector3;
 using Logger = util.Logger;
@@ -57,8 +57,11 @@ namespace adapter
             const string method = nameof(InitializeOtherFields);
             logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
             
-            _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
-                Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+            stopwatch.Record(Category.IO, () =>
+            {
+                _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                    Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+            });
             if (!Settings.flags.useRadian)
                 _angles = _angles.Select(AsRadian).ToArray();
             
@@ -91,21 +94,24 @@ namespace adapter
             const string method = nameof(ComputeIndicatorMask); 
             logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
 
-            SetShaderConstants();
+            stopwatch.Record(Category.Buffer, SetShaderConstants);
 
             var handleIndicator = shader.FindKernel("get_indicator");
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             var maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
-            _inputBuffer.SetData(coordinates);
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                _inputBuffer.SetData(coordinates);
+                
+                shader.SetBuffer(handleIndicator, "coordinates", _inputBuffer);
+                shader.SetBuffer(handleIndicator, "indicator_mask", maskBuffer);
+            });
             
-            shader.SetBuffer(handleIndicator, "coordinates", _inputBuffer);
-            shader.SetBuffer(handleIndicator, "indicator_mask", maskBuffer);
-
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader dispatch.");
-            shader.Dispatch(handleIndicator, threadGroupsX, 1, 1);
+            stopwatch.Record(Category.Shader, () => shader.Dispatch(handleIndicator, threadGroupsX, 1, 1));
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader return.");
-            maskBuffer.GetData(_diffractionMask);
+            stopwatch.Record(Category.Buffer, () => maskBuffer.GetData(_diffractionMask));
             
             maskBuffer.Release();
 
@@ -117,14 +123,13 @@ namespace adapter
             const string method = nameof(Compute);
             logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
 
-            var sw = new Stopwatch();
-            sw.Start();
-            
-            SetShaderConstants();
+            stopwatch.Record(Category.Buffer, SetShaderConstants);
 
             // get kernel handles.
+            stopwatch.Start(Category.Shader);
             var handlePart1 = shader.FindKernel("get_dists_part1");
             var handleAbsorptions = shader.FindKernel("get_absorptions");
+            stopwatch.Stop(Category.Shader);
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Retrieved kernel handles.");
 
  
@@ -134,70 +139,65 @@ namespace adapter
             var absorptionsBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*3);
             logger.Log(Logger.EventType.Data, $"{Context(method)}: Created buffers.");
             
-            _inputBuffer.SetData(coordinates);
-            
-            // set buffers for part1 kernel.
-            shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
-            shader.SetBuffer(handlePart1, "distances_sample", outputBufferSample);
-            shader.SetBuffer(handlePart1, "distances_cell", outputBufferCell);
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                _inputBuffer.SetData(coordinates);
+                
+                // set buffers for part1 kernel.
+                shader.SetBuffer(handlePart1, "coordinates", _inputBuffer);
+                shader.SetBuffer(handlePart1, "distances_sample", outputBufferSample);
+                shader.SetBuffer(handlePart1, "distances_cell", outputBufferCell);
+            });
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Wrote data to buffers.");
 
             
             // compute part1 distances.
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: part1 distances kernel dispatch.");
-            shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
+            stopwatch.Record(Category.Shader, () => shader.Dispatch(handlePart1, threadGroupsX, 1, 1));
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: part1 distances kernel return.");
             
-                     
-            var loopTs = new TimeSpan();
-            var factorsTs = new TimeSpan();
+            
             var absorptions = new Vector3[_nrCoordinates];
             Array.Clear(absorptions, 0, absorptions.Length);
-            
-            shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer);
+
+            stopwatch.Record(Category.Buffer, () => shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer));
 
             // for each angle:
             for (int j = 0; j < _nrAnglesTheta; j++) {
-                var loopStart = sw.Elapsed;
-
-                shader.SetFloats("rot", (float) Math.Cos(Math.PI - GetThetaAt(j)),
-                    (float) Math.Sin(Math.PI - GetThetaAt(j)));
-                shader.SetBuffer(handleAbsorptions, "distances_sample", outputBufferSample);
-                shader.SetBuffer(handleAbsorptions, "distances_cell", outputBufferCell);
-                shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+                var j1 = j;
+                stopwatch.Record(Category.Buffer, () =>
+                {
+                    shader.SetFloats("rot", (float) Math.Cos(Math.PI - GetThetaAt(j1)),
+                        (float) Math.Sin(Math.PI - GetThetaAt(j1)));
+                    shader.SetBuffer(handleAbsorptions, "distances_sample", outputBufferSample);
+                    shader.SetBuffer(handleAbsorptions, "distances_cell", outputBufferCell);
+                    shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+                });
+                stopwatch.Record(Category.Shader, () => shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1));
+                stopwatch.Record(Category.Buffer, () => absorptionsBuffer.GetData(absorptions));
                 
-                shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1);
-                absorptionsBuffer.GetData(absorptions);
-                
-                var factorStart = sw.Elapsed;
                 _absorptionFactors[j] = GetAbsorptionFactor(absorptions);
-                var factorStop = sw.Elapsed;
-                factorsTs += factorStop - factorStart;
-                
-                var loopStop = sw.Elapsed;
-                loopTs += loopStop - loopStart;
             }
             
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Calculated all absorptions.");
-            logger.Log(Logger.EventType.Performance, 
-                $"{Context(method)}: Absorption calculation took {loopTs}, " +
-                $"{TimeSpan.FromTicks(loopTs.Ticks/_nrAnglesTheta)} avg. per loop, " + 
-                $"{TimeSpan.FromTicks(factorsTs.Ticks/_nrAnglesTheta)} of which for absorption factor calculation.");
-            
-            // release buffers.
-            _inputBuffer.Release();
-            outputBufferCell.Release();
-            outputBufferSample.Release();
-            absorptionsBuffer.Release();
-            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
 
-            sw.Stop();
+            // release buffers.
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                _inputBuffer.Release();
+                outputBufferCell.Release();
+                outputBufferSample.Release();
+                absorptionsBuffer.Release();
+            });
+            logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
+            
             logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
         
         protected override void Write()
         {
-            if (writeFactors) WriteAbsorptionFactors();
+            if (writeFactors) 
+                stopwatch.Record(Category.IO, WriteAbsorptionFactors);
         }
         
         private void SetShaderConstants()

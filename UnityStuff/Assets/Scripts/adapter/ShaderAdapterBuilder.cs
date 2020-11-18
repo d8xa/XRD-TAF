@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using JetBrains.Annotations;
 using model;
 using model.properties;
+using tests;
 using UnityEngine;
 using Logger = util.Logger;
 
@@ -18,6 +19,7 @@ namespace adapter
         private Preset _preset;
         private static Dictionary<AbsorptionProperties.Mode, ComputeShader> _shaderMapping;
         private Logger _logger;
+        private PerformanceReport _report;
         
         #endregion
         
@@ -76,6 +78,12 @@ namespace adapter
         public ShaderAdapterBuilder SetLogger(Logger logger)
         {
             _logger = logger;
+            return this;
+        }
+        
+        public ShaderAdapterBuilder SetPerformanceReport(PerformanceReport report)
+        {
+            _report = report;
             return this;
         }
 

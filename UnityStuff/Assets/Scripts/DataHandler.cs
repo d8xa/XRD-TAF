@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using adapter;
 using model;
 using model.properties;
+using tests;
 using ui;
 using UnityEngine.UI;
 using util;
@@ -108,12 +110,59 @@ public class DataHandler : MonoBehaviour
         
         runABTestsButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
         runABTestsButton.onClick.AddListener(RunABTests);
+        
+        runBenchmarkButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
+        runBenchmarkButton.onClick.AddListener(() =>
+        {
+            loadFileName.text = "benchmark";
+            LoadPreset();
+            var inputInfos = LoadBenchmarkConfig();
+            new Benchmark(this, mainPanel.preset, inputInfos)
+                .Run(write: true)
+                .Save();
+        });
 
         
         // TODO: hide "Submit" button until all required settings for the selected mode are set.
         // TODO: multithreading.
         submitButton.onClick.AddListener(SubmitToComputing);
         stopButton.gameObject.SetActive(false);
+    }
+
+    private static List<PerformanceReport.InputInfo> LoadBenchmarkConfig()
+    {
+        var path = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.BenchmarkFolderName,
+            Settings.DefaultValues.BenchmarkConfigFileName);
+        
+        var head = Parser.ReadTableHead(path, sep: "\t").ToList();
+        
+        var inputInfoFields = typeof(PerformanceReport.InputInfo)
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic);
+        var propertyNames = inputInfoFields.Select(f => f.Name).ToList();
+        
+        // check if csv contains columns for all members of InputInfo.
+        if (propertyNames.Except(head).Any()) 
+            throw new InvalidOperationException(
+                $"Must supply values for all members of {nameof(PerformanceReport.InputInfo)}.");
+
+        var indexMapping = Enumerable.Range(0, head.Count)
+            .Select(i => head.IndexOf(propertyNames[i]))
+            .ToList();
+
+        var table = Parser.ReadTable(path, false, true, sep: "\t");
+        var config = new List<PerformanceReport.InputInfo>();
+        
+        for (int i = 0; i < table.GetLength(0); i++)
+        {
+            object current = new PerformanceReport.InputInfo();
+            for (int j = 0; j < indexMapping.Count; j++)
+            {
+                inputInfoFields[j].SetValue(current, (int) table[i, indexMapping[j]]);
+            }
+            config.Add((PerformanceReport.InputInfo) current);
+        }
+
+        return config;
     }
 
     #region Testing
@@ -287,11 +336,34 @@ public class DataHandler : MonoBehaviour
     }
     
     #endregion
+
+    public void Compute(Preset preset, Logger logger, PerformanceReport report, bool write = false)
+    {
+        const string method = nameof(Compute);
+        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter built." +
+                                          $" preset set to = {mainPanel.preset}");
+        _shaderAdapter = _builder
+            .SetLogger(logger)
+            .SetWriteFactors(write)
+            .SetPerformanceReport(report)    // TODO: see if report is generated correctly, otherwise use report as return.
+            .SetProperties(preset)
+            .AutoSetShader()
+            .Build();
+        _shaderAdapter.SetStatus(ref status);
+        _shaderAdapter.Execute();
+    }
+
+    public PerformanceReport GetPerformanceReport()
+    {
+        if (_shaderAdapter == null)
+            throw new InvalidOperationException("Can't get report. No shader adapter set.");
+        return _shaderAdapter.GetReport();
+    }
     
 
     private static void UpdatePresetDir()
     {
-        _saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Presets");
+        _saveDir = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.PresetFolderName);
     }
 
     public void SubmitToComputing()
@@ -303,23 +375,9 @@ public class DataHandler : MonoBehaviour
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
-        
 
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Logger initialized.");
-        
-        _shaderAdapter = _builder
-            .SetLogger(logger)
-            .SetWriteFactors(Settings.Flags.WriteFactors)
-            .SetProperties(mainPanel.preset)
-            .AutoSetShader()
-            .Build();
-        
-        logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter built." +
-                                             $" preset set to = {mainPanel.preset}");
-        
-        _shaderAdapter.SetStatus(ref status);
-        
-        _shaderAdapter.Execute();
+        Compute(mainPanel.preset, logger, null, Settings.Flags.WriteFactors);
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter executed.");
     }
 

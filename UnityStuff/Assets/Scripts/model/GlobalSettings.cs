@@ -95,6 +95,9 @@ namespace model
             public const string OutputFolderName = "Output";
             public const string PresetFolderName = "Presets";
             public const string SettingsFolderName = "Settings";
+            public const string BenchmarkFolderName = "Benchmark";
+            public const string BenchmarkConfigFileName = "config.csv";
+            public const string BenchmarkFileName = "benchmark.csv";
 
             public DefaultValues DeepCopy()
             {

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -38,19 +40,7 @@ namespace util
                 .Replace("(", "")
                 .Replace(")", "")
                 .Split(',')
-                .Select(s =>
-                {
-                    try
-                    {
-                        return float.Parse(s, CultureInfo.InvariantCulture);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.Log($"tuple: {tuple}, trimmed = {s}");
-                        Console.WriteLine(e);
-                        throw;
-                    }
-                })
+                .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
                 .ToArray();
             return new Vector3(floats[0], floats[1], floats[2]);
         }
@@ -120,11 +110,12 @@ namespace util
                 .Trim(' ')
                 .Split('\n')
                 .Where(s => s.Length > 0)
+                .Skip(headRow ? 1 : 0)
                 .Select(s => Regex.Split(s, sep))
                 .Select(row => row.Select(s => float.Parse(s, CultureInfo.InvariantCulture)).ToArray())
                 .ToArray();
 
-            var iOffset = (reverse ? -1 : 1) * (headRow ? 1 : 0);
+            var iOffset = reverse ? -1 : 0;
             var jOffset = headCol ? 1 : 0;
 
             var n = parsed.Length - Math.Abs(iOffset);    // row count.
@@ -189,6 +180,14 @@ namespace util
             }
 
             return data;
+        }
+
+        internal static string[] ReadTableHead(string path, string sep = "\t")
+        {
+            var line = File.ReadLines(path).First();
+            return Regex.Split(line, sep)
+                .Select(s => s.Trim(' '))
+                .ToArray();
         }
     }
 }

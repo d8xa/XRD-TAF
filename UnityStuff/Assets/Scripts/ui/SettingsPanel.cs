@@ -155,7 +155,7 @@ namespace ui
         
         private static void LoadFromFile()
         {
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.SettingsFolderName);
             var path = Path.Combine(saveDir, "settings" + Settings.DefaultValues.SerializedExtension);
             
             if (!File.Exists(path)) 

@@ -1,6 +1,7 @@
 ﻿using System;
 using model;
 using model.structs;
+using tests;
 using UnityEngine;
 using UnityEngine.UI;
 using util;
@@ -13,6 +14,7 @@ namespace adapter
         #region Fields
 
         protected Logger logger;
+        protected PerformanceReport stopwatch;
         protected readonly bool writeFactors;
         
         private protected readonly ComputeShader shader;
@@ -47,7 +49,13 @@ namespace adapter
             metadata = preset.metadata;
             this.writeFactors = writeFactors;
             if (logger != null) SetLogger(logger);
+            if (stopwatch == null)
+            {
+                var info = PerformanceReport.InputInfo.FromPreset(preset);
+                stopwatch = new PerformanceReport(info);
+            }
             
+            stopwatch.Start(PerformanceReport.TimeInterval.Category.Total);
             InitSharedFields();
         }
 
@@ -75,6 +83,7 @@ namespace adapter
             Compute();
             Cleanup();
             if (writeFactors) Write();
+            stopwatch.Stop(PerformanceReport.TimeInterval.Category.Total);
         }
         
         protected abstract void Compute();
@@ -87,6 +96,8 @@ namespace adapter
         }
 
         protected virtual void Cleanup() {}
+        
+        protected internal PerformanceReport GetReport() => stopwatch;
 
         #endregion
     }

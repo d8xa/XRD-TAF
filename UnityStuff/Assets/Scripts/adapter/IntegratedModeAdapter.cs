@@ -5,8 +5,10 @@ using System.IO;
 using System.Linq;
 using model;
 using model.structs;
+using tests;
 using UnityEngine;
 using util;
+using static tests.PerformanceReport.TimeInterval;
 using static util.MathTools;
 using Logger = util.Logger;
 using Vector3 = UnityEngine.Vector3;
@@ -61,8 +63,11 @@ namespace adapter
             const string method = nameof(InitializeOtherFields);
             logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
             
-            _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
-                Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+            stopwatch.Record(Category.IO, () =>
+            {
+                _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                    Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+            });
             if (!Settings.flags.useRadian)
                 _angles = _angles.Select(AsRadian).ToArray();
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
@@ -99,7 +104,7 @@ namespace adapter
             
             // count diffracting points in each case.
             var mask = new Vector2Int[_nrCoordinates];
-            _maskBuffer.GetData(mask);
+            stopwatch.Record(Category.Buffer, () => _maskBuffer.GetData(mask));
             _innerIndices = ParallelEnumerable.Range(0, mask.Length)
                 .Where(i => mask[i].x > 0.0)
                 .ToArray();
@@ -122,16 +127,22 @@ namespace adapter
             _inputBuffer = new ComputeBuffer(coordinates.Length, sizeof(float)*2);
             _maskBuffer = new ComputeBuffer(coordinates.Length, sizeof(uint)*2);
 
-            SetShaderConstants();
-            _inputBuffer.SetData(coordinates);
-            _maskBuffer.SetData(new Vector2Int[_nrCoordinates]);
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                SetShaderConstants();
+                _inputBuffer.SetData(coordinates);
+                _maskBuffer.SetData(new Vector2Int[_nrCoordinates]);
             
-            shader.SetBuffer(maskHandle, "coordinates", _inputBuffer);
-            shader.SetBuffer(maskHandle, "indicator_mask", _maskBuffer);
-
+                shader.SetBuffer(maskHandle, "coordinates", _inputBuffer);
+                shader.SetBuffer(maskHandle, "indicator_mask", _maskBuffer);
+            });
+            
             logger.Log(Logger.EventType.ShaderInteraction, 
                 $"{Context(method)}: indicator mask shader dispatch.");
-            shader.Dispatch(maskHandle, threadGroupsX, 1, 1);
+            stopwatch.Record(Category.Shader, () =>
+            {
+                shader.Dispatch(maskHandle, threadGroupsX, 1, 1);
+            });
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: indicator mask shader return.");
 
             logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
@@ -142,12 +153,14 @@ namespace adapter
             const string method = nameof(Compute);
             logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
             
-            SetShaderConstants();
-            
+            stopwatch.Record(Category.Buffer, SetShaderConstants);
+
             // get kernel handles.
+            stopwatch.Start(Category.Shader);
             var handlePart1 = shader.FindKernel("get_dists_part1");
             var handlePart2 = shader.FindKernel("get_dists_part2");
             var handleAbsorptions = shader.FindKernel("get_absorptions");
+            stopwatch.Stop(Category.Shader);
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Retrieved kernel handles.");
             
             // make buffers.
@@ -168,25 +181,30 @@ namespace adapter
             
             // compute g1 distances.
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g1 distances kernel dispatch.");
-            shader.Dispatch(handlePart1, threadGroupsX, 1, 1);
+            stopwatch.Record(Category.Shader, () => shader.Dispatch(handlePart1, threadGroupsX, 1, 1));
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g1 distances kernel return.");
             
-            // set buffers for g2 kernel.
-            shader.SetBuffer(handlePart2, "coordinates", _inputBuffer);
-            shader.SetBuffer(handlePart2, "distances_sample_part2", outputBufferSamplePart2);
-            shader.SetBuffer(handlePart2, "distances_cell_part2", outputBufferCellPart2);
-
-            // set shared buffers for absorption factor kernel.
-            shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer);
-            shader.SetBuffer(handleAbsorptions, "distances_sample_part1", outputBufferSamplePart1);
-            shader.SetBuffer(handleAbsorptions, "distances_cell_part1", outputBufferCellPart1);
-            shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
-            shader.SetBuffer(handleAbsorptions, "indicator_mask", _maskBuffer);
-
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                // set buffers for g2 kernel.
+                shader.SetBuffer(handlePart2, "coordinates", _inputBuffer);
+                shader.SetBuffer(handlePart2, "distances_sample_part2", outputBufferSamplePart2);
+                shader.SetBuffer(handlePart2, "distances_cell_part2", outputBufferCellPart2);
+            });
+            
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                // set shared buffers for absorption factor kernel.
+                shader.SetBuffer(handleAbsorptions, "coordinates", _inputBuffer);
+                shader.SetBuffer(handleAbsorptions, "distances_sample_part1", outputBufferSamplePart1);
+                shader.SetBuffer(handleAbsorptions, "distances_cell_part1", outputBufferCellPart1);
+                shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+                shader.SetBuffer(handleAbsorptions, "indicator_mask", _maskBuffer);
+            });
+            
             var absorptionsTemp = new Vector3[coordinates.Length];
             Array.Clear(absorptionsTemp, 0, absorptionsTemp.Length);
-            absorptionsBuffer.SetData(absorptionsTemp);
-
+            stopwatch.Record(Category.Buffer, () => absorptionsBuffer.SetData(absorptionsTemp));
 
             // iterative computation of average absorption values for each ring of radius theta:
             for (int j = 0; j < _nrAnglesTheta; j++)
@@ -219,20 +237,21 @@ namespace adapter
                         (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
-                    logger.Log(Logger.EventType.ShaderInteraction, 
-                        $"{Context(method)}: g2 distances kernel dispatch.");
-                    shader.Dispatch(handlePart2, threadGroupsX, 1, 1);
-                    logger.Log(Logger.EventType.ShaderInteraction, 
-                        $"{Context(method)}: g2 distances kernel return.");
+                    logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g2 distances kernel dispatch.");
+                    stopwatch.Record(Category.Shader, () => shader.Dispatch(handlePart2, threadGroupsX, 1, 1));
+                    logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g2 distances kernel return.");
 
                     // set iterative buffers for absorption factors kernel.
-                    shader.SetBuffer(handleAbsorptions, "distances_sample_part2", outputBufferSamplePart2);
-                    shader.SetBuffer(handleAbsorptions, "distances_cell_part2", outputBufferCellPart2);
+                    stopwatch.Record(Category.Buffer, () =>
+                    {
+                        shader.SetBuffer(handleAbsorptions, "distances_sample_part2", outputBufferSamplePart2);
+                        shader.SetBuffer(handleAbsorptions, "distances_cell_part2", outputBufferCellPart2);
                     
-                    shader.SetFloat("stretch_factor", (float) stretchFactor);
-                    shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
-                    shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1);
-                    absorptionsBuffer.GetData(absorptionsTemp);
+                        shader.SetFloat("stretch_factor", (float) stretchFactor);
+                        shader.SetBuffer(handleAbsorptions, "absorptions", absorptionsBuffer);
+                    });
+                    stopwatch.Record(Category.Shader, () => shader.Dispatch(handleAbsorptions, threadGroupsX, 1, 1));
+                    stopwatch.Record(Category.Buffer, () => absorptionsBuffer.GetData(absorptionsTemp));
 
                     ringAbsorptionValues.AddLast(GetAbsorptionFactor(absorptionsTemp));
                 }
@@ -243,13 +262,16 @@ namespace adapter
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Calculated all absorptions.");
 
             // release buffers.
-            _inputBuffer.Release();
-            _maskBuffer.Release();
-            outputBufferCellPart1.Release();
-            outputBufferSamplePart1.Release();
-            outputBufferCellPart2.Release();
-            outputBufferSamplePart2.Release();
-            absorptionsBuffer.Release();
+            stopwatch.Record(Category.Buffer, () =>
+            {
+                _inputBuffer.Release();
+                _maskBuffer.Release();
+                outputBufferCellPart1.Release();
+                outputBufferSamplePart1.Release();
+                outputBufferCellPart2.Release();
+                outputBufferSamplePart2.Release();
+                absorptionsBuffer.Release();
+            });
             logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: Shader buffers released.");
 
             logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
@@ -282,8 +304,8 @@ namespace adapter
                 }
             }
             
-            ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
-            
+            stopwatch.Record(Category.IO, () => ArrayWriteTools.Write2D(savePath, headCol, headRow, data));
+
             logger.Log(Logger.EventType.Method, $"{Context(method)}: done.");
         }
         
@@ -295,7 +317,7 @@ namespace adapter
             shader.SetFloats("ray_dim", properties.ray.dimensions.x/2, properties.ray.dimensions.y/2);
             shader.SetFloats("ray_offset", properties.ray.offset.x, properties.ray.offset.y);
         }
-        
+
         #endregion
 
         #region Helper methods
