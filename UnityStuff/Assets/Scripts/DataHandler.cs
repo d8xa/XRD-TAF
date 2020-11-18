@@ -124,14 +124,16 @@ public class DataHandler : MonoBehaviour
         // read datasets, compare B to A, generate report.
         foreach (var preset in presets)
         {
-            var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), "Input",
-                preset.properties.angle.pathToAngleFile + ".txt")).Length;
+            var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                Settings.DefaultValues.InputFolderName, preset.properties.angle.pathToAngleFile + ".txt")).Length;
             
             foreach (var mode in modes)
             {
                 var folderBottom = preset.metadata.saveName ?? "";
-                var dirA = Path.Combine(Directory.GetCurrentDirectory(), "Output", "A", folderBottom);
-                var dirB = Path.Combine(Directory.GetCurrentDirectory(), "Output", "B", folderBottom);
+                var outputDir = Path.Combine(Directory.GetCurrentDirectory(), 
+                    Settings.DefaultValues.OutputFolderName);
+                var dirA = Path.Combine(outputDir, "A", folderBottom);
+                var dirB = Path.Combine(outputDir, "B", folderBottom);
 
                 List<Vector3> a;
                 List<Vector3> b;

@@ -243,7 +243,8 @@ namespace adapter
 
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.OutputFolderName,
+                saveFolderTop, saveFolderBottom);
             var saveFileName = properties.FilenameFormatter(_nrAnglesTheta);
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);

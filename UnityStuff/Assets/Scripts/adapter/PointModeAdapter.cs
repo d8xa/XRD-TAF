@@ -57,8 +57,8 @@ namespace adapter
             const string method = nameof(InitializeOtherFields);
             logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
             
-            _angles = Parser.ImportAngles(
-                Path.Combine(Directory.GetCurrentDirectory(), "Input", properties.angle.pathToAngleFile + ".txt"));
+            _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
             if (!Settings.flags.useRadian)
                 _angles = _angles.Select(AsRadian).ToArray();
             
@@ -227,7 +227,8 @@ namespace adapter
             const string method = nameof(WriteAbsorptionFactors);
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
-            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), "Output", saveFolderTop, saveFolderBottom);
+            var saveDir = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.OutputFolderName,
+                saveFolderTop, saveFolderBottom);
             var saveFileName = properties.FilenameFormatter(_nrAnglesTheta);
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);

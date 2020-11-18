@@ -91,6 +91,10 @@ namespace model
                 new DataContractJsonSerializer(typeof(Settings), SerializerSettings);
             public static readonly Encoding Encoding = Encoding.UTF8;
             public const string SerializedExtension = ".json";
+            public const string InputFolderName = "Input";
+            public const string OutputFolderName = "Output";
+            public const string PresetFolderName = "Presets";
+            public const string SettingsFolderName = "Settings";
 
             public DefaultValues DeepCopy()
             {
