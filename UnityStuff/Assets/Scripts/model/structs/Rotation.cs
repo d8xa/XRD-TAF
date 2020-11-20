@@ -35,7 +35,7 @@ namespace model.structs
             );
         }
 
-        public static Rotation FromAngle(float angle) => new Rotation(Math.Cos(angle), Math.Sin(angle));
+        public static Rotation FromAngle(double angle) => new Rotation(Math.Cos(angle), Math.Sin(angle));
 
         public override string ToString()
         {

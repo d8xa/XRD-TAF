@@ -11,7 +11,7 @@ namespace util
 {
     public static class Parser
     {
-        internal static float[] ImportAngles(string path)
+        internal static double[] ImportAngles(string path)
         {
             string text;
             if (File.Exists(path))
@@ -25,7 +25,7 @@ namespace util
                 .Trim(' ')
                 .Split('\n')
                 .Where(s => s.Length > 0)
-                .Select(s => float.Parse(s, CultureInfo.InvariantCulture))
+                .Select(s => double.Parse(s, CultureInfo.InvariantCulture))
                 .ToArray();
         }
         

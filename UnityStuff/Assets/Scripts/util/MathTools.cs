@@ -6,7 +6,7 @@ namespace util
 {
     public static class MathTools
     {
-        public static float[] LinSpace1D(float a, float b, int count, bool centered)
+        public static double[] LinSpace1D(double a, double b, int count, bool centered)
         {
             var stepSize = (b - a) / (count - 1);
             var left = a;

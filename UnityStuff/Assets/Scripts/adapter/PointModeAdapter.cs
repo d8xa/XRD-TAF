@@ -20,8 +20,6 @@ namespace adapter
         private Vector3[] _absorptionFactors;
         private int _nrCoordinates;
         private int _nrAnglesTheta;
-
-        private float[] _angles;
         
         // Mask of diffraction points
         private Vector2Int[] _diffractionMask;
@@ -40,8 +38,9 @@ namespace adapter
 
         #region Constructors
 
-        public PointModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger) 
-            : base(shader, preset, writeFactors, customLogger)
+        public PointModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger,
+            double[] angles) 
+            : base(shader, preset, writeFactors, customLogger, angles)
         {
             if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{nameof(PointModeAdapter)} created.");
@@ -59,13 +58,16 @@ namespace adapter
             
             stopwatch.Record(Category.IO, () =>
             {
-                _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                if (angles != null) return;
+                angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
                     Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+                Debug.Log(string.Join(", ", angles.Select(v => v.ToString("g"))));
+
             });
             if (!Settings.flags.useRadian)
-                _angles = _angles.Select(AsRadian).ToArray();
+                angles = angles.Select(AsRadian).ToArray();
             
-            _nrAnglesTheta = _angles.Length;
+            _nrAnglesTheta = angles.Length;
             _nrCoordinates = sampleResolution * sampleResolution;
             
             // initialize absorption array. dim n: (#thetas).
@@ -234,7 +236,7 @@ namespace adapter
             Directory.CreateDirectory(saveDir);
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = _angles
+            var headCol = angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
@@ -250,7 +252,7 @@ namespace adapter
         
         private double GetThetaAt(int index)
         {
-            return Math.Abs(_angles[index]);
+            return Math.Abs(angles[index]);
         }
 
         #endregion

@@ -53,6 +53,9 @@ namespace tests
         public Benchmark Run(bool write = true)
         {
             if (!Ready()) return this;
+
+            var clipBackup = Settings.flags.clipAngles;
+            Settings.flags.clipAngles = false;
             
             _reports = new List<PerformanceReport>();
             var logger = new Logger()
@@ -63,13 +66,15 @@ namespace tests
             {
                 // set preset fields
                 Adjust(inputInfo);
+                var angles = MathTools.LinSpace1D(0.0, 180.0, inputInfo.n, false);
                 
                 var report = new PerformanceReport(inputInfo);
-                _dataHandler.Compute(_preset, logger, report, write);
+                _dataHandler.Compute(_preset, logger, report, write, angles);
                 _reports.Add(_dataHandler.GetPerformanceReport());
                 logger.Log(Logger.EventType.Performance, _dataHandler.GetPerformanceReport().ToString());
             }
             _done = true;
+            Settings.flags.clipAngles = clipBackup;
             
             return this;
         }
@@ -82,14 +87,10 @@ namespace tests
         {
             _preset.properties.absorption.mode = (AbsorptionProperties.Mode) inputInfo.mode;
             _preset.properties.sample.gridResolution = inputInfo.res;
-            
-            var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
-                Settings.DefaultValues.InputFolderName, _preset.properties.angle.pathToAngleFile + ".txt")).Length;
-            
+
             switch ((AbsorptionProperties.Mode) inputInfo.mode)
             {
                 case AbsorptionProperties.Mode.Point:
-                    inputInfo.n = nrAngles;
                     inputInfo.m = 1;
                     inputInfo.k = 1; 
                     break;
@@ -99,7 +100,6 @@ namespace tests
                     inputInfo.k = 1;
                     break;
                 case AbsorptionProperties.Mode.Integrated:
-                    inputInfo.n = nrAngles;
                     inputInfo.m = 1;
                     _preset.properties.angle.angleCount = inputInfo.k;
                     break;

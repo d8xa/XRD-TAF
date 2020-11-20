@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using JetBrains.Annotations;
 using model;
 using model.properties;
@@ -19,7 +20,8 @@ namespace adapter
         private Preset _preset;
         private static Dictionary<AbsorptionProperties.Mode, ComputeShader> _shaderMapping;
         private Logger _logger;
-        private PerformanceReport _report;
+        private PerformanceReport _report;    // TODO: use in ShaderAdapter.
+        private double[] _angles;
         
         #endregion
         
@@ -39,15 +41,17 @@ namespace adapter
             switch (_preset.properties.absorption.mode)
             {
                 case AbsorptionProperties.Mode.Point:
-                    adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger, _angles);
                     break;
                 case AbsorptionProperties.Mode.Area:
                     adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger);
                     break;
                 case AbsorptionProperties.Mode.Integrated:
-                    adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger, _angles);
                     break;
             }
+
+            if (adapter != null) adapter.SetReport(_report);
             return adapter;
         }
 
@@ -96,6 +100,12 @@ namespace adapter
         public ShaderAdapterBuilder SetSegmentMargin(float margin)
         {
             _margin = margin;
+            return this;
+        }
+        
+        public ShaderAdapterBuilder SetAngles(double[] angles)
+        {
+            _angles = angles;
             return this;
         }
 

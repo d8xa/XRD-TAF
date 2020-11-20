@@ -27,8 +27,6 @@ namespace adapter
         private double _thetaLowerBound, _thetaUpperBound;
         private double _alphaLowerBound, _alphaUpperBound;
         
-        private float[] _angles;
-        
         private Vector2 _nrDiffractionPoints;
         private int[] _innerIndices;
         private int[] _outerIndices;
@@ -46,8 +44,13 @@ namespace adapter
 
         #region Constructors
 
-        public IntegratedModeAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger customLogger
-        ) : base(shader, preset, writeFactors, customLogger)
+        public IntegratedModeAdapter(
+            ComputeShader shader, 
+            Preset preset, 
+            bool writeFactors, 
+            Logger customLogger,
+            double[] angles
+        ) : base(shader, preset, writeFactors, customLogger, angles)
         {
             if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{CLASS_NAME} created.");
@@ -65,16 +68,17 @@ namespace adapter
             
             stopwatch.Record(Category.IO, () =>
             {
-                _angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
-                    Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
+                if (angles == null)
+                    angles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
+                        Settings.DefaultValues.InputFolderName, properties.angle.pathToAngleFile + ".txt"));
             });
             if (!Settings.flags.useRadian)
-                _angles = _angles.Select(AsRadian).ToArray();
+                angles = angles.Select(AsRadian).ToArray();
             // TODO: validate. (e.g. throw and display error if any abs value >= 90°)
 
             // initialize dimensions.
             _nrCoordinates = sampleResolution * sampleResolution;
-            _nrAnglesTheta = _angles.Length;
+            _nrAnglesTheta = angles.Length;
             _nrAnglesPerRing = properties.angle.angleCount;
 
             _thetaLowerBound = properties.detector.GetAngleFromIndex(0, false);
@@ -291,7 +295,7 @@ namespace adapter
             Directory.CreateDirectory(saveDir);
 
             var headRow = string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
-            var headCol = _angles
+            var headCol = angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
                 .ToArray();
@@ -332,7 +336,7 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return _angles[index];
+            return angles[index];
         }
         
         private bool BoundaryCheck(Vector2 v, double angle)

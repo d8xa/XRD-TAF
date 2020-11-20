@@ -337,7 +337,8 @@ public class DataHandler : MonoBehaviour
     
     #endregion
 
-    public void Compute(Preset preset, Logger logger, PerformanceReport report, bool write = false)
+    public void Compute(Preset preset, Logger logger, PerformanceReport report, bool write = false,
+        double[] angles = null)
     {
         const string method = nameof(Compute);
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter built." +
@@ -347,6 +348,7 @@ public class DataHandler : MonoBehaviour
             .SetWriteFactors(write)
             .SetPerformanceReport(report)    // TODO: see if report is generated correctly, otherwise use report as return.
             .SetProperties(preset)
+            .SetAngles(angles)
             .AutoSetShader()
             .Build();
         _shaderAdapter.SetStatus(ref status);

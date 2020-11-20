@@ -24,6 +24,8 @@ namespace adapter
         
         private protected Vector2[] coordinates;
         private protected int sampleResolution;
+
+        private protected double[] angles;
         
         private protected ProbeValuePair r;
         private protected ProbeValuePair rSq;
@@ -42,7 +44,13 @@ namespace adapter
 
         #region Constructors
 
-        protected ShaderAdapter(ComputeShader shader, Preset preset, bool writeFactors, Logger logger = null)
+        protected ShaderAdapter(
+            ComputeShader shader, 
+            Preset preset, 
+            bool writeFactors, 
+            Logger logger = null, 
+            double[] angles = null
+            )
         {
             this.shader = shader;
             properties = preset.properties;
@@ -54,6 +62,7 @@ namespace adapter
                 var info = PerformanceReport.InputInfo.FromPreset(preset);
                 stopwatch = new PerformanceReport(info);
             }
+            if (angles != null) this.angles = angles;
             
             stopwatch.Start(PerformanceReport.TimeInterval.Category.Total);
             InitSharedFields();
@@ -98,6 +107,8 @@ namespace adapter
         protected virtual void Cleanup() {}
         
         protected internal PerformanceReport GetReport() => stopwatch;
+
+        protected internal void SetReport(PerformanceReport report) => stopwatch = report;
 
         #endregion
     }

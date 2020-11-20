@@ -20,9 +20,7 @@ namespace adapter
         private int _nrCoordinates;
         private int _nrAnglesTheta;
         private int _nrAnglesAlpha;
-
-        private float[] _angles;
-
+        
         private Vector2 _nrDiffractionPoints;
         private int[] _indicesSample;
         private int[] _indicesCell;
@@ -66,9 +64,8 @@ namespace adapter
             _nrAnglesAlpha = properties.detector.resolution.y;
             _nrCoordinates = sampleResolution * sampleResolution;
             
-            _angles = Enumerable.Range(0, properties.detector.resolution.x)
-                .Select(j => properties.detector.GetAngleFromIndex(j))
-                .Select(v => (float) v)
+            angles = Enumerable.Range(0, properties.detector.resolution.x)
+                .Select(j => properties.detector.GetAngleFromIndex(j)) 
                 .ToArray();
             
             // initialize absorption array. dim n: (#thetas).
@@ -307,7 +304,7 @@ namespace adapter
 
         private double GetThetaAt(int index)
         {
-            return Math.Abs(_angles[index]);
+            return Math.Abs(angles[index]);
         }
 
         // TODO: check axes
