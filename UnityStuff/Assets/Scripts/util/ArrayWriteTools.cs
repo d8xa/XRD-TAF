@@ -39,7 +39,7 @@ namespace util
             }
         }
         
-        private static void Write2D(string path, string[] headCol, string headRow, Vector3[,] data, 
+        public static void Write2D(string path, string[] headCol, string headRow, Vector3[,] data, 
             string sep="\t", bool reverse = false)
         {
             bool StrictCompare(int a, int b) => reverse ? a >= b : a < b;

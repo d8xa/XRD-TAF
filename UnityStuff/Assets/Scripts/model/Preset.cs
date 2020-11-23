@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using JetBrains.Annotations;
@@ -159,6 +161,50 @@ namespace model
             }
             
             return "[mode=?] [dims=?] Output.txt";;
+        }
+
+        internal string OutputPreamble()
+        {
+            var capStrings = 
+                "CAPILLARY:"
+                + $"\n\tdiameter = {sample.totalDiameter.ToString("G", CultureInfo.InvariantCulture)}"
+                + $"\n\tcell thickness = {sample.cellThickness.ToString("G", CultureInfo.InvariantCulture)}"
+                + $"\n\t\u03BC (cell,sample) = ({sample.muCell.ToString("G", CultureInfo.InvariantCulture)},{sample.muSample.ToString("G", CultureInfo.InvariantCulture)})"
+                + $"\n\tgrid resolution = {sample.gridResolution}";
+            var absStrings = 
+                "ABSORPTION:" 
+                + $"\n\tmode = {absorption.mode.ToString()}"
+                + "\n\ttargets = [(s,sc),(c,sc),(c,c)]";
+            string angleStrings = null;
+            if (absorption.mode == AbsorptionProperties.Mode.Integrated) 
+                angleStrings = 
+                    "RING ANGLES:"
+                    + $"\n\tstart = {angle.angleStart.ToString("G", CultureInfo.InvariantCulture)}°"
+                    + $"\n\tend = {angle.angleEnd.ToString("G", CultureInfo.InvariantCulture)}°"
+                    + $"\n\tcount = {angle.angleCount:D}";
+            string detStrings = null;
+            if (absorption.mode == AbsorptionProperties.Mode.Area ||
+                absorption.mode == AbsorptionProperties.Mode.Integrated)
+            {
+                detStrings =
+                    "DETECTOR:"
+                    + $"\n\tpixel count (x,y) = {detector.resolution.ToString("G", CultureInfo.InvariantCulture)}"
+                    + $"\n\tpixel size (x,y) = {detector.pixelSize.ToString("G", CultureInfo.InvariantCulture)}"
+                    + $"\n\tcapillary offset (x,y) = {detector.offset.ToString("G", CultureInfo.InvariantCulture)}"
+                    + $"\n\tcapillary distance = {detector.distToSample.ToString("G", CultureInfo.InvariantCulture)}";
+            }
+            var rayStrings =
+                "RAY:"
+                + $"\n\tprofile = {ray.profile.ToString()}"
+                + $"\n\tdimensions (x,y) = {ray.dimensions.ToString("G")}"
+                + $"\n\toffset (x,y) = {ray.dimensions.ToString("G")}";
+
+            var conditionalStrings = 
+                string.Join(angleStrings == null || detStrings == null ? "" : "\n", detStrings, angleStrings);
+            var preamble = string.Join("\n", capStrings, absStrings, rayStrings, conditionalStrings);
+            var width = preamble.Split('\n').Select(l => l.Length).Max();
+
+            return preamble + "\n" + new string('-', width) + "\n";
         }
     }
 }

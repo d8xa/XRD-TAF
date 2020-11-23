@@ -244,6 +244,8 @@ namespace adapter
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 
+            var headRow = properties.OutputPreamble() + "\n";
+            
             if (Settings.flags.planeModeWriteSeparateFiles)
             {
                 float[,] current = new float[_nrAnglesAlpha, _nrAnglesTheta];
@@ -255,14 +257,14 @@ namespace adapter
                     
                     stopwatch.Record(Category.IO, () =>
                     {
-                        ArrayWriteTools.Write2D(savePath.Replace("[mode=1]", $"[mode=1][case={col}]"), current,
-                            reverse: true);
+                        ArrayWriteTools.Write2D(savePath.Replace("[mode=1]", $"[mode=1][case={col}]"),
+                            null, headRow, current, reverse: true);
                     });
                 }
             }
             else 
                 stopwatch.Record(Category.IO, 
-                    () => ArrayWriteTools.Write2D(savePath, _absorptionFactors, reverse: true));
+                    () => ArrayWriteTools.Write2D(savePath, null, headRow, _absorptionFactors, reverse: true));
         }
 
         protected override void Cleanup()
