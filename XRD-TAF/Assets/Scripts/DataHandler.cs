@@ -383,6 +383,12 @@ public class DataHandler : MonoBehaviour
 
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Logger initialized.");
         Compute(mainPanel.preset, logger, null, Settings.Flags.WriteFactors);
+        if (Settings.flags.writeLogs)
+        {
+            var path = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.LogFolderName,
+                $"{DateTime.Now:yyyy-MM-ddTHH.mm.ss} Log.txt");
+            logger.WriteToFile(path);
+        }
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter executed.");
     }
 

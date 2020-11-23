@@ -83,9 +83,15 @@ namespace tests
             public static InputInfo FromPreset(Preset preset)
             {
                 var inputInfo = new InputInfo();
-                
-                var nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(), 
-                    Settings.DefaultValues.InputFolderName, preset.properties.angle.pathToAngleFile + ".txt")).Length;
+
+                var nrAngles = 0;
+                if (preset.properties.absorption.mode != AbsorptionProperties.Mode.Area)
+                {
+                    nrAngles = Parser.ImportAngles(Path.Combine(Directory.GetCurrentDirectory(),
+                            Settings.DefaultValues.InputFolderName, preset.properties.angle.pathToAngleFile + ".txt"))
+                        .Length;
+                }
+
                 inputInfo.mode = (int) preset.properties.absorption.mode;
                 inputInfo.res = preset.properties.sample.gridResolution;
                 

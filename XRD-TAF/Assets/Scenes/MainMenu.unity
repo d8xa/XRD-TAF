@@ -618,7 +618,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Grid Resolution
+  m_Text: Grid resolution
 --- !u!222 &120698847
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1322,9 +1322,9 @@ MonoBehaviour:
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
-    m_VerticalOverflow: 0
+    m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: Path Angle-File
+  m_Text: Filename of angle list
 --- !u!222 &171913456
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1710,7 +1710,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Total Diameter
+  m_Text: Total diameter
 --- !u!222 &216237687
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4420,7 +4420,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Ray Dimensions (X,Y)
+  m_Text: Ray dimensions (X,Y)
 --- !u!222 &565160202
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7048,7 +7048,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Cell Thickness
+  m_Text: Cell thickness
 --- !u!222 &883081493
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7242,7 +7242,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Mu Sample
+  m_Text: "\xB5 (sample)"
 --- !u!222 &906137690
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7508,7 +7508,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Angle Parameters
+  m_Text: 'Ring parameters
 
 '
 --- !u!222 &963081619
@@ -8496,7 +8496,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Mu Cell
+  m_Text: "\xB5 (cell)"
 --- !u!222 &1021291495
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9455,9 +9455,9 @@ MonoBehaviour:
     m_AlignByGeometry: 0
     m_RichText: 1
     m_HorizontalOverflow: 0
-    m_VerticalOverflow: 0
+    m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: Distance To Sample
+  m_Text: Detector/sample distance
 --- !u!222 &1213975048
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -10453,7 +10453,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Computing Mode
+  m_Text: Experiment style
 --- !u!222 &1318451813
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -10480,7 +10480,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1324804298
 RectTransform:
   m_ObjectHideFlags: 0
@@ -11079,7 +11079,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Ray Offset (X,Y)
+  m_Text: Ray offset (X,Y)
 --- !u!222 &1374066331
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -14385,7 +14385,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Resolution (Width, Height)
+  m_Text: Resolution (W, H)
 --- !u!222 &1838196626
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -15796,8 +15796,6 @@ MonoBehaviour:
       m_Image: {fileID: 0}
     - m_Text: Integrated
       m_Image: {fileID: 0}
-    - m_Text: Testing
-      m_Image: {fileID: 0}
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
@@ -16906,7 +16904,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Ray Profile
+  m_Text: "Ray profile\t"
 --- !u!222 &2056182651
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -17266,7 +17264,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: Pixelsize (X,Y)
+  m_Text: Pixel size (X,Y)
 --- !u!222 &2080674722
 CanvasRenderer:
   m_ObjectHideFlags: 0

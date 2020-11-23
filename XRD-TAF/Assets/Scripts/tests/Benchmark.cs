@@ -117,7 +117,7 @@ namespace tests
         {
             var saveDir = Path.Combine(Directory.GetCurrentDirectory(), Settings.DefaultValues.BenchmarkFolderName);
             Directory.CreateDirectory(saveDir);
-            var path = Path.Combine(saveDir, Settings.DefaultValues.BenchmarkFileName);
+            var path = Path.Combine(saveDir, $"{DateTime.Now:yyyy-MM-ddTHH.mm.ss} " + Settings.DefaultValues.BenchmarkFileName);
 
             var rows = new List<string> {string.Join(separator, _reports[0].headRow)};
             rows.AddRange(_reports

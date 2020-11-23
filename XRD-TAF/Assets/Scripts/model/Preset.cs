@@ -197,7 +197,7 @@ namespace model
                 "RAY:"
                 + $"\n\tprofile = {ray.profile.ToString()}"
                 + $"\n\tdimensions (x,y) = {ray.dimensions.ToString("G")}"
-                + $"\n\toffset (x,y) = {ray.dimensions.ToString("G")}";
+                + $"\n\toffset (x,y) = {ray.offset.ToString("G")}";
 
             var conditionalStrings = 
                 string.Join(angleStrings == null || detStrings == null ? "" : "\n", detStrings, angleStrings);

@@ -101,9 +101,7 @@ namespace adapter
                 .Select(AsRadian)
                 .Select(Rotation.FromAngle)
                 .ToArray();
-            logger.Log(Logger.EventType.Inspect, 
-                $"{Context(method)}: rotations = [{string.Join(",", _rotations.Select(v => v.ToString()))}]");
-            
+
             ComputeIndicatorMask();
             
             // count diffracting points in each case.
@@ -117,7 +115,7 @@ namespace adapter
                 .ToArray();
             _nrDiffractionPoints = new Vector2(_innerIndices.Length, _outerIndices.Length);
             logger.Log(Logger.EventType.Step, 
-                $"I{Context(method)}: found {_nrDiffractionPoints} diffraction points (of {_nrCoordinates}).");
+                $"{Context(method)}: found {_nrDiffractionPoints} diffraction points (of {_nrCoordinates}).");
             
             logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: done.");
         }

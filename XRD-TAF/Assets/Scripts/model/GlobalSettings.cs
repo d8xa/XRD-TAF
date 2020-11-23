@@ -92,6 +92,7 @@ namespace model
             public static readonly Encoding Encoding = Encoding.UTF8;
             public const string SerializedExtension = ".json";
             public const string InputFolderName = "Input";
+            public const string LogFolderName = "Logs";
             public const string OutputFolderName = "Output";
             public const string PresetFolderName = "Presets";
             public const string SettingsFolderName = "Settings";
@@ -133,7 +134,7 @@ namespace model
             /// In integrated mode, clip angles outside of the detector range.
             /// </summary>
             [DataMember] public bool clipAngles = true;
-            
+
             /// <summary>
             /// Write logs. If enabled, useLogging is set to true. 
             /// </summary>
