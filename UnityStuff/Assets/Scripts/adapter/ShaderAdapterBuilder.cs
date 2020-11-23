@@ -51,7 +51,6 @@ namespace adapter
                     break;
             }
 
-            if (adapter != null) adapter.SetReport(_report);
             return adapter;
         }
 

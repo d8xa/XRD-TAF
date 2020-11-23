@@ -107,9 +107,7 @@ namespace adapter
         protected virtual void Cleanup() {}
         
         protected internal PerformanceReport GetReport() => stopwatch;
-
-        protected internal void SetReport(PerformanceReport report) => stopwatch = report;
-
+        
         #endregion
     }
 }

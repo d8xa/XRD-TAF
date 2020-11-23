@@ -241,9 +241,7 @@ namespace adapter
                         (float) Math.Sin(Math.PI - tau));
                 
                     // compute g2 distances.
-                    logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g2 distances kernel dispatch.");
                     stopwatch.Record(Category.Shader, () => shader.Dispatch(handlePart2, threadGroupsX, 1, 1));
-                    logger.Log(Logger.EventType.ShaderInteraction, $"{Context(method)}: g2 distances kernel return.");
 
                     // set iterative buffers for absorption factors kernel.
                     stopwatch.Record(Category.Buffer, () =>
