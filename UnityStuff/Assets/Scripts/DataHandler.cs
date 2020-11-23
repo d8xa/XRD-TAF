@@ -87,7 +87,11 @@ public class DataHandler : MonoBehaviour
         GoToPanel(Panel.Main);
         mainPanel.settingsButton.onClick.AddListener(() => GoToPanel(Panel.Settings));
         settingsPanel.closeButton.onClick.AddListener(() => GoToPanel(Panel.Main));
-        
+
+        // not yet supported.
+        mainPanel.dropdownRayProfile.interactable = false;
+        mainPanel.fieldRayDimensionsY.interactable = false;
+        mainPanel.fieldRayOffsetY.interactable = false;
 
         // Loading/saving buttons: 
         // only enable buttons when filename is not empty.
@@ -166,7 +170,6 @@ public class DataHandler : MonoBehaviour
     }
 
     #region Testing
-    
     
     private void CompareTestData(Logger logger, List<Preset> presets, List<AbsorptionProperties.Mode> modes)
     {
