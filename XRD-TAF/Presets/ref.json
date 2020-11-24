@@ -1,0 +1,52 @@
+{
+	"metadata": {
+		"description": null,
+		"pathInputData": null,
+		"pathOutputData": "testing",
+		"saveName": "ref"
+	},
+	"properties": {
+		"absorption": {
+			"mode": 2
+		},
+		"angle": {
+			"angleCount": 30,
+			"angleEnd": 90,
+			"angleStart": 0,
+			"pathToAngleFile": "(0,180,1.0)"
+		},
+		"detector": {
+			"distToSample": 240.18,
+			"offset": {
+				"x": 4.26,
+				"y": 4.7
+			},
+			"pixelSize": {
+				"x": 1.6,
+				"y": 1.6
+			},
+			"resolution": {
+				"x": 256,
+				"y": 256
+			}
+		},
+		"ray": {
+			"dimensions": {
+				"x": 1.1,
+				"y": 0
+			},
+			"offset": {
+				"x": 0,
+				"y": 0
+			},
+			"profile": 0
+		},
+		"sample": {
+			"cellThickness": 0.05,
+			"gridResolution": 180,
+			"muCell": 0.054644,
+			"muSample": 0.668631,
+			"totalDiameter": 1
+		}
+	}
+}

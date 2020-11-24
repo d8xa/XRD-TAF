@@ -1,0 +1,76 @@
+﻿#pragma kernel get_indicator
+#pragma kernel get_dists_part1
+#pragma kernel get_absorptions
+
+#include "Shared.compute"
+
+// PARAMETERS (constant):
+float2 r;                                       // (cell,sample) radius of the medium.
+float2 r2;                                      // r^2.
+float2 mu;                                      // (cell,sample) mass attenuation coefficient.
+float2 ray_dim;                                 // (width,height) dimensions of the ray.
+float2 ray_offset;                              // (x,y) offset of the ray, relative to capillary center.
+
+// PARAMETERS (variable):
+float2 rot;                                     // (cos,sin) of the coordinate rotation by pi-theta.
+
+// BUFFERS (read-only):
+StructuredBuffer<float2> coordinates;           // list of given coordinates in the medium cross-section.
+
+// BUFFERS (variable):
+RWStructuredBuffer<float2> distances_cell;      // Ray travel distance through cell.
+RWStructuredBuffer<float2> distances_sample;    // Ray travel distance through sample.
+RWStructuredBuffer<float3> absorptions;         // Point-wise absorption factors at coordinate.
+RWStructuredBuffer<uint2> indicator_mask;       // Point-wise indicator if ray diffraction happens at coordinate.
+
+
+
+/**
+ * \brief Compute ray travel distance in capillary from entry point to diffraction point, through each material. 
+ */
+[numthreads(1024,1,1)]
+void get_dists_part1(uint3 id : SV_DispatchThreadID)
+{
+    distances_cell[id.x] = get_dists_case2(coordinates[id.x], r, r2); 
+    distances_sample[id.x] = get_dists_case1(coordinates[id.x], r, r2);
+}
+
+
+/**
+* \brief Compute indicator mask to indicate in which material coordinate[id.x] is located.
+*/
+[numthreads(1024,1,1)]
+void get_indicator(uint3 id : SV_DispatchThreadID)
+{
+    float norm = length(coordinates[id.x]);
+    
+    if (norm <= r.x && abs(coordinates[id.x].y - ray_offset.x) <= ray_dim.x)
+    {
+        if (norm > r.y) indicator_mask[id.x].y = 1;   // case A_{c,sc}.
+        else indicator_mask[id.x].x = 1;              // case A_{s,sc}.
+    }
+}
+
+
+/**
+* \brief Compute absorption factors for ray travel distances.
+*/
+[numthreads(1024,1,1)]
+void get_absorptions(uint3 id : SV_DispatchThreadID){
+    float2 rv = rotate_point(coordinates[id.x], rot);
+    float norm = length(coordinates[id.x]);
+    
+    if (norm <= r.x && abs(coordinates[id.x].y - ray_offset.x) <= ray_dim.x)
+    {
+        if (norm > r.y)
+        {
+            float2 d_outer = distances_cell[id.x] + get_dists_case2(rv, r, r2);
+            absorptions[id.x].y = exp(-dot(mu, d_outer));                 // case A_{c,sc}.
+            absorptions[id.x].z = exp(-dot(float2(mu.x, 0.0), d_outer));  // case A_{c,c}.
+        }
+        else 
+        {
+            absorptions[id.x].x = exp(-dot(mu, distances_sample[id.x] + get_dists_case1(rv, r, r2)));    // case A_{s,sc}.
+        }
+    }
+}
