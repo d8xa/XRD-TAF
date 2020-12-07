@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using model;
+using tests;
 using UnityEngine;
 using util;
 using static tests.PerformanceReport.TimeInterval;
@@ -42,8 +43,9 @@ namespace adapter
             ComputeShader shader, 
             Preset preset,
             bool writeFactors,
-            Logger customLogger
-        ) : base(shader, preset, writeFactors, customLogger)
+            Logger customLogger,
+            PerformanceReport performanceReport
+        ) : base(shader, preset, writeFactors, customLogger, null, performanceReport)
         {
             if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{nameof(PlaneModeAdapter)} created.");

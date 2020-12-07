@@ -20,7 +20,7 @@ namespace adapter
         private Preset _preset;
         private static Dictionary<AbsorptionProperties.Mode, ComputeShader> _shaderMapping;
         private Logger _logger;
-        private PerformanceReport _report;    // TODO: use in ShaderAdapter.
+        private PerformanceReport _report;
         private double[] _angles;
         
         #endregion
@@ -41,13 +41,13 @@ namespace adapter
             switch (_preset.properties.absorption.mode)
             {
                 case AbsorptionProperties.Mode.Point:
-                    adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger, _angles);
+                    adapter = new PointModeAdapter(_shader, _preset, _writeFactors, _logger, _angles, _report);
                     break;
                 case AbsorptionProperties.Mode.Area:
-                    adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger);
+                    adapter = new PlaneModeAdapter(_shader, _preset, _writeFactors, _logger, _report);
                     break;
                 case AbsorptionProperties.Mode.Integrated:
-                    adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger, _angles);
+                    adapter = new IntegratedModeAdapter(_shader, _preset, _writeFactors, _logger, _angles, _report);
                     break;
             }
 

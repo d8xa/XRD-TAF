@@ -13,7 +13,7 @@
 			"angleCount": 30,
 			"angleEnd": 90,
 			"angleStart": 0,
-			"pathToAngleFile": "(0,180,1.0)"
+			"pathToAngleFile": null
 		},
 		"detector": {
 			"distToSample": 240.18,

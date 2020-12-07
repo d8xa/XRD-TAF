@@ -48,10 +48,11 @@ namespace ui
       public InputField fieldRayOffsetY;
       public Dropdown dropdownRayProfile;
 
-      public Preset selectedPreset;    // use if a saved preset was selected (incl. default).
       internal Preset preset;     // use for current state of properties.
+      
+      // TODO: implement
+      public Preset selectedPreset;    // use if a saved preset was selected (incl. default).
       private bool presetHasChanged;
-      // TODO: remember to deep-copy the preset!
 
       // for component-wise / group-wise selection of case-specific input fields.
       public GameObject inputGroupDetector;
@@ -135,7 +136,7 @@ namespace ui
 
       public void FillFromPreset(Preset source)
       {
-         FillFromPreset(source.metadata);   // not necessary for
+         FillFromPreset(source.metadata);
          FillFromPreset(source.properties.absorption);
          FillFromPreset(source.properties.angle);
          FillFromPreset(source.properties.detector);

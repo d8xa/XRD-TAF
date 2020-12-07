@@ -49,8 +49,9 @@ namespace adapter
             Preset preset, 
             bool writeFactors, 
             Logger customLogger,
-            double[] angles
-        ) : base(shader, preset, writeFactors, customLogger, angles)
+            double[] angles,
+            PerformanceReport performanceReport
+        ) : base(shader, preset, writeFactors, customLogger, angles, performanceReport)
         {
             if (logger == null) SetLogger(customLogger);
             logger.Log(Logger.EventType.Class, $"{CLASS_NAME} created.");

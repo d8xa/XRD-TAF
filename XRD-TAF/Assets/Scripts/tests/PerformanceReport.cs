@@ -16,7 +16,6 @@ namespace tests
         private InputInfo _inputInfo;
         private LinkedList<TimeInterval> _total, _shader, _buffer, _io;
         private Stack<TimeInterval> _intervals;
-        // TODO: use stack or deque for nested intervals.
 
         public readonly List<string> headRow = new List<string> {
             "time-total", "time-shader", "time-buffer", "time-io",          // time

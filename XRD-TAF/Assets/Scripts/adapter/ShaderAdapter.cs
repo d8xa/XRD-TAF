@@ -14,7 +14,7 @@ namespace adapter
         #region Fields
 
         protected Logger logger;
-        protected PerformanceReport stopwatch;
+        internal PerformanceReport stopwatch;
         protected readonly bool writeFactors;
         
         private protected readonly ComputeShader shader;
@@ -49,7 +49,8 @@ namespace adapter
             Preset preset, 
             bool writeFactors, 
             Logger logger = null, 
-            double[] angles = null
+            double[] angles = null,
+            PerformanceReport performanceReport = null
             )
         {
             this.shader = shader;
@@ -57,11 +58,12 @@ namespace adapter
             metadata = preset.metadata;
             this.writeFactors = writeFactors;
             if (logger != null) SetLogger(logger);
-            if (stopwatch == null)
+            if (performanceReport == null)
             {
                 var info = PerformanceReport.InputInfo.FromPreset(preset);
                 stopwatch = new PerformanceReport(info);
             }
+            else stopwatch = performanceReport;
             if (angles != null) this.angles = angles;
             
             stopwatch.Start(PerformanceReport.TimeInterval.Category.Total);

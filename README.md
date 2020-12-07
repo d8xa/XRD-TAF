@@ -109,7 +109,7 @@ The directory where the app searches for angle lists. Lists are expected to have
 #### Logs
 
 If enabled in the settings, log files will be saved in this folder.
-The log filename will be `<timestamp> log.txt`. Will be overwritten on each execution.
+The log filename will be `<timestamp> log.txt`.
 
 #### Output
 

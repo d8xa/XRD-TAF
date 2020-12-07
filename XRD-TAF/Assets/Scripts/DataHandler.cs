@@ -349,7 +349,7 @@ public class DataHandler : MonoBehaviour
         _shaderAdapter = _builder
             .SetLogger(logger)
             .SetWriteFactors(write)
-            .SetPerformanceReport(report)    // TODO: see if report is generated correctly, otherwise use report as return.
+            .SetPerformanceReport(report)
             .SetProperties(preset)
             .SetAngles(angles)
             .AutoSetShader()
