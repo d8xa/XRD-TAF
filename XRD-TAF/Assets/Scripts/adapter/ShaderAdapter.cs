@@ -94,6 +94,7 @@ namespace adapter
             Compute();
             Cleanup();
             if (writeFactors) Write();
+            SetStatusMessage("Done.");
             stopwatch.Stop(PerformanceReport.TimeInterval.Category.Total);
         }
         

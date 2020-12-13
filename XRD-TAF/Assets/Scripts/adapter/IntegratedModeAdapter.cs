@@ -291,7 +291,7 @@ namespace adapter
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 
-            var headRow = properties.OutputPreamble() + "\n" +
+            var headRow = (Settings.flags.useOutputPreamble ? properties.OutputPreamble() + "\n" : "") +
                           string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
@@ -361,7 +361,7 @@ namespace adapter
         private static Vector3 GetRingAverage(ICollection<Vector3> ringValues)
         {
             if (ringValues.Count == 0) 
-                return Vector3.positiveInfinity;    // untested.
+                return Vector3.positiveInfinity;
             return new Vector3(
                 ringValues.AsParallel().Select(v => v.x).Average(),
                 ringValues.AsParallel().Select(v => v.y).Average(),

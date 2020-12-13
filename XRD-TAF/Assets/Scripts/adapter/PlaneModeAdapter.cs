@@ -60,7 +60,7 @@ namespace adapter
         {
             const string method = nameof(InitializeOtherFields);
             logger.Log(Logger.EventType.InitializerMethod, $"{Context(method)}: started.");
-            SetStatusMessage($"Step 1/{(writeFactors ? 4 : 3)}: Initializing...");
+            //SetStatusMessage($"Step 1/{(writeFactors ? 4 : 3)}: Initializing...");
             
             _nrAnglesTheta = properties.detector.resolution.x;
             _nrAnglesAlpha = properties.detector.resolution.y;
@@ -97,7 +97,7 @@ namespace adapter
         {
             const string method = nameof(ComputeIndicatorMask);
             logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
-            SetStatusMessage($"Step 2/{(writeFactors ? 4 : 3)}: Computing indicator mask...");
+            //SetStatusMessage($"Step 2/{(writeFactors ? 4 : 3)}: Computing indicator mask...");
 
             stopwatch.Record(Category.Buffer, SetShaderConstants);
             stopwatch.Start(Category.Shader);
@@ -127,7 +127,7 @@ namespace adapter
         {
             const string method = nameof(Compute);
             logger.Log(Logger.EventType.Method, $"{Context(method)}: started.");
-            SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Computing absorption factors...");
+            //SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Computing absorption factors...");
             
 
             // initialize parameters in shader.
@@ -236,7 +236,7 @@ namespace adapter
         
         protected override void Write()
         {
-            SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
+            //SetStatusMessage($"Step 3/{(writeFactors ? 4 : 3)}: Saving results to disk...");
 
             var saveFolderTop = FieldParseTools.IsValue(metadata.pathOutputData) ? metadata.pathOutputData : "";
             var saveFolderBottom = FieldParseTools.IsValue(metadata.saveName) ? metadata.saveName : "No preset";
@@ -246,7 +246,7 @@ namespace adapter
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 
-            var headRow = properties.OutputPreamble() + "\n";
+            var headRow = Settings.flags.useOutputPreamble ? properties.OutputPreamble() + "\n" : null;
             
             if (Settings.flags.planeModeWriteSeparateFiles)
             {
@@ -256,17 +256,21 @@ namespace adapter
                     for (int j = 0; j < _nrAnglesTheta; j++)
                     for (int i = 0; i < _nrAnglesAlpha; i++)
                         current[i, j] = _absorptionFactors[i, j][col];
-                    
+
+                    var row = Settings.flags.useOutputPreamble ? properties.OutputPreamble(new[] {col}) + "\n" : null;
+                    var caseStr = new[] {"(s,sc)", "(c,sc)", "(c,c)"}[col];
                     stopwatch.Record(Category.IO, () =>
                     {
-                        ArrayWriteTools.Write2D(savePath.Replace("[mode=1]", $"[mode=1][case={col}]"),
-                            null, headRow, current, reverse: true);
+                        ArrayWriteTools.Write2D(savePath.Replace("[mode=1]", $"[mode=1][case={caseStr}]"),
+                            null, row, current, reverse: true);
                     });
                 }
             }
             else 
                 stopwatch.Record(Category.IO, 
                     () => ArrayWriteTools.Write2D(savePath, null, headRow, _absorptionFactors, reverse: true));
+            
+            SetStatusMessage("Done.");
         }
 
         protected override void Cleanup()
@@ -276,8 +280,6 @@ namespace adapter
                 _inputBuffer.Release();
                 _maskBuffer.Release();
             });
-            
-            SetStatusMessage("Done.");
             
             base.Cleanup();
         }

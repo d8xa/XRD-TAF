@@ -20,7 +20,8 @@ namespace ui
         public Toggle toggleRadian;
         public Toggle toggleClipAngles;
         public Toggle toggleWriteLogs;
-        
+        public Toggle togglePreamble;
+
         // copy of Settings members to store unsaved changes.
         private Settings.Flags _flags;
         private Settings.DefaultValues _defaults;
@@ -103,6 +104,12 @@ namespace ui
                 _flags.clipAngles = value;
                 CheckForChanges();
             });
+            
+            togglePreamble.onValueChanged.AddListener(value =>
+            {
+                _flags.useOutputPreamble = value;
+                CheckForChanges();
+            });
         }
 
         private bool IsMarginValid(float? value) => 0 <= value && value <= 100;
@@ -123,6 +130,7 @@ namespace ui
             toggleRadian.isOn = _flags.useRadian;
             toggleClipAngles.isOn = _flags.clipAngles;
             toggleWriteLogs.isOn = _flags.writeLogs;
+            togglePreamble.isOn = _flags.useOutputPreamble;
         }
 
         private void CheckForChanges()
@@ -135,6 +143,7 @@ namespace ui
                 _hasUnsavedChanges = true;
             else if (_flags.clipAngles != Settings.flags.clipAngles) _hasUnsavedChanges = true;
             else if (_flags.writeLogs != Settings.flags.writeLogs) _hasUnsavedChanges = true;
+            else if (_flags.useOutputPreamble != Settings.flags.useOutputPreamble) _hasUnsavedChanges = true;
             else _hasUnsavedChanges = false;
             
             saveChanges.gameObject.SetActive(_hasUnsavedChanges);

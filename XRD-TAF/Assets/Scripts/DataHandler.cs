@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using UnityEngine;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,7 @@ using ui;
 using UnityEngine.UI;
 using util;
 using Button = UnityEngine.UI.Button;
+using Debug = UnityEngine.Debug;
 using Logger = util.Logger;
 
 public class DataHandler : MonoBehaviour
@@ -115,7 +117,7 @@ public class DataHandler : MonoBehaviour
         runABTestsButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
         runABTestsButton.onClick.AddListener(RunABTests);
         
-        runBenchmarkButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
+        //runBenchmarkButton.gameObject.SetActive(Settings.Flags.IsDebugBuild);
         runBenchmarkButton.onClick.AddListener(() =>
         {
             loadFileName.text = "benchmark";
@@ -376,7 +378,10 @@ public class DataHandler : MonoBehaviour
         const string method = nameof(SubmitToComputing);
         
         //FillInBlanks();    // TODO
-
+        var startTime = DateTime.Now;
+        var sw = new Stopwatch();
+        sw.Start();
+        
         var logger = new Logger()
             .SetPrintLevel(Logger.LogLevel.Custom)
             .SetPrintFilter(new List<Logger.EventType> {Logger.EventType.Inspect, Logger.EventType.Warning});
@@ -390,6 +395,9 @@ public class DataHandler : MonoBehaviour
             logger.WriteToFile(path);
         }
         logger.Log(Logger.EventType.Info, $"{Scope(method)}: Shader adapter executed.");
+        
+        sw.Stop();
+        SetStatusMessage($"Last job executed at {startTime:T}.\nTime elapsed: {sw.Elapsed:g}.");
     }
 
     public void SavePreset()

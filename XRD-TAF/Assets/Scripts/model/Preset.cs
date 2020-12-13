@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -163,18 +165,23 @@ namespace model
             return "[mode=?] [dims=?] Output.txt";;
         }
 
-        internal string OutputPreamble()
+        internal string OutputPreamble() => OutputPreamble(new[] {0,1,2});
+        internal string OutputPreamble(IEnumerable<int> whichTargets)
         {
-            var capStrings = 
+            var capStrings =
                 "CAPILLARY:"
                 + $"\n\tdiameter = {sample.totalDiameter.ToString("G", CultureInfo.InvariantCulture)}"
                 + $"\n\tcell thickness = {sample.cellThickness.ToString("G", CultureInfo.InvariantCulture)}"
                 + $"\n\t\u03BC (cell,sample) = ({sample.muCell.ToString("G", CultureInfo.InvariantCulture)},{sample.muSample.ToString("G", CultureInfo.InvariantCulture)})"
                 + $"\n\tgrid resolution = {sample.gridResolution}";
-            var absStrings = 
-                "ABSORPTION:" 
+            var absStrings =
+                "ABSORPTION:"
                 + $"\n\tmode = {absorption.mode.ToString()}"
-                + "\n\ttargets = [(s,sc),(c,sc),(c,c)]";
+                + "\n\ttargets = [" + 
+                string.Join(",", whichTargets
+                    .Where(i => i >= 0 && i < 3)
+                    .Select(i => new[] {"(s,sc)", "(c,sc)", "(c,c)"}[i]))
+                + "]";
             string angleStrings = null;
             if (absorption.mode == AbsorptionProperties.Mode.Integrated) 
                 angleStrings = 

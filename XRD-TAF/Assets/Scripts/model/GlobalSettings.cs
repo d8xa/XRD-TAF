@@ -55,6 +55,7 @@ namespace model
             target.useRadian = source.useRadian;
             target.clipAngles = source.clipAngles;
             target.writeLogs = source.writeLogs;
+            target.useOutputPreamble = source.useOutputPreamble;
         }
 
         public static void CopyUserSettings(DefaultValues source, DefaultValues target)
@@ -139,16 +140,21 @@ namespace model
             /// Write logs. If enabled, useLogging is set to true. 
             /// </summary>
             [DataMember] public bool writeLogs;
+            
+            /// <summary>
+            /// If enabled, prepends a summary of the preset used to each output file.  
+            /// </summary>
+            [DataMember] public bool useOutputPreamble;
 
             #region Internal settings
 
             /// <summary>
             /// Toggle to switch on or off the use of Logger objects.
+            /// Overridden by toggle writeLogs.
             /// </summary>
-            //[DataMember]
             public bool useLogging;
             
-            public const bool IsDebugBuild = true;
+            public const bool IsDebugBuild = false;
             public const bool WriteFactors = true;
 
             #endregion
@@ -162,7 +168,8 @@ namespace model
                     fillEmptyWithDefault = fillEmptyWithDefault,
                     useRadian = useRadian,
                     clipAngles = clipAngles,
-                    writeLogs = writeLogs
+                    writeLogs = writeLogs,
+                    useOutputPreamble = useOutputPreamble
                 };
                 return flags;
             }

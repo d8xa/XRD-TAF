@@ -29,7 +29,7 @@ namespace adapter
         
         private ComputeBuffer _inputBuffer;
         
-        private const string CLASS_NAME = nameof(PlaneModeAdapter);
+        private const string CLASS_NAME = nameof(PointModeAdapter);
         private static string Context(string methodName, string className = CLASS_NAME)
         {
             return $"{className}.{methodName}()";
@@ -106,6 +106,7 @@ namespace adapter
             stopwatch.Record(Category.Buffer, () =>
             {
                 _inputBuffer.SetData(coordinates);
+                maskBuffer.SetData(new Vector2[coordinates.Length]);
                 
                 shader.SetBuffer(handleIndicator, "coordinates", _inputBuffer);
                 shader.SetBuffer(handleIndicator, "indicator_mask", maskBuffer);
@@ -236,8 +237,8 @@ namespace adapter
             var savePath = Path.Combine(saveDir, saveFileName);
             Directory.CreateDirectory(saveDir);
 
-            var headRow = properties.OutputPreamble() + "\n" +
-                string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
+            var headRow = (Settings.flags.useOutputPreamble ? properties.OutputPreamble() + "\n" : "") +
+                          string.Join("\t", "2 theta", "A_{s,sc}", "A_{c,sc}", "A_{c,c}");
             var headCol = angles
                 .Select(v => !Settings.flags.useRadian ? AsDegree(v): v)
                 .Select(angle => angle.ToString("G", CultureInfo.InvariantCulture))
@@ -248,7 +249,7 @@ namespace adapter
                 data[i, j] = _absorptionFactors[i][j];
 
             ArrayWriteTools.Write2D(savePath, headCol, headRow, data);
-            logger.Log(Logger.EventType.Step, $"{Context(Context(method))}: done.");
+            logger.Log(Logger.EventType.Step, $"{Context(method)}: done.");
         }
         
         
