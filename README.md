@@ -4,6 +4,16 @@
 
 A GUI app to compute theoretical xray absorption factors (for xray diffracted in a capillary) efficiently on the device's GPU. Made with C#/Unity.
 
+### Collaborators
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/AcediaKleea"><img src="https://avatars.githubusercontent.com/u/31656388?v=4?s=100" width="100px;" alt=""/><br /><sub><b>AcediaKleea</b></sub></a><br /></td>
+    <td align="center"><a href="https://github.com/d8xa"><img src="https://avatars.githubusercontent.com/u/40372844?v=4?s=100" width="100px;" alt=""/><br /><sub><b>d8xa</b></sub></a><br /></td> 
+    <td align="center"><a href="https://github.com/zzfab"><img src="https://avatars.githubusercontent.com/u/35594229?v=4?s=100" width="100px;" alt=""/><br /><sub><b>zzfab</b></sub></a><br /></td>   
+  <tr>    
+<table>
+
 ## Installation
 
 Download the latest release [here](https://github.com/d8xa/XRD-TAF/releases/latest). Extract the zip file and put the folder wherever you want to run the app.
