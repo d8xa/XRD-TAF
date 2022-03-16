@@ -8,9 +8,9 @@ A GUI app to compute theoretical xray absorption factors (for xray diffracted in
 
 <table>
   <tr>
-    <td align="center"><a href="https://github.com/AcediaKleea"><img src="https://avatars.githubusercontent.com/u/31656388?v=4?s=100" width="100px;" alt=""/><br /><sub><b>AcediaKleea</b></sub></a><br /></td>
-    <td align="center"><a href="https://github.com/d8xa"><img src="https://avatars.githubusercontent.com/u/40372844?v=4?s=100" width="100px;" alt=""/><br /><sub><b>d8xa</b></sub></a><br /></td> 
-    <td align="center"><a href="https://github.com/zzfab"><img src="https://avatars.githubusercontent.com/u/35594229?v=4?s=100" width="100px;" alt=""/><br /><sub><b>zzfab</b></sub></a><br /></td>   
+    <td align="center"><a href="https://github.com/AcediaKleea"><img src="https://avatars.githubusercontent.com/u/31656388?v=4?s=100" width="70px;" alt=""/><br /><sub><b>AcediaKleea</b></sub></a><br /></td>
+    <td align="center"><a href="https://github.com/d8xa"><img src="https://avatars.githubusercontent.com/u/40372844?v=4?s=100" width="70px;" alt=""/><br /><sub><b>d8xa</b></sub></a><br /></td> 
+    <td align="center"><a href="https://github.com/zzfab"><img src="https://avatars.githubusercontent.com/u/35594229?v=4?s=100" width="70px;" alt=""/><br /><sub><b>zzfab</b></sub></a><br /></td>   
   <tr>    
 <table>
 
